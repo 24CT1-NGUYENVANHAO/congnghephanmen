@@ -1,0 +1,39 @@
+{% extends 'app_main/base.html' %}
+
+{% block content %}
+<h2 class="text-xl font-bold mb-4">Quản lý bài đăng của tôi</h2>
+<div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+    <table class="w-full text-left border-collapse text-sm">
+        <thead class="bg-slate-50 border-b">
+            <tr>
+                <th class="p-3">Sản phẩm</th>
+                <th class="p-3">Giá</th>
+                <th class="p-3">Trạng thái</th>
+                <th class="p-3">Thao tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for post in posts %}
+            <tr class="border-b">
+                <td class="p-3 font-medium">{{ post.title }}</td>
+                <td class="p-3">{% if post.is_free %}Tặng 0đ{% else %}{{ post.price|floatformat:0 }}đ{% endif %}</td>
+                <td class="p-3">
+                    {% if post.is_sold %}
+                        <span class="bg-slate-200 text-slate-700 text-xs px-2 py-0.5 rounded">Đã bán/Đã tặng</span>
+                    {% else %}
+                        <span class="bg-emerald-100 text-emerald-700 text-xs px-2 py-0.5 rounded">Đang hiển thị</span>
+                    {% endif %}
+                </td>
+                <td class="p-3">
+                    <a href="{% url 'toggle_sold' post.pk %}" class="text-xs bg-blue-50 text-blue-600 px-2.5 py-1 rounded hover:bg-blue-100">
+                        {% if post.is_sold %}Đánh dấu chưa bán{% else %}Đánh dấu ĐÃ BÁN{% endif %}
+                    </a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="p-4 text-center text-slate-400">Bạn chưa đăng tin nào.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

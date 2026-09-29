@@ -1,0 +1,161 @@
+{% extends 'app_main/base.html' %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        
+        <!-- Cột trái: Hình ảnh sản phẩm -->
+        <div class="space-y-3">
+            <div class="relative h-80 md:h-96 w-full rounded-2xl overflow-hidden bg-gray-50 border border-gray-100">
+                <img src="{{ post.image_url|default:'https://via.placeholder.com/600x400' }}" alt="{{ post.title }}" class="w-full h-full object-cover">
+                {% if post.is_sold %}
+                    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center">
+                        <span class="bg-red-600 text-white font-black px-4 py-2 rounded-xl text-sm tracking-wider uppercase shadow-lg">
+                            ❌ Đã Bán / Đã Nhận
+                        </span>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Cột phải: Thông tin & Hành động -->
+        <div class="flex flex-col justify-between space-y-6">
+            <div class="space-y-4">
+                <!-- Thẻ phân loại & Tình trạng -->
+                <div class="flex items-center gap-2">
+                    <span class="bg-blue-50 text-blue-600 font-bold text-xs px-3 py-1 rounded-lg">
+                        📂 {{ post.category.name|default:"Chưa phân loại" }}
+                    </span>
+                    {% if post.condition %}
+                        <span class="bg-gray-100 text-gray-600 font-bold text-xs px-3 py-1 rounded-lg">
+                            ✨ {{ post.condition }}
+                        </span>
+                    {% endif %}
+                </div>
+
+                <!-- Tiêu đề -->
+                <h1 class="text-2xl md:text-3xl font-extrabold text-gray-900 leading-tight">
+                    {{ post.title }}
+                </h1>
+
+                <!-- Giá bán -->
+                <div class="text-3xl font-black text-blue-600">
+                    {% if post.is_free or post.price == 0 %}
+                        <span class="text-emerald-600">🎁 Miễn phí (0đ)</span>
+                    {% else %}
+                        {{ post.price|floatformat:0 }} <span class="text-lg">VNĐ</span>
+                    {% endif %}
+                </div>
+
+                <!-- Khung thông tin chi tiết -->
+                <div class="bg-gray-50 rounded-xl p-4 border border-gray-100 space-y-2 text-sm text-gray-700">
+                    <div class="flex items-center gap-2">
+                        <span>👤 <strong>Người đăng:</strong></span>
+                        <span class="font-semibold text-gray-900">{{ post.seller.username }}</span>
+                    </div>
+                    {% if post.seller.email %}
+                        <div class="flex items-center gap-2">
+                            <span>✉️ <strong>Email:</strong></span>
+                            <span class="text-gray-600">{{ post.seller.email }}</span>
+                        </div>
+                    {% endif %}
+                    {% if post.course_code %}
+                        <div class="flex items-center gap-2">
+                            <span>📚 <strong>Mã môn học:</strong></span>
+                            <span class="bg-white px-2 py-0.5 rounded border font-mono text-xs text-blue-600 font-bold">{{ post.course_code }}</span>
+                        </div>
+                    {% endif %}
+                    {% if post.faculty %}
+                        <div class="flex items-center gap-2">
+                            <span>🏫 <strong>Khoa / Ngành:</strong></span>
+                            <span>{{ post.faculty }}</span>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Mô tả nội dung -->
+                <div>
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Mô tả chi tiết</h3>
+                    <p class="text-gray-600 text-sm leading-relaxed whitespace-pre-line">{{ post.description }}</p>
+                </div>
+            </div>
+
+            <!-- Khối nút chức năng mua & liên hệ -->
+            <div class="space-y-3 pt-4 border-t border-gray-100">
+                {% if post.is_sold %}
+                    <button disabled class="w-full bg-gray-100 text-gray-400 py-3.5 rounded-xl font-bold text-sm cursor-not-allowed border border-gray-200">
+                        🔒 Sản phẩm này đã bán
+                    </button>
+                {% else %}
+                    {% if user.is_authenticated %}
+                        {% if user == post.seller %}
+                            <!-- Nếu là chính chủ bài đăng -->
+                            <div class="bg-amber-50 border border-amber-200 text-amber-800 p-3 rounded-xl text-xs font-medium flex items-center justify-between">
+                                <span>📌 Đây là tin đăng của bạn.</span>
+                                <a href="{% url 'my_posts' %}" class="bg-amber-600 text-white font-bold px-3 py-1.5 rounded-lg hover:bg-amber-700 transition">
+                                    Quản lý tin
+                                </a>
+                            </div>
+                        {% else %}
+                            <!-- Nút Mua dành cho người dùng khác -->
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <form action="{% url 'buy_post' post.pk %}" method="post" onsubmit="return confirm('Bạn có chắc chắn muốn đặt mua/nhận sản phẩm này?');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-bold text-sm shadow-lg shadow-blue-200 transition">
+                                        🛒 {% if post.is_free or post.price == 0 %}Đăng ký nhận ngay{% else %}Đặt mua ngay{% endif %}
+                                    </button>
+                                </form>
+
+                                {% if post.seller.email %}
+                                    <a href="mailto:{{ post.seller.email }}?subject=Hỏi mua: {{ post.title }}" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 rounded-xl font-bold text-sm shadow-lg shadow-emerald-200 transition flex items-center justify-center gap-2">
+                                        💬 Nhắn Email
+                                    </a>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <!-- Yêu cầu đăng nhập -->
+                        <a href="{% url 'login' %}?next={{ request.path }}" class="block w-full bg-blue-600 hover:bg-blue-700 text-white text-center py-3.5 rounded-xl font-bold text-sm shadow-md transition">
+                            🔑 Đăng nhập để mua / liên hệ
+                        </a>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Phần Bình luận & Hỏi đáp -->
+    <div class="mt-10 pt-8 border-t border-gray-100">
+        <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <span>💬 Hỏi đáp & Bình luận</span>
+            <span class="text-xs bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-full font-bold">{{ post.comments.count|default:"0" }}</span>
+        </h3>
+
+        {% if user.is_authenticated %}
+            <form method="post" action="{% url 'post_detail' post.pk %}" class="mb-6 space-y-3">
+                {% csrf_token %}
+                <textarea name="content" rows="3" required placeholder="Nhập câu hỏi hoặc trao đổi thêm về sản phẩm..." class="w-full p-3.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-gray-50/50"></textarea>
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm transition">Gửi bình luận</button>
+            </form>
+        {% else %}
+            <p class="text-sm text-gray-500 mb-6 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                Vui lòng <a href="{% url 'login' %}" class="text-blue-600 font-bold underline">đăng nhập</a> để gửi bình luận.
+            </p>
+        {% endif %}
+
+        <div class="space-y-3">
+            {% for comment in post.comments.all %}
+                <div class="bg-gray-50 p-4 rounded-xl border border-gray-100 text-sm space-y-1">
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold text-gray-900">👤 {{ comment.user.username }}</span>
+                        <span class="text-xs text-gray-400">{{ comment.created_at|date:"H:i d/m/Y" }}</span>
+                    </div>
+                    <p class="text-gray-700 leading-relaxed">{{ comment.content }}</p>
+                </div>
+            {% empty %}
+                <p class="text-sm text-gray-400 italic">Chưa có bình luận nào cho sản phẩm này.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
