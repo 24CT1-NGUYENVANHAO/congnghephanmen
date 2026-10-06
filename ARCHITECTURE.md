@@ -4,114 +4,104 @@
 
 ---
 
-## 1. Tổng Quan Phân Định Kiến Trúc Trước - Sau (Frontend vs Backend)
+## 1. Tổng Quan Kiến Trúc (Architecture Overview)
 
-Hệ thống **SáchGóc Uni** được thiết kế phân chia tách bạch tuyệt đối giữa **Phần Trước (Frontend / Giao diện phía người dùng)** và **Phần Sau (Backend / Xử lý nghiệp vụ & Cơ sở dữ liệu)**:
+Hệ thống **SáchGóc Uni** được xây dựng theo mô hình kiến trúc phân lớp chuẩn **Django MVT (Model - View - Template)** mở rộng, kết hợp cơ chế bảo mật xác thực session và phân quyền người dùng.
 
 ```mermaid
 graph TB
-    %% ==========================================
-    %% PHẦN TRƯỚC: FRONTEND / GIAO DIỆN CLIENT
-    %% ==========================================
-    subgraph FRONTEND ["🌐 PHẦN TRƯỚC (FRONTEND / CLIENT TIER)"]
-        Browser["👤 Sinh viên & Trình duyệt Web"]
-        TailwindCSS["Tailwind CSS 3.x UI"]
-        
-        subgraph Templates_Group ["Các Trang Giao Diện (app_main/templates/)"]
-            TplBase["base.html (Khung chung: Header, Nav, Footer)"]
-            TplHome["home.html (Trang chủ, Lọc danh mục, 0đ)"]
-            TplDetail["detail.html (Xem bài, Bình luận, Nút mua)"]
-            TplCreate["create_post.html (Form đăng bài, Tải ảnh)"]
-            TplMyPosts["my_posts.html (Quản lý tin đăng cá nhân)"]
-            TplAuth["login.html / register.html (Đăng nhập/ký)"]
-        end
-
-        Browser <-->|Render & Tương tác| TailwindCSS
-        TailwindCSS --- Templates_Group
+    %% Client Layer
+    subgraph Client_Tier ["🌐 Client Tier (Giao Diện Trình Duyệt)"]
+        Browser["Trình duyệt Web Sinh viên / Khách"]
+        Tailwind["Tailwind CSS + HTML5 Templates"]
+        Browser <--> Tailwind
     end
 
-    %% Giao thức truyền tin giữa Phần Trước và Phần Sau
-    FRONTEND ==>|1. HTTP Request (Gửi Form / Tải dữ liệu)| BACKEND
-    BACKEND ==>|6. HTTP Response (Mã HTML/CSS sau khi biên dịch)| FRONTEND
-
-    %% ==========================================
-    %% PHẦN SAU: BACKEND / MÁY CHỦ & DỮ LIỆU
-    %% ==========================================
-    subgraph BACKEND ["⚙️ PHẦN SAU (BACKEND / SERVER & DATA TIER)"]
+    %% Web & Gateway Layer
+    subgraph Gateway_Tier ["⚡ Gateway & Middleware Tier"]
+        WSGI["core/wsgi.py / ASGI"]
+        SecMiddleware["SecurityMiddleware"]
+        SessionMiddleware["SessionMiddleware"]
+        CsrfMiddleware["CsrfViewMiddleware"]
+        AuthMiddleware["AuthenticationMiddleware"]
         
-        %% 1. Tầng Gateway & Routing
-        subgraph Gateway_Routing ["1. Cổng & Bộ Định Tuyến (Routing)"]
-            WSGI["core/wsgi.py (WSGI/ASGI Gateway)"]
-            Middlewares["Django Middlewares<br/>(Security, Session, CSRF, Auth)"]
-            CoreRouter["core/urls.py (Root URL Router)"]
-            AppRouter["app_main/urls.py (App URL Router)"]
-            AdminRouter["django.contrib.admin (Admin Router)"]
-
-            WSGI --> Middlewares
-            Middlewares --> CoreRouter
-            CoreRouter --> AppRouter & AdminRouter
-        end
-
-        %% 2. Tầng Controller Logic
-        subgraph Controller_Logic ["2. Bộ Điều Khiển Logic (app_main/views.py)"]
-            VHome["home(): Tìm kiếm & Bộ lọc"]
-            VDetail["post_detail(): Chi tiết & Bình luận"]
-            VCreate["create_post(): Đăng bài & Upload ảnh"]
-            VBuy["buy_post(): Đặt mua & Nhận đồ"]
-            VWish["toggle_wishlist(): Thêm/Gỡ yêu thích"]
-            VMyPosts["my_posts() / toggle_sold(): Quản lý tin"]
-            VAuth["register(): Đăng ký tài khoản"]
-        end
-
-        %% 3. Tầng Form & Validation
-        subgraph Form_Validation ["3. Thẩm Định Dữ Liệu (app_main/forms.py)"]
-            PForm["PostForm (Thẩm định dữ liệu & Xử lý tệp ảnh Pillow)"]
-            CForm["CommentForm (Kiểm tra nội dung bình luận)"]
-        end
-
-        %% 4. Tầng Mô Hình ORM
-        subgraph ORM_Models ["4. Mô Hình Dữ Liệu ORM (app_main/models.py)"]
-            MUser["User Model (Tài khoản sinh viên)"]
-            MCat["Category Model (Danh mục sách/đồ)"]
-            MPost["Post Model (Bài đăng, Giá bán, Tặng 0đ)"]
-            MComm["Comment Model (Trao đổi trực tiếp)"]
-            MRev["Review Model (Đánh giá uy tín 1-5 sao)"]
-        end
-
-        %% 5. Tầng Quản Trị
-        subgraph Admin_Tier ["5. Quản Trị Hệ Thống (app_main/admin.py)"]
-            AdminPanel["Django Admin Panel (Duyệt bài, Khóa tài khoản)"]
-        end
-
-        %% 6. Tầng Lưu Trữ Vật Lý
-        subgraph Storage_Tier ["6. Lưu Trữ Vật Lý (Physical Storage)"]
-            MySQLDB[("🗄️ MySQL Database (sachgocuni_db)")]
-            MediaFolder[("📁 Media Files (/media/posts/)")]
-        end
-
-        %% Kết nối nội bộ Backend
-        AppRouter --> Controller_Logic
-        VCreate & VDetail --> Form_Validation
-        Form_Validation --> ORM_Models
-        Controller_Logic --> ORM_Models
-        AdminRouter --> Admin_Tier
-        Admin_Tier --> ORM_Models
-
-        ORM_Models <==>|Truy vấn SQL (ORM)| MySQLDB
-        Form_Validation ==>|Lưu file ảnh thực tế| MediaFolder
+        WSGI --> SecMiddleware
+        SecMiddleware --> SessionMiddleware
+        SessionMiddleware --> CsrfMiddleware
+        CsrfMiddleware --> AuthMiddleware
     end
 
-    classDef fe fill:#e0f2fe,stroke:#0288d1,stroke-width:2px;
-    classDef be fill:#f0fdf4,stroke:#2e7d32,stroke-width:2px;
-    classDef logic fill:#fffde7,stroke:#fbc02d,stroke-width:2px;
+    %% Controller & Routing Layer
+    subgraph Routing_Tier ["🧭 Routing & Dispatcher Tier"]
+        CoreURL["core/urls.py<br/>(Root Router)"]
+        AdminURL["django.contrib.admin"]
+        AppURL["app_main/urls.py<br/>(App Router)"]
+        AuthURL["django.contrib.auth.urls"]
+
+        CoreURL --> AdminURL
+        CoreURL --> AppURL
+        CoreURL --> AuthURL
+    end
+
+    %% Application Logic Tier
+    subgraph Controller_Tier ["⚙️ Controller Tier (app_main/views.py)"]
+        ViewHome["home()<br/>Tìm kiếm & Lọc 0đ"]
+        ViewDetail["post_detail()<br/>Xem & Bình luận"]
+        ViewCreate["create_post()<br/>Đăng bài & Upload ảnh"]
+        ViewBuy["buy_post()<br/>Đặt mua / Nhận đồ"]
+        ViewWishlist["toggle_wishlist()<br/>Thêm/Xóa yêu thích"]
+        ViewMyPosts["my_posts() / toggle_sold()<br/>Quản lý tin cá nhân"]
+        ViewRegister["register()<br/>Đăng ký tài khoản"]
+    end
+
+    %% Validation & Form Layer
+    subgraph Form_Tier ["🛡️ Form & Validation Tier (app_main/forms.py)"]
+        PostForm["PostForm<br/>Kiểm tra bài đăng & File ảnh"]
+        CommentForm["CommentForm<br/>Kiểm tra nội dung bình luận"]
+    end
+
+    %% Model & Data Access Tier
+    subgraph Model_Tier ["📦 Model & ORM Tier (app_main/models.py)"]
+        ModelUser["django.contrib.auth.models.User"]
+        ModelCategory["Category<br/>(Phân loại đồ dùng)"]
+        ModelPost["Post<br/>(Sách, Đồ dùng, Quà tặng 0đ)"]
+        ModelComment["Comment<br/>(Hỏi đáp / Trao đổi)"]
+        ModelReview["Review<br/>(Đánh giá uy tín 1-5 sao)"]
+    end
+
+    %% Storage & Database Tier
+    subgraph Storage_Tier ["🗄️ Persistence & Storage Tier"]
+        Database[("MySQL / SQLite Database<br/>sachgocuni_db")]
+        MediaStorage[("Media Storage<br/>/media/posts/")]
+    end
+
+    %% Connections
+    Client_Tier <==>|HTTP Requests / Responses| Gateway_Tier
+    Gateway_Tier ==> Routing_Tier
+    AppURL --> Controller_Tier
+    
+    Controller_Tier --> Form_Tier
+    Form_Tier --> Model_Tier
+    Controller_Tier --> Model_Tier
+    
+    Model_Tier <==>|Django ORM SQL| Database
+    Form_Tier -->|Save Image Files| MediaStorage
+
+    classDef client fill:#e1f5fe,stroke:#0288d1,stroke-width:2px;
+    classDef gateway fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px;
+    classDef router fill:#fff3e0,stroke:#f57c00,stroke-width:2px;
+    classDef controller fill:#e8f5e9,stroke:#388e3c,stroke-width:2px;
+    classDef form fill:#fffde7,stroke:#fbc02d,stroke-width:2px;
     classDef model fill:#fce4ec,stroke:#c2185b,stroke-width:2px;
-    classDef store fill:#efebe9,stroke:#4e342e,stroke-width:2px;
+    classDef storage fill:#efebe9,stroke:#5d4037,stroke-width:2px;
 
-    class Browser,TailwindCSS,TplBase,TplHome,TplDetail,TplCreate,TplMyPosts,TplAuth fe;
-    class WSGI,Middlewares,CoreRouter,AppRouter,AdminRouter be;
-    class VHome,VDetail,VCreate,VBuy,VWish,VMyPosts,VAuth,PForm,CForm,AdminPanel logic;
-    class MUser,MCat,MPost,MComm,MRev model;
-    class MySQLDB,MediaFolder store;
+    class Browser,Tailwind client;
+    class WSGI,SecMiddleware,SessionMiddleware,CsrfMiddleware,AuthMiddleware gateway;
+    class CoreURL,AdminURL,AppURL,AuthURL router;
+    class ViewHome,ViewDetail,ViewCreate,ViewBuy,ViewWishlist,ViewMyPosts,ViewRegister controller;
+    class PostForm,CommentForm form;
+    class ModelUser,ModelCategory,ModelPost,ModelComment,ModelReview model;
+    class Database,MediaStorage storage;
 ```
 
 ---

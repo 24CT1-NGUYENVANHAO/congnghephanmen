@@ -12,107 +12,71 @@ Dự án phát triển nền tảng web thương mại điện tử dành cho si
 
 ---
 
-## 🏗️ 1. Sơ Đồ Phân Định Rõ Ràng Các Phần Trước - Sau Của Hệ Thống
+## 🏗️ 1. Sơ Đồ Kiến Trúc & Luồng Xử Lý Tổng Thể Hệ Thống
 
-GitHub và GitDiagram hỗ trợ hiển thị trực quan sơ đồ kiến trúc phân chia rành mạch giữa **Phần Trước (Frontend / Giao diện)** và **Phần Sau (Backend / Xử lý & Dữ liệu)**:
+GitHub và GitDiagram hỗ trợ hiển thị trực quan sơ đồ kiến trúc chi tiết của dự án thông qua Mermaid:
 
 ```mermaid
 graph TD
-    %% ==========================================
-    %% PHẦN TRƯỚC: FRONTEND / GIAO DIỆN & CLIENT
-    %% ==========================================
-    subgraph FRONTEND ["🌐 PHẦN TRƯỚC (FRONTEND / CLIENT-SIDE)"]
-        User([👤 Sinh viên / Khách truy cập])
-        
-        subgraph UI_Templates ["Bộ Giao diện & Templates (app_main/templates/)"]
-            Tailwind["Tailwind CSS Framework"]
-            BaseTpl["Khung trang chung<br/>(base.html)"]
-            HomeTpl["Trang chủ & Lọc tin<br/>(home.html)"]
-            DetailTpl["Chi tiết & Bình luận<br/>(detail.html)"]
-            CreateTpl["Đăng tin & Upload ảnh<br/>(create_post.html)"]
-            MyPostsTpl["Quản lý tin cá nhân<br/>(my_posts.html)"]
-            AuthTpl["Đăng ký / Đăng nhập<br/>(login.html / register.html)"]
-        end
-
-        User <-->|Tương tác trực tiếp UI| Tailwind
-        Tailwind --- BaseTpl
-        BaseTpl --- HomeTpl & DetailTpl & CreateTpl & MyPostsTpl & AuthTpl
+    %% Tầng Giao diện người dùng
+    subgraph Client_Layer ["1. Tầng Giao diện & Người dùng (Client Side)"]
+        User([👤 Người dùng / Sinh viên]) -->|Gửi HTTP Request GET / POST| Browser[Trình duyệt Web <br> Tailwind CSS UI]
+        Browser -->|Hiển thị Giao diện phản hồi| User
     end
 
-    %% Giao tiếp giữa Phần Trước và Phần Sau qua HTTP
-    FRONTEND ==>|1. Gửi HTTP Request (GET / POST Form)| BACKEND
-    BACKEND ==>|6. Phản hồi HTTP Response (HTML / CSS hoàn chỉnh)| FRONTEND
+    Browser -->|Giao thức HTTP / HTTPS| ServerCore
 
-    %% ==========================================
-    %% PHẦN SAU: BACKEND / MÁY CHỦ, LOGIC & CSDL
-    %% ==========================================
-    subgraph BACKEND ["⚙️ PHẦN SAU (BACKEND / SERVER & DATABASE)"]
+    %% Tầng Máy chủ & Điều hướng
+    subgraph ServerCore ["2. Tầng Máy chủ & Điều phối (Django Core Server)"]
+        Server[Django WSGI / ASGI Server] --> Middleware{Django Security & Session Middleware}
         
-        %% Tầng 1: Cổng & Điều phối
-        subgraph Routing_Layer ["1. Tầng Điều phối & Bảo mật"]
-            Middleware["Django Middleware<br/>(Security, Session, CSRF Protection)"]
-            RootRouter["core/urls.py<br/>(Bộ định tuyến cấp Dự án)"]
-            AppRouter["app_main/urls.py<br/>(Bộ định tuyến cấp Ứng dụng)"]
-            AdminRouter["django.contrib.admin<br/>(Bảng điều khiển Quản trị)"]
-
-            Middleware --> RootRouter
-            RootRouter --> AppRouter & AdminRouter
+        Middleware --> RootURL[core/urls.py <br> Bộ định tuyến cấp Dự án]
+        RootURL --> AppURL[app_main/urls.py <br> Bộ định tuyến cấp Ứng dụng]
+        RootURL --> AdminURL[django.contrib.admin <br> Bảng điều khiển Quản trị]
+        
+        %% Tầng Điều khiển Logic (Views)
+        AppURL --> Views{app_main/views.py <br> Bộ điều khiển Logic trung tâm}
+        
+        %% Phân nhánh các luồng nghiệp vụ thực tế
+        subgraph Business_Modules ["3. Các Phân hệ Nghiệp vụ Chính"]
+            Views -->|Xác thực tài khoản| AuthModule[Auth System <br> Đăng ký / Đăng nhập / Đăng xuất]
+            Views -->|Quản lý bài đăng| PostModule[Sản phẩm & Bài đăng <br> Đăng tin, Tặng 0đ, Lọc danh mục]
+            Views -->|Tương tác xã hội| SocialModule[Bình luận trao đổi <br> Wishlist yêu thích]
         end
-
-        %% Tầng 2: Logic Nghiệp vụ & Xác thực
-        subgraph Logic_Layer ["2. Tầng Điều khiển Logic (app_main/views.py)"]
-            AuthLogic["Xác thực & Tài khoản<br/>(register, login, logout)"]
-            PostLogic["Nghiệp vụ Đăng tin & Mua bán<br/>(home, post_detail, create_post, buy_post)"]
-            SocialLogic["Tương tác xã hội & Uy tín<br/>(toggle_wishlist, my_posts, toggle_sold)"]
-            AdminLogic["app_main/admin.py<br/>(Duyệt bài & Khóa tài khoản vi phạm)"]
-        end
-
-        %% Tầng 3: Biểu mẫu & Kiểm duyệt
-        subgraph Form_Layer ["3. Tầng Kiểm tra Tính hợp lệ (app_main/forms.py)"]
-            PostFormCheck["PostForm<br/>(Kiểm tra dữ liệu & File ảnh Pillow)"]
-            CommentFormCheck["CommentForm<br/>(Kiểm duyệt nội dung bình luận)"]
-        end
-
-        %% Tầng 4: Mô hình Dữ liệu ORM
-        subgraph ORM_Layer ["4. Tầng Mô hình Dữ liệu ORM (app_main/models.py)"]
-            UserMod["User Model"]
-            CatMod["Category Model"]
-            PostMod["Post Model (Giá, 0đ, Trạng thái)"]
-            CommentMod["Comment Model"]
-            ReviewMod["Review Model (1-5 sao)"]
-        end
-
-        %% Tầng 5: Lưu trữ Vật lý
-        subgraph Physical_Storage ["5. Tầng Lưu trữ Vật lý (Storage Tier)"]
-            SQLDB[("🗄️ MySQL Database / SQLite<br/>(sachgocuni_db)")]
-            MediaDir[("📁 Media Storage<br/>(/media/posts/)")]
-        end
-
-        %% Kết nối nội bộ Tầng Backend
-        AppRouter --> Logic_Layer
-        PostLogic & SocialLogic --> Form_Layer
-        Form_Layer --> ORM_Layer
-        Logic_Layer --> ORM_Layer
-        AdminRouter --> AdminLogic
-        AdminLogic --> ORM_Layer
-
-        ORM_Layer <==>|Truy vấn SQL (ORM)| SQLDB
-        Form_Layer ==>|Lưu file ảnh tải lên| MediaDir
+        
+        %% Tầng xử lý Form và Bảo mật dữ liệu
+        AuthModule --> FormsCheck[app_main/forms.py <br> Kiểm tra tính hợp lệ & Upload File]
+        PostModule --> FormsCheck
+        
+        %% Tầng Mô hình dữ liệu ORM
+        FormsCheck --> ModelsMap[app_main/models.py <br> Định nghĩa các Model & Quan hệ ORM]
     end
 
-    %% Định nghĩa màu sắc phân biệt rõ ràng
-    classDef fe fill:#e0f2fe,stroke:#0369a1,stroke-width:2px;
-    classDef be fill:#f0fdf4,stroke:#15803d,stroke-width:2px;
-    classDef logic fill:#fefce8,stroke:#a16207,stroke-width:2px;
-    classDef form fill:#faf5ff,stroke:#7e22ce,stroke-width:2px;
-    classDef storage fill:#fff1f2,stroke:#be123c,stroke-width:2px;
+    %% Tầng Lưu trữ Cơ sở dữ liệu vật lý
+    subgraph Storage_Layer ["4. Tầng Lưu trữ Vật lý (Database & Media)"]
+        ModelsMap -->|Truy vấn SQL qua Django ORM| DB[(MySQL Database / SQLite <br> User, Post, Category, Comment, Review)]
+        DB --> ModelsMap
+        
+        PostModule -->|Lưu trữ file ảnh tải lên| MediaFolder[(Thư mục /media/posts <br> Ảnh sản phẩm thực tế)]
+    end
 
-    class User,Tailwind,BaseTpl,HomeTpl,DetailTpl,CreateTpl,MyPostsTpl,AuthTpl fe;
-    class Middleware,RootRouter,AppRouter,AdminRouter be;
-    class AuthLogic,PostLogic,SocialLogic,AdminLogic logic;
-    class PostFormCheck,CommentFormCheck form;
-    class UserMod,CatMod,PostMod,CommentMod,ReviewMod logic;
-    class SQLDB,MediaDir storage;
+    %% Tầng tổng hợp dữ liệu trả về giao diện
+    ModelsMap --> TemplateEngine[Django Template Engine <br> Biên dịch HTML kết hợp Context dữ liệu]
+    MediaFolder --> TemplateEngine
+    AuthModule --> TemplateEngine
+
+    TemplateEngine -->|Phản hồi HTTP Response HTML/CSS| Browser
+
+    %% Định nghĩa màu sắc sinh động
+    classDef client fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
+    classDef server fill:#f1f8e9,stroke:#33691e,stroke-width:2px;
+    classDef logic fill:#fff8e1,stroke:#ff8f00,stroke-width:2px;
+    classDef db fill:#ffebee,stroke:#c62828,stroke-width:2px;
+
+    class User,Browser client;
+    class Server,Middleware,RootURL,AppURL,AdminURL,Views,FormsCheck,TemplateEngine server;
+    class AuthModule,PostModule,SocialModule,ModelsMap logic;
+    class DB,MediaFolder db;
 ```
 
 ### 🧩 Architectural Components & File Mapping (Bản đồ thành phần cho GitDiagram)
