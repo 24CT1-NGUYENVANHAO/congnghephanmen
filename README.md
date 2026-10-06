@@ -79,6 +79,20 @@ graph TD
     class DB,MediaFolder db;
 ```
 
+### 🧩 Architectural Components & File Mapping (Bản đồ thành phần cho GitDiagram)
+
+Hệ thống được cấu trúc thành các module rõ ràng tương ứng trực tiếp với cây mã nguồn:
+
+- **1. Presentation / Frontend Layer**: [`app_main/templates/`](app_main/templates/) - Giao diện người dùng sinh viên với Tailwind CSS và Django Templates (`base.html`, `home.html`, `detail.html`, `create_post.html`, `my_posts.html`, `login.html`, `register.html`).
+- **2. Routing & Dispatcher Layer**: [`core/urls.py`](core/urls.py) và [`app_main/urls.py`](app_main/urls.py) phân phối và điều hướng HTTP requests từ Client đến các Views xử lý.
+- **3. Controller & Business Logic**: [`app_main/views.py`](app_main/views.py) trung tâm điều khiển logic: xác thực tài khoản, tìm kiếm bài đăng, lọc đồ 0đ, xem chi tiết, đăng tin, mua hàng, yêu thích wishlist, bình luận.
+- **4. Form & Data Validation**: [`app_main/forms.py`](app_main/forms.py) thẩm định tính hợp lệ của dữ liệu đầu vào và tiếp nhận file ảnh sản phẩm (`PostForm`, `CommentForm`).
+- **5. Data Models & ORM**: [`app_main/models.py`](app_main/models.py) định nghĩa các thực thể và mối quan hệ CSDL (`User`, `Category`, `Post`, `Comment`, `Review`).
+- **6. Administration & Moderation**: [`app_main/admin.py`](app_main/admin.py) hệ thống quản trị: kiểm duyệt tin đăng, khóa/mở khóa tài khoản sinh viên.
+- **7. Database & Media Storage**: CSDL MySQL / SQLite (`sachgocuni_db`) cùng thư mục lưu trữ ảnh thực tế [`media/posts/`](media/posts/).
+- **8. Mock Data & Utilities**: [`seed_data.py`](seed_data.py) script khởi tạo sẵn 15+ dữ liệu mẫu sinh động.
+- **9. Automated Testing**: [`app_main/tests.py`](app_main/tests.py) bộ kiểm thử tự động cho Models và Views.
+
 ---
 
 ## 📊 2. Sơ Đồ Thực Thể Cơ Sở Dữ Liệu (ERD)
