@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 
 class Category(models.Model):
+    """Mô hình danh mục phân loại đồ dùng, sách giáo trình."""
     name = models.CharField(max_length=100, verbose_name="Tên danh mục")
     slug = models.SlugField(unique=True, verbose_name="Đường dẫn (Slug)")
 
@@ -13,6 +14,7 @@ class Category(models.Model):
         return self.name
 
 class Post(models.Model):
+    """Mô hình bài đăng trao đổi, mua bán hoặc tặng 0đ sách và đồ dùng học tập."""
     CONDITION_CHOICES = [
         ('NEW', 'Mới (100%)'),
         ('LIKE_NEW', 'Như mới (90-99%)'),
@@ -43,14 +45,9 @@ class Post(models.Model):
 
     def __str__(self):
         return self.title
-    class Meta:
-        verbose_name = "Bài đăng"
-        verbose_name_plural = "2. Quản lý bài đăng"
-
-    def __str__(self):
-        return self.title
 
 class Comment(models.Model):
+    """Mô hình lưu trữ bình luận, trao đổi giữa sinh viên trên từng bài đăng."""
     post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='comments', verbose_name="Bài đăng")
     author = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Người bình luận")
     content = models.TextField(verbose_name="Nội dung")
@@ -60,7 +57,11 @@ class Comment(models.Model):
         verbose_name = "Bình luận"
         verbose_name_plural = "3. Quản lý bình luận"
 
+    def __str__(self):
+        return f"{self.author.username} - {self.post.title[:20]}"
+
 class Review(models.Model):
+    """Mô hình đánh giá uy tín người bán (1-5 sao) sau khi hoàn tất giao dịch."""
     seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reviews_received', verbose_name="Người bán")
     reviewer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reviews_given', verbose_name="Người đánh giá")
     rating = models.IntegerField(default=5, verbose_name="Số sao")
@@ -70,3 +71,6 @@ class Review(models.Model):
     class Meta:
         verbose_name = "Đánh giá"
         verbose_name_plural = "4. Đánh giá uy tín"
+
+    def __str__(self):
+        return f"{self.reviewer.username} -> {self.seller.username} ({self.rating} sao)"

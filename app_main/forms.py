@@ -2,6 +2,7 @@ from django import forms
 from .models import Post, Comment, Category
 
 class PostForm(forms.ModelForm):
+    """Form tạo và cập nhật bài đăng bán hoặc tặng đồ dùng học tập."""
     # Lấy danh mục động từ CSDL thay vì chọn cứng
     category = forms.ModelChoiceField(
         queryset=Category.objects.all(),
@@ -24,6 +25,7 @@ class PostForm(forms.ModelForm):
         }
 
 class CommentForm(forms.ModelForm):
+    """Form gửi bình luận và trao đổi trực tiếp dưới bài đăng."""
     class Meta:
         model = Comment
         fields = ['content']

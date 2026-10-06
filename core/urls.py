@@ -1,3 +1,8 @@
+"""
+Định tuyến URL cấp cao nhất cho toàn bộ dự án SáchGóc Uni (core).
+Liên kết tới Django Admin, ứng dụng app_main, và hệ thống Django Auth.
+"""
+
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings

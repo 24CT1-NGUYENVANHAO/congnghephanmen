@@ -34,7 +34,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'app_main',  # Ứng dụng chính của dự án
 ]
-
+LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
 

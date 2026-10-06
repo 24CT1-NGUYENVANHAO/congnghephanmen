@@ -7,6 +7,7 @@ from .forms import PostForm, CommentForm
 
 # 1. Trang chủ
 def home(request):
+    """Trang chủ hiển thị danh sách bài đăng, hỗ trợ tìm kiếm và lọc theo danh mục hoặc đồ tặng 0đ."""
     posts = Post.objects.all().order_by('-created_at')
     categories = Category.objects.all()
     
@@ -41,6 +42,7 @@ def home(request):
 
 # 2. Chi tiết bài viết & Bình luận
 def post_detail(request, pk):
+    """Hiển thị chi tiết bài đăng sản phẩm và tiếp nhận bình luận trao đổi."""
     post = get_object_or_404(Post, pk=pk)
     comment_form = CommentForm()
     
@@ -50,7 +52,7 @@ def post_detail(request, pk):
         if comment_form.is_valid():
             comment = comment_form.save(commit=False)
             comment.post = post
-            comment.user = request.user
+            comment.author = request.user
             comment.save()
             return redirect('post_detail', pk=pk)
 
@@ -63,6 +65,7 @@ def post_detail(request, pk):
 # 3. Đặt mua / Đăng ký nhận sản phẩm
 @login_required
 def buy_post(request, pk):
+    """Xử lý yêu cầu mua sản phẩm hoặc nhận tặng đồ 0đ từ người dùng khác."""
     post = get_object_or_404(Post, pk=pk)
     
     # Không cho phép chủ tin tự mua bài của mình
@@ -79,6 +82,7 @@ def buy_post(request, pk):
 # 4. Tạo bài viết / Đăng tin (Dùng PostForm chuẩn)
 @login_required
 def create_post(request):
+    """Xử lý đăng bài bán sách, giáo trình hoặc tặng đồ miễn phí."""
     if request.method == 'POST':
         form = PostForm(request.POST, request.FILES)
         if form.is_valid():
@@ -100,6 +104,7 @@ def create_post(request):
 # 5. Danh sách tin đã đăng của người dùng
 @login_required
 def my_posts(request):
+    """Hiển thị tất cả bài đăng cá nhân do người dùng hiện tại quản lý."""
     posts = Post.objects.filter(seller=request.user).order_by('-created_at')
     return render(request, 'app_main/my_posts.html', {'posts': posts})
 
@@ -107,6 +112,7 @@ def my_posts(request):
 # 6. Đánh dấu đã bán / chưa bán
 @login_required
 def toggle_sold(request, pk):
+    """Chuyển đổi trạng thái Đã bán <-> Còn hàng cho bài đăng cá nhân."""
     post = get_object_or_404(Post, pk=pk, seller=request.user)
     if hasattr(post, 'is_sold'):
         post.is_sold = not post.is_sold
@@ -117,12 +123,18 @@ def toggle_sold(request, pk):
 # 7. Thêm / Xóa khỏi danh sách yêu thích
 @login_required
 def toggle_wishlist(request, pk):
+    """Thêm hoặc gỡ bỏ sản phẩm khỏi danh sách yêu thích cá nhân."""
     post = get_object_or_404(Post, pk=pk)
+    if request.user in post.wishlist.all():
+        post.wishlist.remove(request.user)
+    else:
+        post.wishlist.add(request.user)
     return redirect('post_detail', pk=pk)
 
 
 # 8. Đăng ký tài khoản
 def register(request):
+    """Xử lý đăng ký tài khoản sinh viên mới với kiểm tra độ mạnh mật khẩu."""
     if request.user.is_authenticated:
         return redirect('home')
 

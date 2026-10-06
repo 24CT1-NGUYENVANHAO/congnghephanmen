@@ -1,0 +1,11 @@
+# Django Web Framework & Core Dependencies
+Django>=4.2,<5.3
+asgiref>=3.7.0
+sqlparse>=0.5.0
+
+# Image & File Handling for Post Uploads
+Pillow>=10.0.0
+
+# Database Drivers (MySQL / MariaDB)
+mysqlclient>=2.2.0
+PyMySQL>=1.1.0
