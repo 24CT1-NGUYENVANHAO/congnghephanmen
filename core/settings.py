@@ -69,9 +69,8 @@ TEMPLATES = [
 WSGI_APPLICATION = 'core.wsgi.application'
 
 
-# Database
-# Cấu hình CSDL MySQL 8.0 (XAMPP/MySQL Server)
-
+# Database Configuration: MySQL Database Server
+# Primary relational database: MySQL (sachgocuni_db) via PyMySQL / mysqlclient
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',

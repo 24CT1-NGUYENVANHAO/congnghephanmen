@@ -70,8 +70,8 @@ graph TB
     end
 
     %% Storage & Database Tier
-    subgraph Storage_Tier ["🗄️ MySQL Persistence & Storage Tier"]
-        MySQLDB[("🗄️ MySQL Database (sachgocuni_db)<br/>Port 3307 - Driver: PyMySQL & mysqlclient")]
+    subgraph Storage_Tier ["🗄️ MySQL Database & Storage Tier"]
+        MySQL[(MySQL)]
         MediaStorage[("Media Storage<br/>/media/posts/")]
     end
 
@@ -84,7 +84,7 @@ graph TB
     Form_Tier --> Model_Tier
     Controller_Tier --> Model_Tier
     
-    Model_Tier <==>|Django ORM SQL / MySQL Protocol| MySQLDB
+    Model_Tier -->|ORM persistence| MySQL
     Form_Tier -->|Save Image Files| MediaStorage
 
     classDef client fill:#e1f5fe,stroke:#0288d1,stroke-width:2px;
@@ -101,7 +101,7 @@ graph TB
     class ViewHome,ViewDetail,ViewCreate,ViewBuy,ViewWishlist,ViewMyPosts,ViewRegister controller;
     class PostForm,CommentForm form;
     class ModelUser,ModelCategory,ModelPost,ModelComment,ModelReview model;
-    class MySQLDB,MediaStorage storage;
+    class MySQL,MediaStorage storage;
 ```
 
 ---

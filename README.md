@@ -53,9 +53,9 @@ graph TD
     end
 
     %% Tầng Lưu trữ Cơ sở dữ liệu vật lý
-    subgraph Storage_Layer ["4. Tầng Cơ Sở Dữ Liệu MySQL & Lưu Trữ Vật Lý"]
-        ModelsMap -->|Thực thi truy vấn SQL qua MySQL Driver| MySQLDB[(🗄️ MySQL Database Server <br> sachgocuni_db - Port 3307 <br> Tables: Post, Category, Comment, Review, User)]
-        MySQLDB -->|Trả về tập dữ liệu QuerySet| ModelsMap
+    subgraph Storage_Layer ["4. Tầng Cơ Sở Dữ Liệu & Lưu Trữ (Storage Layer)"]
+        ModelsMap -->|ORM persistence| MySQL[(MySQL)]
+        MySQL -->|QuerySet data| ModelsMap
         
         PostModule -->|Lưu trữ file ảnh sản phẩm| MediaFolder[(Thư mục /media/posts <br> Ảnh sản phẩm thực tế)]
     end
@@ -76,7 +76,7 @@ graph TD
     class User,Browser client;
     class Server,Middleware,RootURL,AppURL,AdminURL,Views,FormsCheck,TemplateEngine server;
     class AuthModule,PostModule,SocialModule,ModelsMap logic;
-    class MySQLDB,MediaFolder db;
+    class MySQL,MediaFolder db;
 ```
 
 ### 🧩 Architectural Components & File Mapping (Bản đồ thành phần cho GitDiagram)
@@ -89,9 +89,10 @@ Hệ thống được cấu trúc thành các module rõ ràng tương ứng tr�
 - **4. Form & Data Validation**: [`app_main/forms.py`](app_main/forms.py) thẩm định tính hợp lệ của dữ liệu đầu vào và tiếp nhận file ảnh sản phẩm (`PostForm`, `CommentForm`).
 - **5. Data Models & ORM**: [`app_main/models.py`](app_main/models.py) định nghĩa các thực thể và mối quan hệ CSDL (`User`, `Category`, `Post`, `Comment`, `Review`).
 - **6. Administration & Moderation**: [`app_main/admin.py`](app_main/admin.py) hệ thống quản trị: kiểm duyệt tin đăng, khóa/mở khóa tài khoản sinh viên.
-- **7. Database & Media Storage**: CSDL **MySQL 8.0** (`sachgocuni_db` kết nối qua driver `PyMySQL`/`mysqlclient`, Port `3307`/`3306`) cùng thư mục lưu trữ ảnh thực tế [`media/posts/`](media/posts/).
-- **8. Mock Data & Utilities**: [`seed_data.py`](seed_data.py) script khởi tạo sẵn 15+ dữ liệu mẫu sinh động.
-- **9. Automated Testing**: [`app_main/tests.py`](app_main/tests.py) bộ kiểm thử tự động cho Models và Views.
+- **7. Database (MySQL)**: **MySQL** Server (`sachgocuni_db`, Port `3307`/`3306`, Driver: `PyMySQL` & `mysqlclient`). Toàn bộ hoạt động ORM persistence đều lưu trữ trực tiếp vào **MySQL**.
+- **8. Media Storage**: Thư mục lưu trữ ảnh thực tế của sản phẩm [`media/posts/`](media/posts/).
+- **9. Mock Data & Utilities**: [`seed_data.py`](seed_data.py) script khởi tạo sẵn 15+ dữ liệu mẫu sinh động.
+- **10. Automated Testing**: [`app_main/tests.py`](app_main/tests.py) bộ kiểm thử tự động cho Models và Views.
 
 ---
 

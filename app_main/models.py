@@ -1,3 +1,8 @@
+"""
+Mô hình dữ liệu (Django ORM Models) cho hệ thống SáchGóc Uni.
+Toàn bộ dữ liệu ORM persistence được lưu trữ trực tiếp vào CSDL MySQL (sachgocuni_db).
+"""
+
 from django.db import models
 from django.contrib.auth.models import User
 
