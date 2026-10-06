@@ -1,6 +1,6 @@
 # 📚 SáchGóc Uni - Sàn Giao Dịch & Chia Sẻ Đồ Dùng Sinh Viên
 
-[![GitDiagram Architecture](https://img.shields.io/badge/GitDiagram-Explore%20System%20Architecture-2563eb?style=for-the-badge&logo=diagramsdotnet)](https://gitdiagram.com/Hao286/congnghephanmen)
+[![GitDiagram Architecture](https://img.shields.io/badge/GitDiagram-Explore%20System%20Architecture-2563eb?style=for-the-badge&logo=diagramsdotnet)](https://gitdiagram.com/24CT1-NGUYENVANHAO/congnghephanmen)
 [![Django](https://img.shields.io/badge/Django-5.2%20%7C%204.2-092E20?style=for-the-badge&logo=django&logoColor=white)](https://www.djangoproject.com/)
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
@@ -8,7 +8,7 @@
 
 Dự án phát triển nền tảng web thương mại điện tử dành cho sinh viên trường Đại học Kiến trúc Đà Nẵng và cộng đồng sinh viên nói chung, hỗ trợ trao đổi, mua bán sách cũ, giáo trình và tặng đồ dùng học tập miễn phí (0đ).
 
-> 💡 **Trực quan hóa Kiến trúc Dự án trên GitDiagram:** Bạn có thể xem và tương tác trực tiếp với sơ đồ kiến trúc mã nguồn của repository này tại: **[gitdiagram.com/Hao286/congnghephanmen](https://gitdiagram.com/Hao286/congnghephanmen)**
+> 💡 **Trực quan hóa Kiến trúc Dự án trên GitDiagram:** Bạn có thể xem và tương tác trực tiếp với sơ đồ kiến trúc mã nguồn của repository này tại: **[gitdiagram.com/24CT1-NGUYENVANHAO/congnghephanmen](https://gitdiagram.com/24CT1-NGUYENVANHAO/congnghephanmen)**
 
 ---
 

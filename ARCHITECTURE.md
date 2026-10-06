@@ -223,5 +223,5 @@ sequenceDiagram
 ## 5. Tương Thích Với GitDiagram
 
 Để xem sơ đồ kiến trúc động và tương tác trực tiếp trên trình duyệt bằng GitDiagram:
-- **URL GitDiagram:** `https://gitdiagram.com/Hao286/congnghephanmen`
+- **URL GitDiagram:** `https://gitdiagram.com/24CT1-NGUYENVANHAO/congnghephanmen`
 - GitDiagram sẽ tự động quét cây thư mục, tệp cấu hình `requirements.txt`, tài liệu `ARCHITECTURE.md` và `README.md` để sinh ra sơ đồ kiến trúc trực quan, tương tác và nhấp được vào từng tệp mã nguồn.
