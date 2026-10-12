@@ -13,6 +13,8 @@ Script sẽ:
 import os
 import random
 import sys
+from datetime import timedelta
+from pathlib import Path
 
 import django
 
@@ -26,10 +28,28 @@ django.setup()
 
 from django.contrib.auth.models import User  # noqa: E402
 from django.db import transaction  # noqa: E402
+from django.utils import timezone  # noqa: E402
 
 from app_main.models import (  # noqa: E402
     Category, Comment, Favorite, Post, Review,
 )
+
+# Thư mục chứa ảnh minh hoạ do generate_images.py tạo ra
+SEED_IMAGE_DIR = Path(__file__).resolve().parent / 'media' / 'posts' / 'seed'
+
+
+def seed_image_for(title):
+    """
+    Trả về đường dẫn ảnh tương ứng với tiêu đề sản phẩm (đã có sẵn trên đĩa).
+
+    Dùng chung hàm đặt tên với generate_images.py để tên file luôn khớp.
+    Trả về None nếu chưa chạy generate_images.py.
+    """
+    # Import cục bộ để tránh phụ thuộc vòng tròn với generate_images
+    from generate_images import safe_filename
+
+    path = SEED_IMAGE_DIR / safe_filename(title)
+    return f'posts/seed/{path.name}' if path.exists() else None
 
 
 # ---------------------------------------------------------------------------
@@ -302,6 +322,11 @@ def run():
             status=Post.Status.ACTIVE,
         )
 
+        # Gán ảnh minh hoạ nếu generate_images.py đã được chạy trước
+        image_path = seed_image_for(title)
+        if image_path:
+            post.image.name = image_path
+
         # Đánh dấu bán cho một số sản phẩm demo
         if 'đã bán' in title.lower() or 'đã tặng' in title.lower():
             post.status = Post.Status.SOLD
@@ -311,7 +336,17 @@ def run():
 
         # Ngẫu nhiên lượt xem và điểm uy tín
         post.view_count = random.randint(5, 450)
+
+        # Rải thời gian đăng trong 30 ngày gần nhất để trang chủ nhìn
+        # tự nhiên hơn (thay vì tất cả đều "0 phút trước").
+        # created_at là auto_now_add nên phải ghi đè bằng UPDATE.
         post.save(update_fields=['view_count'])
+        days_ago = random.uniform(0.05, 30)
+        published_at = timezone.now() - timedelta(days=days_ago)
+        Post.objects.filter(pk=post.pk).update(
+            created_at=published_at, updated_at=published_at
+        )
+        post.refresh_from_db(fields=['created_at'])
 
         created_posts.append(post)
 
@@ -331,14 +366,29 @@ def run():
                 content=random.choice(COMMENTS)
             )
             comment_count += 1
+            # Bình luận phải sau thời điểm đăng bài
+            last_comment = Comment.objects.filter(
+                post=post, author=commenter
+            ).order_by('-created_at').first()
+            if last_comment:
+                Comment.objects.filter(pk=last_comment.pk).update(
+                    created_at=post.created_at + timedelta(
+                        minutes=random.randint(10, 4000)
+                    )
+                )
 
             # Một số bình luận có người bán trả lời
             if random.random() < 0.5:
-                Comment.objects.create(
+                reply = Comment.objects.create(
                     post=post,
                     author=post.seller,
-                    parent=Comment.objects.filter(post=post, author=commenter).last(),
+                    parent=last_comment,
                     content="Dạ mình gửi thêm cho bạn nhé! Bạn inbox mình để trao đổi chi tiết nhé."
+                )
+                Comment.objects.filter(pk=reply.pk).update(
+                    created_at=reply.parent.created_at + timedelta(
+                        hours=random.randint(1, 60)
+                    )
                 )
                 comment_count += 1
 

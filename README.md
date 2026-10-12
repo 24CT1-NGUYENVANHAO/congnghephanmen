@@ -154,15 +154,26 @@ python load_tzinfo.py
 Script nạp ~598 múi giờ từ thư viện `zoneinfo` của Python, không cần
 `mysql_tzinfo_to_sql`. Bỏ qua bước này nếu bạn dùng SQLite.
 
-### Bước 5 — Nạp dữ liệu mẫu
+### Bước 5 — Sinh ảnh minh hoạ cho sản phẩm mẫu
+
+```bash
+python generate_images.py
+```
+
+Vẽ 34 ảnh đại diện bằng Pillow (nền gradient theo màu danh mục, biểu tượng,
+tên sản phẩm, nhãn tình trạng), lưu vào `media/posts/seed/`. Bỏ qua bước này
+nếu không cần ảnh mẫu.
+
+### Bước 6 — Nạp dữ liệu mẫu
 
 ```bash
 python seed_data.py
 ```
 
-Tạo 6 danh mục, 34 sản phẩm, hơn 100 bình luận, yêu thích và đánh giá.
+Tạo 6 danh mục, 34 sản phẩm (có gán ảnh), hơn 90 bình luận, yêu thích và
+đánh giá. Thời gian đăng được rải rác trong 30 ngày gần nhất cho tự nhiên.
 
-### Bước 6 — Khởi chạy
+### Bước 7 — Khởi chạy
 
 ```bash
 python manage.py runserver
@@ -246,7 +257,9 @@ Tất cả thao tác kiểm duyệt đều hỗ trợ **chọn nhiều dòng r�
 │   └── js/main.js                 # Menu, yêu thích AJAX, validate mật khẩu
 │
 ├── media/                         # Ảnh người dùng tải lên (không commit)
+│   └── posts/seed/                # Ảnh mẫu do generate_images.py tạo
 ├── seed_data.py                   # Script nạp dữ liệu mẫu
+├── generate_images.py             # Script sinh ảnh minh hoạ (Pillow)
 ├── load_tzinfo.py                 # Nạp dữ liệu múi giờ vào MySQL (chạy 1 lần)
 ├── requirements.txt
 ├── .env.example                   # Mẫu cấu hình (copy thành .env)
