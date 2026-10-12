@@ -194,8 +194,7 @@ class PostForm(forms.ModelForm):
         model = Post
         fields = [
             'title', 'category', 'description',
-            'price', 'is_free', 'condition',
-            'course_code', 'faculty', 'location', 'image',
+            'price', 'is_free', 'condition', 'image',
         ]
         widgets = {
             'title': forms.TextInput(attrs={
@@ -214,15 +213,6 @@ class PostForm(forms.ModelForm):
             }),
             'is_free': forms.CheckboxInput(attrs={'class': CHECKBOX_CLASS}),
             'condition': forms.Select(attrs={'class': SELECT_CLASS}),
-            'course_code': forms.TextInput(attrs={
-                'class': INPUT_CLASS, 'placeholder': 'VD: IT001 (không bắt buộc)',
-            }),
-            'faculty': forms.TextInput(attrs={
-                'class': INPUT_CLASS, 'placeholder': 'VD: Khoa CNTT (không bắt buộc)',
-            }),
-            'location': forms.TextInput(attrs={
-                'class': INPUT_CLASS, 'placeholder': 'VD: KTX A, Căn cứ Mỹ Đức',
-            }),
             'image': forms.FileInput(attrs={
                 'class': 'block w-full text-sm text-slate-600 file:mr-4 file:rounded-xl '
                          'file:border-0 file:bg-indigo-50 file:px-5 file:py-3 '
