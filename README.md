@@ -156,33 +156,37 @@ Script nạp ~598 múi giờ từ thư viện `zoneinfo` của Python, không c�
 
 ### Bước 5 — Chuẩn bị ảnh cho sản phẩm mẫu
 
-Có **2 lựa chọn**, chọn một trong hai:
-
-**a) Ảnh thật** (tải từ Openverse — ảnh Creative Commons từ Flickr, Wikimedia)
-
-```bash
-python download_images.py            # bỏ qua ảnh đã có
-python download_images.py --force    # tải lại tất cả
-python download_images.py --only "Bàn"  # chỉ một sản phẩm
-```
-
-> ⚠️ **Openverse tìm ảnh theo metadata, không theo nội dung ảnh.** Đã xảy ra
-> trường hợp tiêu đề ghi *"Casio Scientific Calculator"* nhưng ảnh thật là
-> **mổ ruột linh kiện**. Script có chấm điểm + danh sách loại ảnh sai, nhưng
-> **vẫn phải kiểm tra bằng mắt**. Dùng `python make_contact_sheet.py` để gộp
-> toàn bộ ảnh thành 1 tấm duy nhất rồi soi.
-
-**b) Ảnh vẽ tự sinh** (không cần mạng, đồng nhất về mặt thẩm mỹ)
-
 ```bash
 python generate_images.py
 ```
 
-Vẽ 34 ảnh bằng Pillow: nền gradient theo màu danh mục, biểu tượng, tên sản
-phẩm (tự co giãn, hỗ trợ đầy đủ dấu tiếng Việt), nhãn danh mục + tình trạng.
+Vẽ 34 ảnh đại diện bằng Pillow: nền gradient theo màu danh mục, biểu tượng,
+tên sản phẩm (tự co giãn, hỗ trợ đầy đủ dấu tiếng Việt), nhãn danh mục và
+tình trạng. Không cần mạng.
 
-Cả hai script đều lưu ảnh vào `media/posts/seed/` với **cùng tên file**, nên
-`seed_data.py` tự gắng ảnh mà không cần sửa.
+<details>
+<summary>🖼️ Tuỳ chọn: dùng ảnh chụp thật thay vì ảnh vẽ</summary>
+
+```bash
+python download_images.py            # tải ảnh CC từ Openverse (Flickr, Wikimedia)
+python download_images.py --force    # tải lại tất cả
+python download_images.py --only "Bàn"   # chỉ một sản phẩm
+```
+
+> ⚠️ **Cảnh báo thực tế:** Openverse tìm ảnh theo *metadata*, không theo nội
+> dung ảnh. Đã gặp trường hợp tiêu đề ghi *"Casio Scientific Calculator"* nhưng
+> ảnh thật là **mổ ruột linh kiện** — người đăng đặt tên bài viết theo sản
+> phẩm chứ không phải theo ảnh. Script có chấm điểm và danh sách loại ảnh sai,
+> nhưng **vẫn phải kiểm tra bằng mắt**.
+>
+> Dùng `python make_contact_sheet.py` để gộp toàn bộ ảnh thành 1 tấm duy
+> nhất rồi soi. Thực tế đã thử và chỉ tìm được ảnh đúng chủ đề cho **18/34**
+> sản phẩm; phần còn lại không có ảnh phù hợp trên nguồn miễn phí (đồ sinh
+> viên Việt Nam như Casio FX-580, sách tiếng Việt, balo trường... không có
+> trên Flickr). Trộn ảnh thật với ảnh vẽ làm giao diện lệch tông, nên dự án
+> **mặc định dùng ảnh vẽ** cho đồng nhất.
+
+</details>
 
 ### Bước 6 — Nạp dữ liệu mẫu
 
