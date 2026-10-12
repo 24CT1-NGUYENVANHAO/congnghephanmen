@@ -154,15 +154,35 @@ python load_tzinfo.py
 Script nạp ~598 múi giờ từ thư viện `zoneinfo` của Python, không cần
 `mysql_tzinfo_to_sql`. Bỏ qua bước này nếu bạn dùng SQLite.
 
-### Bước 5 — Sinh ảnh minh hoạ cho sản phẩm mẫu
+### Bước 5 — Chuẩn bị ảnh cho sản phẩm mẫu
+
+Có **2 lựa chọn**, chọn một trong hai:
+
+**a) Ảnh thật** (tải từ Openverse — ảnh Creative Commons từ Flickr, Wikimedia)
+
+```bash
+python download_images.py            # bỏ qua ảnh đã có
+python download_images.py --force    # tải lại tất cả
+python download_images.py --only "Bàn"  # chỉ một sản phẩm
+```
+
+> ⚠️ **Openverse tìm ảnh theo metadata, không theo nội dung ảnh.** Đã xảy ra
+> trường hợp tiêu đề ghi *"Casio Scientific Calculator"* nhưng ảnh thật là
+> **mổ ruột linh kiện**. Script có chấm điểm + danh sách loại ảnh sai, nhưng
+> **vẫn phải kiểm tra bằng mắt**. Dùng `python make_contact_sheet.py` để gộp
+> toàn bộ ảnh thành 1 tấm duy nhất rồi soi.
+
+**b) Ảnh vẽ tự sinh** (không cần mạng, đồng nhất về mặt thẩm mỹ)
 
 ```bash
 python generate_images.py
 ```
 
-Vẽ 34 ảnh đại diện bằng Pillow (nền gradient theo màu danh mục, biểu tượng,
-tên sản phẩm, nhãn tình trạng), lưu vào `media/posts/seed/`. Bỏ qua bước này
-nếu không cần ảnh mẫu.
+Vẽ 34 ảnh bằng Pillow: nền gradient theo màu danh mục, biểu tượng, tên sản
+phẩm (tự co giãn, hỗ trợ đầy đủ dấu tiếng Việt), nhãn danh mục + tình trạng.
+
+Cả hai script đều lưu ảnh vào `media/posts/seed/` với **cùng tên file**, nên
+`seed_data.py` tự gắng ảnh mà không cần sửa.
 
 ### Bước 6 — Nạp dữ liệu mẫu
 
@@ -259,7 +279,9 @@ Tất cả thao tác kiểm duyệt đều hỗ trợ **chọn nhiều dòng r�
 ├── media/                         # Ảnh người dùng tải lên (không commit)
 │   └── posts/seed/                # Ảnh mẫu do generate_images.py tạo
 ├── seed_data.py                   # Script nạp dữ liệu mẫu
-├── generate_images.py             # Script sinh ảnh minh hoạ (Pillow)
+├── generate_images.py             # Vẽ ảnh minh hoạ bằng Pillow (không cần mạng)
+├── download_images.py             # Tải ảnh thật từ Openverse (CC)
+├── make_contact_sheet.py          # Gộp ảnh để kiểm tra bằng mắt
 ├── load_tzinfo.py                 # Nạp dữ liệu múi giờ vào MySQL (chạy 1 lần)
 ├── requirements.txt
 ├── .env.example                   # Mẫu cấu hình (copy thành .env)
