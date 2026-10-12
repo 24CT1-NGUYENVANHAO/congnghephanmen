@@ -18,11 +18,12 @@ urlpatterns = [
     path('', include('app_main.urls')),
 ]
 
-# Chỉ phục vụ file media khi DEBUG = True.
-# Khi production phải cấu hình Nginx/Apache phục vụ trực tiếp thư mục media.
+# Media (ảnh người dùng tải lên) được Django phục vụ khi DEBUG = True.
+# KHÔNG cần khai báo thủ công cho static files: django.contrib.staticfiles
+# đã tự phục vụ từ STATICFILES_DIRS trong lúc chạy `manage.py runserver`.
+# Khi chạy production phải dùng `collectstatic` + Nginx/WhiteNoise.
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 
 # Xử lý trang lỗi tập trung
 handler404 = 'app_main.views.handler_404'

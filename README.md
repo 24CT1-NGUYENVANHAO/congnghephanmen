@@ -74,14 +74,23 @@ Chuyên dụng cho **mua bán sách cũ, giáo trình, dụng cụ học tập**
 
 | Lớp | Công nghệ | Vai trò |
 |---|---|---|
-| **Frontend** | Django Template, CSS Design System thuần | Giao diện, không phụ thuộc CDN |
+| **Frontend** | Django Template + Tailwind CSS (bản **lưu cục bộ**) | Giao diện responsive |
 | **Backend** | Django 4.2 / 5.2 (MTV) | Xử lý logic nghiệp vụ |
 | **CSDL** | MySQL 8.0 (mặc định) hoặc SQLite | Lưu trữ dữ liệu qua ORM |
 | **Cấu hình** | django-environ + `.env` | Quản lý bí mật, không hardcode |
 | **Media** | Pillow | Xử lý & kiểm tra ảnh tải lên |
 
-> **Không dùng Tailwind CDN** — toàn bộ giao diện dùng CSS thuần được viết tay
-> trong `static/css/main.css` để hoạt động offline và chịu được đánh giá đồ án.
+> **Về Tailwind CSS:** thư viện được tải về lưu tại `static/js/tailwind.min.js` (441KB)
+> và được nạp bằng thẻ `<script>` **cục bộ**, không dùng CDN.
+> Nhờ vậy dự án **vẫn hiển thị đầy đủ giao diện khi không có mạng** — điều mà
+> `<script src="https://cdn.tailwindcss.com">` của bản cũ không làm được.
+> Bảng màu thương hiệu được khai báo trong `templates/base.html`.
+>
+> Nếu muốn dùng Tailwind đúng chuẩn production, thay file trên bằng bản build
+> từ Tailwind CLI (không cần mạng khi chạy web server).
+
+`static/css/main.css` đặt **sau** Tailwind để ghi đè các component dùng chung
+(`.btn`, `.card`, `.badge`, `.form-input`...) và chứa design token của dự án.
 
 ---
 
@@ -195,7 +204,8 @@ Truy cập: **http://127.0.0.1:8000/**
 │   └── partials/                  # navbar, footer, messages, card, phân trang
 │
 ├── static/
-│   ├── css/main.css               # Design system (~450 dòng)
+│   ├── css/main.css               # Design token + component dùng chung
+│   ├── js/tailwind.min.js         # Tailwind CSS lưu cục bộ (offline)
 │   └── js/main.js                 # Menu, yêu thích AJAX, validate mật khẩu
 │
 ├── media/                         # Ảnh người dùng tải lên (không commit)
@@ -446,6 +456,13 @@ Kẻ tấn công có thể chèn ảnh `<img src="...toggle-sold/1">` vào trang
 
 `ManyToManyField` không lưu thời điểm yêu thích. Bảng nối `Favorite` cho phép
 hiển thị "yêu thích gần đây" và thêm ràng buộc unique `(user, post)`.
+
+### Vì sao `STATIC_URL` phải có dấu `/` ở đầu?
+
+Nếu đặt `STATIC_URL = 'static/'` (thiếu dấu `/`), thẻ `{% static %}` sinh ra
+đường dẫn tương đối. Ở trang chủ (`/`) nó vô hại, nhưng ở trang có đường dẫn lồng
+nhau (`/san-pham/1/`) trình duyệt sẽ yêu cầu `/san-pham/static/css/main.css`
+→ **404, mất toàn bộ CSS**. Vì vậy bắt buộc dùng `STATIC_URL = '/static/'`.
 
 ### Hiệu năng
 

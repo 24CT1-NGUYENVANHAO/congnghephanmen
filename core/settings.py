@@ -164,11 +164,11 @@ USE_TZ = True
 # 6. FILE TĨNH & MEDIA
 # ---------------------------------------------------------------------------
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-MEDIA_URL = 'media/'
+MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 # File tĩnh và media được phục vụ bởi Django chỉ khi DEBUG = True.
