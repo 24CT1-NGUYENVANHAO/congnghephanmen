@@ -102,28 +102,30 @@ Chuyên dụng cho **mua bán sách cũ, giáo trình, dụng cụ học tập**
 pip install -r requirements.txt
 ```
 
-### Bước 2 — Tạo file cấu hình
+### Bước 2 — (Tuỳ chọn) Tạo file cấu hình
 
 ```bash
 cp .env.example .env      # Windows: copy .env.example .env
 ```
 
-Mở `.env` và chỉnh thông tin MySQL cho đúng máy của bạn:
+> 💡 **Bỏ qua bước này cũng được.** Dự án tự dò MySQL; nếu không kết nối
+> được sẽ tự chuyển sang SQLite và in cảnh báo hướng dẫn. Xem
+> [Kết nối CSDL](#-kết-nối-csdl).
+
+<details>
+<summary>⚙️ Chỉnh cấu hình MySQL cho đúng máy của bạn</summary>
+
+Mở `.env` và sửa cho khớp. Cổng MySQL thay đổi tuỳ máy — xem cột **"Port(s)"**
+trong XAMPP Control Panel:
 
 ```env
 USE_SQLITE=False
 DB_NAME=sachgocuni_db
 DB_USER=root
-DB_PASSWORD=123456
+DB_PASSWORD=          # XAMPP để trống; MySQL riêng thì điền mật khẩu
 DB_HOST=127.0.0.1
-DB_PORT=3306
+DB_PORT=3306          # hoặc 3307 tuỳ cấu hình XAMPP
 ```
-
-<details>
-<summary>💡 Không muốn dùng XAMPP/MySQL?</summary>
-
-Đặt `USE_SQLITE=True` trong `.env` — dự án sẽ tự chuyển sang SQLite,
-không cần cài đặt hay bật MySQL. Phần còn lại giữ nguyên.
 
 </details>
 
@@ -245,6 +247,66 @@ Tất cả thao tác kiểm duyệt đều hỗ trợ **chọn nhiều dòng r�
 
 ---
 
+## 🔌 Kết nối CSDL
+
+### Cơ chế tự động
+
+Dự án **tự dò** MySQL khi khởi động. Nếu kết nối được → dùng MySQL.
+Nếu không → **tự chuyển sang SQLite** và in cảnh báo giải thích nguyên nhân.
+Nhờ vậy dự án **luôn chạy được**, kể cả trên máy chưa cài MySQL.
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  python manage.py runserver                              │
+└──────────────────────┬──────────────────────────────────┘
+                       ▼
+            ┌─────────────────────┐      Có    ┌──────────────┐
+            │  Thử kết nối MySQL │─────────────▶│  Dùng MySQL  │
+            │  (đọc từ file .env) │             └──────────────┘
+            └──────────┬──────────┘
+                       │ Không / Sai cấu hình
+                       ▼
+            ┌─────────────────────┐          ┌──────────────┐
+            │ In cảnh báo rõ ràng│─────────▶│  Dùng SQLite │
+            │ kèm cách khắc phục │          └──────────────┘
+            └─────────────────────┘
+```
+
+### Tham số cấu hình (file `.env`)
+
+| Biến | Ý nghĩa | Mặc định |
+|---|---|---|
+| `USE_SQLITE` | Đặt `True` để ép dùng SQLite | `False` |
+| `DB_NAME` | Tên database | `sachgocuni_db` |
+| `DB_USER` | Tài khoản MySQL | `root` |
+| `DB_PASSWORD` | Mật khẩu (XAMPP để trống) | *(rỗng)* |
+| `DB_HOST` | Địa chỉ server | `127.0.0.1` |
+| `DB_PORT` | Cổng | `3306` |
+
+### Cổng MySQL thường gặp
+
+Mỗi máy một kiểu, nên `DB_PORT` có thể khác nhau:
+
+| Tình huống | Cổng |
+|---|---|
+| XAMPP mặc định | `3306` |
+| XAMPP (khi máy đã có MySQL khác chiếm 3306) | `3307` |
+| MySQL cài riêng | `3306` |
+
+**Cách xem cổng đang dùng:** mở XAMPP Control Panel → dòng **MySQL** cột *Port(s)*.
+
+### Xem đang dùng CSDL nào
+
+```bash
+python manage.py shell -c "from django.db import connection; print(connection.settings_dict['ENGINE'])"
+```
+
+Kết quả:
+- `django.db.backends.mysql` → đang dùng MySQL
+- `django.db.backends.sqlite3` → đã tự chuyển sang SQLite
+
+---
+
 ## 📁 Cấu trúc dự án
 
 ```text
@@ -326,67 +388,84 @@ Bao gồm các test bảo mật quan trọng:
 
 ## 📊 Sơ đồ kiến trúc
 
-### Kiến trúc tổng thể (MVC)
+### Phân tầng kiến trúc
+
+Hệ thống chia làm **3 phần riêng biệt**, mỗi phần một màu khác nhau:
+
+| Phần | Trách nhiệm | Công nghệ |
+|---|---|---|
+| 🟦 **Frontend** | Hiển thị giao diện cho người dùng | Django Template, CSS, JavaScript |
+| 🟩 **Backend** | Xử lý nghiệp vụ, bảo mật | Django (Python) |
+| 🟥 **Database** | Lưu trữ dữ liệu | MySQL / SQLite |
 
 ```mermaid
-graph TD
-    User([👤 Người dùng]) -->|HTTP| Browser[Trình duyệt]
+flowchart TD
+    User(["👤 Người dùng<br/>(sinh viên)"])
 
-    subgraph Client ["Tầng trình bày"]
-        Templates[📄 Django Templates<br/>base + partials]
-        CSS[🎨 main.css<br/>Design system]
-        JS[⚡ main.js<br/>AJAX, menu, validate]
+    subgraph FRONTEND ["🟦 PHẦN 1 · FRONTEND — Tầng giao diện"]
+        direction TB
+        T1["📄 Django Templates<br/><b>base.html + 12 trang + 5 partials</b>"]
+        T2["🎨 main.css<br/><b>Design system: .btn .card .badge</b>"]
+        T3["⚡ main.js<br/><b>Menu, yêu thích AJAX, validate</b>"]
+        T4["🖼️ tailwind.min.js<br/><b>Tailwind lưu cục bộ (offline)</b>"]
     end
 
-    Browser --> Templates
-    Templates --> CSS
-    Templates --> JS
+    subgraph BACKEND ["🟩 PHẦN 2 · BACKEND — Tầng ứng dụng Django"]
+        direction TB
+        B1["🛡️ Middleware<br/><b>Session · CSRF · Auth · Security</b>"]
+        B2["🔗 urls.py<br/><b>core + app_main · 22 route</b>"]
 
-    subgraph Server ["Tầng ứng dụng Django"]
-        Middleware[🛡️ Middleware<br/>Security • Session • CSRF • Auth]
-        URLs[🔗 core/urls.py<br/>+ app_main/urls.py]
-
-        subgraph Business ["📦 Nghiệp vụ"]
-            Views[🎯 views.py<br/>20 view]
-            Forms[📝 forms.py<br/>Validation]
-            Signals[⚡ signals.py<br/>Tự tạo Profile]
+        subgraph NGHIEPVU ["Module nghiệp vụ"]
+            direction LR
+            B3["🎯 views.py<br/><b>20 view</b>"]
+            B4["📝 forms.py<br/><b>Validation tập trung</b>"]
+            B5["🛡️ admin.py<br/><b>Kiểm duyệt hàng loạt</b>"]
         end
 
-        Admin[🛡️ admin.py<br/>Kiểm duyệt]
-        Models[🗃️ models.py<br/>8 model ORM]
-        Tags[🏷️ templatetags<br/>Filter & tag]
-        CtxProc[📦 context_processors]
+        B6["🗃️ models.py<br/><b>8 model ORM</b>"]
+        B7["🏷️ templatetags + context_processors<br/><b>Filter & biến dùng chung</b>"]
+        B8["⚡ signals.py<br/><b>Tự tạo Profile</b>"]
     end
 
-    Browser -->|GET / POST| Middleware
-    Middleware --> URLs
-    URLs --> Views
-    URLs --> Admin
-    Views --> Forms
-    Views --> Models
-    Views --> Tags
-    Views --> CtxProc
-    Admin --> Models
-    Forms --> Models
-    Signals --> Models
+    subgraph DATABASE ["🟥 PHẦN 3 · DATABASE — Lưu trữ"]
+        direction TB
+        D1[("🄽 MySQL 8.0 / MariaDB<br/><b>sachgocuni_db · 8 bảng</b>")]
+        D2[("📁 media/posts/<br/><b>Ảnh sản phẩm</b>")]
+        D3["⚙️ .env<br/><b>Cấu hình kết nối CSDL</b>"]
+    end
 
-    Models -->|ORM| DB[(MySQL 8.0<br/>hoặc SQLite)]
-    Models -->|ImageField| Media[(📁 media/<br/>Ảnh sản phẩm)]
+    User -->|"① Gửi yêu cầu HTTP<br/>(GET / POST)"| FRONTEND
+    FRONTEND -->|"② Render HTML + CSS + JS"| User
 
-    DB --> Models
-    Models --> Templates
-    Tags --> Templates
-    CtxProc --> Templates
-    Media --> Templates
+    FRONTEND ==>|"③ Request tới server"| BACKEND
+    BACKEND ==>|"④ HTML đã render"| FRONTEND
 
-    classDef client fill:#e0e7ff,stroke:#4338ca
-    classDef server fill:#dcfce7,stroke:#16a34a
-    classDef logic fill:#fef3c7,stroke:#d97706
-    classDef data fill:#fee2e2,stroke:#dc2626
-    class User,Browser,Templates,CSS,JS client
-    class Middleware,URLs,Admin server
-    class Views,Forms,Signals,Tags,CtxProc logic
-    class Models,DB,Media data
+    BACKEND ==>|"⑤ Truy vấn qua ORM"| D1
+    BACKEND -->|"⑥ Đọc/ghi file ảnh"| D2
+    D3 -.->|"đọc cấu hình"| D1
+
+    D1 ==>|"⑦ Trả về QuerySet"| BACKEND
+
+    classDef fe fill:#e0e7ff,stroke:#4338ca,stroke-width:2px,color:#1e1b4b
+    classDef be fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#14532d
+    classDef db fill:#fee2e2,stroke:#dc2626,stroke-width:2px,color:#7f1d1d
+    classDef user fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#78350f
+
+    class T1,T2,T3,T4 fe
+    class B1,B2,B3,B4,B5,B6,B7,B8 be
+    class D1,D2,D3 db
+    class User user
+```
+
+**Luồng xử lý một yêu cầu (ví dụ người dùng bấm "Đăng tin"):**
+
+```
+①  Người dùng điền form  → ②  Trình duyệt gửi POST /dang-tin/
+                          → ③  Middleware kiểm tra CSRF + phiên đăng nhập
+                          → ④  urls.py định tuyến tới views.create_post
+                          → ⑤  PostForm kiểm tra dữ liệu đầu vào
+                          → ⑥  ORM ghi bảng app_main_post vào MySQL
+                          → ⑦  Redirect tới trang chi tiết sản phẩm
 ```
 
 ### Sơ đồ quan hệ CSDL (ERD)

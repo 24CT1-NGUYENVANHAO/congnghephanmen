@@ -15,9 +15,16 @@ local_settings.py
 db.sqlite3
 db.sqlite3-journal
 
-# --- Cấu hình bí mật (KHÔNG BAO GIỜ commit) ---
+# --- Cấu hình môi trường ---
+# .env KHÔNG commit vì có thể chứa mật khẩu MySQL thật.
+# Thầy/cô clone về chạy:  cp .env.example .env
+#
+# Dự án TỰ ĐỘNG chuyển sang SQLite nếu không kết nối được MySQL,
+# nên thiếu file .env vẫn chạy được.
 .env
+.env.local
 !.env.example
+
 
 # --- File upload của người dùng ---
 media/posts/*
