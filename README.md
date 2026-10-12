@@ -141,6 +141,19 @@ CREATE DATABASE sachgocuni_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 python manage.py migrate
 ```
 
+### Bước 4b — Nạp dữ liệu múi giờ vào MySQL (chỉ khi dùng MySQL)
+
+Bảng `mysql.time_zone_*` trên XAMPP/MySQL mới cài thường **để trống**, khiến
+trang quản trị báo lỗi `Database returned an invalid datetime value`. Chạy
+script này **một lần duy nhất** (tự dò đúng cấu trúc bảng MySQL 5.6 / 8.x):
+
+```bash
+python load_tzinfo.py
+```
+
+Script nạp ~598 múi giờ từ thư viện `zoneinfo` của Python, không cần
+`mysql_tzinfo_to_sql`. Bỏ qua bước này nếu bạn dùng SQLite.
+
 ### Bước 5 — Nạp dữ liệu mẫu
 
 ```bash
@@ -156,6 +169,30 @@ python manage.py runserver
 ```
 
 Truy cập: **http://127.0.0.1:8000/**
+
+<details>
+<summary>🛡️ Trang quản trị — chi tiết</summary>
+
+**Địa chỉ:** http://127.0.0.1:8000/django-admin/
+**Tài khoản:** `admin` / `admin123`
+
+Chức năng có sẵn:
+
+| Trang | Chức năng |
+|---|---|
+| **Tổng quan** | Thống kê nhanh số bài đăng, người dùng, bình luận |
+| **Bài đăng** | Duyệt / ẩn / từ chối, đánh dấu đã bán, làm nổi bật (đưa lên đầu) |
+| **Báo cáo vi phạm** | Xử lý hoặc bỏ qua báo cáo của người dùng |
+| **Bình luận** | Xem và xoá bình luận vi phạm |
+| **Danh mục** | Thêm/sửa danh mục, đặt thứ tự hiển thị |
+| **Hồ sơ sinh viên** | Mã SV, khoa ngành, điểm uy tín |
+| **Yêu thích** | Thống kê sản phẩm được yêu thích |
+| **Đánh giá** | Xem điểm uy tín và nhận xét |
+| **Người dùng** | Khoá / mở khoá tài khoản, phân quyền staff |
+
+Tất cả thao tác kiểm duyệt đều hỗ trợ **chọn nhiều dòng rồi áp dụng hàng loạt**.
+
+</details>
 
 ---
 
@@ -210,6 +247,7 @@ Truy cập: **http://127.0.0.1:8000/**
 │
 ├── media/                         # Ảnh người dùng tải lên (không commit)
 ├── seed_data.py                   # Script nạp dữ liệu mẫu
+├── load_tzinfo.py                 # Nạp dữ liệu múi giờ vào MySQL (chạy 1 lần)
 ├── requirements.txt
 ├── .env.example                   # Mẫu cấu hình (copy thành .env)
 └── manage.py
