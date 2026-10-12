@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+
+{% block title %}Báo cáo vi phạm — SáchGóc Uni{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <a href="{{ post.get_absolute_url }}"
+       class="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-indigo-600 transition mb-6">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+        </svg>
+        Quay lại bài đăng
+    </a>
+
+    <div class="card p-6 md:p-8">
+        <div class="flex items-start gap-3 mb-6">
+            <span class="w-11 h-11 rounded-xl bg-red-50 text-red-600 flex items-center justify-center text-xl shrink-0">🚩</span>
+            <div>
+                <h1 class="text-xl font-extrabold text-slate-900">Báo cáo bài đăng</h1>
+                <p class="text-sm text-slate-500 mt-0.5">
+                    Bài đăng: <strong>{{ post.title|truncatechars:50 }}</strong>
+                </p>
+            </div>
+        </div>
+
+        <div class="p-4 rounded-xl bg-blue-50 border border-blue-200 text-sm text-blue-800 mb-6">
+            ℹ️ Báo cáo của bạn sẽ được ban quản trị xem xét trong thời gian sớm nhất.
+            Báo cáo sai lệch sẽ dẫn tới việc tài khoản của bạn bị hạn chế.
+        </div>
+
+        <form method="post" class="space-y-5">
+            {% csrf_token %}
+
+            <div>
+                <label class="form-label">Lý do báo cáo <span class="text-red-500">*</span></label>
+                {{ form.reason }}
+                {% for error in form.reason.errors %}<p class="form-error">{{ error }}</p>{% endfor %}
+            </div>
+
+            <div>
+                <label for="{{ form.detail.id_for_label }}" class="form-label">Chi tiết (không bắt buộc)</label>
+                {{ form.detail }}
+                <p class="form-help">Mô tả cụ thể vấn đề bạn gặp phải để chúng tôi xử lý nhanh hơn.</p>
+                {% for error in form.detail.errors %}<p class="form-error">{{ error }}</p>{% endfor %}
+            </div>
+
+            <div class="flex gap-3 pt-2">
+                <button type="submit" class="btn btn-danger flex-1">Gửi báo cáo</button>
+                <a href="{{ post.get_absolute_url }}" class="btn btn-outline">Huỷ</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

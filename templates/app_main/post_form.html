@@ -1,0 +1,188 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }} — SáchGóc Uni{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <div class="mb-6">
+        <a href="{% url 'my_posts' %}" class="text-sm text-slate-500 hover:text-indigo-600 transition inline-flex items-center gap-1">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+            </svg>
+            Quay lại danh sách
+        </a>
+    </div>
+
+    <div class="card p-6 md:p-8">
+        <h1 class="text-2xl font-extrabold text-slate-900 mb-1">{% if is_create %}📝 Đăng tin mới{% else %}✏️ Chỉnh sửa tin{% endif %}</h1>
+        <p class="text-sm text-slate-500 mb-6">
+            {% if is_create %}
+                Điền đầy đủ thông tin để tin đăng được tìm thấy nhanh hơn.
+            {% else %}
+                Cập nhật thông tin cho bài đăng "{{ post.title|truncatechars:40 }}"
+            {% endif %}
+        </p>
+
+        {% if not is_create and post.status == 'REJECTED' %}
+            <div class="mb-5 p-4 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
+                ⚠️ Bài đăng này đã bị từ chối: <strong>{{ post.rejection_reason|default:"Không rõ lý do" }}</strong>.
+                Hãy chỉnh sửa và lưu lại để gửi duyệt.
+            </div>
+        {% endif %}
+
+        {% if form.non_field_errors %}
+            <div class="mb-5 p-4 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
+                {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+            </div>
+        {% endif %}
+
+        <form method="post" enctype="multipart/form-data" class="space-y-5" novalidate data-once>
+            {% csrf_token %}
+
+            <!-- Tiêu đề -->
+            <div>
+                <label for="{{ form.title.id_for_label }}" class="form-label">
+                    Tiêu đề <span class="text-red-500">*</span>
+                </label>
+                {{ form.title }}
+                <p class="form-help">Nêu rõ tên sách/thiết bị và tình trạng. VD: "Giáo trình Kiến trúc căn bản (mới 90%)"</p>
+                {% for error in form.title.errors %}<p class="form-error">{{ error }}</p>{% endfor %}
+            </div>
+
+            <!-- Danh mục + Tình trạng -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                    <label for="{{ form.category.id_for_label }}" class="form-label">Danh mục</label>
+                    {{ form.category }}
+                    {% for error in form.category.errors %}<p class="form-error">{{ error }}</p>{% endfor %}
+                </div>
+                <div>
+                    <label for="{{ form.condition.id_for_label }}" class="form-label">Tình trạng</label>
+                    {{ form.condition }}
+                    {% for error in form.condition.errors %}<p class="form-error">{{ error }}</p>{% endfor %}
+                </div>
+            </div>
+
+            <!-- Giá -->
+            <div>
+                <label for="{{ form.price.id_for_label }}" class="form-label">Giá bán (VNĐ)</label>
+                {{ form.price }}
+                <label class="form-check mt-3">
+                    {{ form.is_free }}
+                    <span class="text-sm text-slate-700">
+                        <strong>🎁 Tặng miễn phí (0đ)</strong> — chọn nếu bạn muốn tặng lại cho sinh viên khác
+                    </span>
+                </label>
+                {% for error in form.price.errors %}<p class="form-error">{{ error }}</p>{% endfor %}
+            </div>
+
+            <!-- Mô tả -->
+            <div>
+                <label for="{{ form.description.id_for_label }}" class="form-label">
+                    Mô tả chi tiết <span class="text-red-500">*</span>
+                </label>
+                {{ form.description }}
+                <p class="form-help">Mô tả rõ: tình trạng thực tế, có ghi chú/bài tập không, lý do bán, cách giao dịch...</p>
+                {% for error in form.description.errors %}<p class="form-error">{{ error }}</p>{% endfor %}
+            </div>
+
+            <!-- Ảnh đại diện -->
+            <div>
+                <label for="{{ form.image.id_for_label }}" class="form-label">Ảnh đại diện</label>
+                {% if not is_create and post.image %}
+                    <div class="mb-3 flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200">
+                        <img src="{{ post.image.url }}" alt="" class="w-20 h-20 rounded-lg object-cover">
+                        <p class="text-xs text-slate-500">Ảnh hiện tại.<br>Chọn ảnh mới sẽ thay thế.</p>
+                    </div>
+                {% endif %}
+                {{ form.image }}
+                <p class="form-help">Tối đa {{ max_upload_mb|default:5 }}MB mỗi ảnh. JPG, PNG, WEBP hoặc GIF.</p>
+                {% for error in form.image.errors %}<p class="form-error">{{ error }}</p>{% endfor %}
+            </div>
+
+            <!-- Thông tin bổ sung -->
+            <div class="pt-4 border-t border-slate-100">
+                <p class="text-sm font-semibold text-slate-700 mb-4">Thông tin bổ sung (không bắt buộc)</p>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div>
+                        <label for="{{ form.course_code.id_for_label }}" class="form-label">Mã học phần</label>
+                        {{ form.course_code }}
+                        <p class="form-help">Giúp đàn em tìm đúng giáo trình. VD: IT001</p>
+                    </div>
+                    <div>
+                        <label for="{{ form.faculty.id_for_label }}" class="form-label">Khoa / Ngành</label>
+                        {{ form.faculty }}
+                        <p class="form-help">VD: Khoa Kiến trúc</p>
+                    </div>
+                </div>
+
+                <div class="mt-5">
+                    <label for="{{ form.location.id_for_label }}" class="form-label">Khu vực giao dịch</label>
+                    {{ form.location }}
+                    <p class="form-help">Nơi bạn muốn giao dịch. VD: KTX A, Căn cứ Mỹ Đức, Khu 3</p>
+                </div>
+            </div>
+
+            <!-- Nút -->
+            <div class="flex flex-col sm:flex-row gap-3 pt-4">
+                <button type="submit" class="btn btn-primary btn-lg flex-1">{{ submit_text }}</button>
+                <a href="{% if post %}{{ post.get_absolute_url }}{% else %}{% url 'my_posts' %}{% endif %}"
+                   class="btn btn-outline btn-lg">Huỷ</a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Quản lý ảnh phụ (chỉ khi sửa) -->
+    {% if not is_create %}
+        <div class="card p-6 mt-6">
+            <h2 class="text-lg font-bold text-slate-900 mb-1">🖼️ Ảnh phụ ({{ post.images.count }}/5)</h2>
+            <p class="text-sm text-slate-500 mb-4">Thêm tối đa 5 ảnh để người mua yên tâm hơn.</p>
+
+            {% if post.images.exists %}
+                <div class="grid grid-cols-3 sm:grid-cols-5 gap-3 mb-5">
+                    {% for img in post.images.all %}
+                        <div class="relative group">
+                            <img src="{{ img.image.url }}" alt="" class="w-full aspect-square object-cover rounded-lg border border-slate-200">
+                            <form action="{% url 'delete_post_image' img.pk %}" method="post"
+                                  onsubmit="return confirmAction('Xoá ảnh này?')">
+                                {% csrf_token %}
+                                <button type="submit"
+                                        class="absolute top-1.5 right-1.5 w-6 h-6 rounded-lg bg-red-500 text-white
+                                               text-xs opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                                    ×
+                                </button>
+                            </form>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            {% if post.images.count < 5 %}
+                <form action="{% url 'upload_post_image' post.pk %}" method="post"
+                      enctype="multipart/form-data" class="flex flex-col sm:flex-row gap-3 items-start">
+                    {% csrf_token %}
+                    {{ post_image_form.image }}
+                    <button type="submit" class="btn btn-outline btn-sm shrink-0">+ Thêm ảnh</button>
+                </form>
+            {% else %}
+                <p class="text-sm text-slate-400">Đã đạt giới hạn 5 ảnh.</p>
+            {% endif %}
+        </div>
+
+        <!-- Xoá bài đăng -->
+        <div class="card p-6 mt-6" style="border-color:#fecaca;background:#fef2f2;">
+            <h2 class="text-lg font-bold text-red-700 mb-1">⚠️ Xoá bài đăng</h2>
+            <p class="text-sm text-red-600 mb-4">
+                Hành động này không thể hoàn tác. Toàn bộ bình luận và ảnh của bài đăng sẽ bị xoá vĩnh viễn.
+            </p>
+            <form action="{% url 'delete_post' post.pk %}" method="post"
+                  onsubmit="return confirmAction('Bạn có CHẮC CHẮN muốn xoá vĩnh viễn bài đăng này?')">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger btn-sm">🗑️ Xoá bài đăng này</button>
+            </form>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

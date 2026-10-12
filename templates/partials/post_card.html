@@ -1,0 +1,94 @@
+{% load app_extras %}
+<!-- Thẻ sản phẩm dùng chung cho trang chủ, wishlist, trang cá nhân -->
+<div class="card card-hover overflow-hidden flex flex-col group relative">
+
+    <!-- Lớp phủ khi đã bán -->
+    {% if post.is_sold %}
+        <div class="absolute inset-0 z-20 flex items-center justify-center"
+             style="background:rgba(15,23,42,0.55);backdrop-filter:blur(2px);">
+            <span class="badge badge-danger px-4 py-2 text-xs font-extrabold uppercase tracking-wider shadow-lg">
+                ❌ Đã bán / Đã tặng
+            </span>
+        </div>
+    {% endif %}
+
+    <!-- Ảnh -->
+    <a href="{{ post.get_absolute_url }}" class="relative block aspect-[4/3] overflow-hidden bg-slate-100">
+        {% if post.get_absolute_image_url %}
+            <img src="{{ post.get_absolute_image_url }}" alt="{{ post.title }}"
+                 loading="lazy"
+                 class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
+        {% else %}
+            <div class="w-full h-full flex flex-col items-center justify-center text-slate-300">
+                <svg class="w-14 h-14 mb-2" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                          d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-5l-2 3h-3l-2-3H4"/>
+                </svg>
+                <span class="text-xs font-medium">Chưa có ảnh</span>
+            </div>
+        {% endif %}
+
+        <!-- Badge danh mục -->
+        {% if post.category %}
+            <span class="absolute top-3 left-3 badge badge-brand shadow-sm backdrop-blur-sm">
+                {{ post.category.icon }} {{ post.category.name }}
+            </span>
+        {% endif %}
+
+        <!-- Badge tặng miễn phí -->
+        {% if post.is_free or post.price == 0 %}
+            <span class="absolute top-3 right-3 badge badge-success shadow-sm font-bold">
+                🎁 Tặng 0đ
+            </span>
+        {% endif %}
+
+        <!-- Badge số ảnh -->
+        {% if post.images.count > 1 %}
+            <span class="absolute bottom-3 left-3 badge badge-dark text-[10px] backdrop-blur-sm">
+                📷 {{ post.images.count }}
+            </span>
+        {% endif %}
+    </a>
+
+    <!-- Nội dung -->
+    <div class="p-4 flex flex-col flex-1 gap-3">
+
+        <!-- Meta -->
+        <div class="flex items-center justify-between text-xs text-slate-400">
+            <a href="{% url 'user_profile' post.seller.username %}"
+               class="font-medium hover:text-indigo-600 transition truncate">
+                👤 {{ post.seller.profile.display_name|truncatechars:18 }}
+            </a>
+            <span class="shrink-0 ml-2">{{ post.created_at|timesince }} trước</span>
+        </div>
+
+        <!-- Tiêu đề -->
+        <h3 class="font-bold text-slate-800 leading-snug line-clamp-2 text-[0.95rem] group-hover:text-indigo-600 transition-colors">
+            <a href="{{ post.get_absolute_url }}">{{ post.title }}</a>
+        </h3>
+
+        <!-- Thẻ thông tin nhỏ -->
+        <div class="flex flex-wrap gap-1.5">
+            {% if post.course_code %}
+                <span class="badge badge-slate text-[10px] font-mono">{{ post.course_code }}</span>
+            {% endif %}
+            {% if post.condition %}
+                <span class="badge badge-info text-[10px]">{{ post.get_condition_display }}</span>
+            {% endif %}
+            {% if post.location %}
+                <span class="badge badge-slate text-[10px]">📍 {{ post.location|truncatechars:14 }}</span>
+            {% endif %}
+        </div>
+
+        <!-- Giá & nút -->
+        <div class="mt-auto pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+            <span class="text-lg font-extrabold {% if post.is_free or post.price == 0 %}text-emerald-600{% else %}text-indigo-600{% endif %}">
+                {{ post.price_display }}
+            </span>
+            <a href="{{ post.get_absolute_url }}"
+               class="btn btn-outline btn-sm group-hover:btn-primary group-hover:bg-indigo-600 group-hover:text-white transition">
+                Chi tiết
+            </a>
+        </div>
+    </div>
+</div>

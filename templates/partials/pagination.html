@@ -1,0 +1,43 @@
+{% load app_extras %}
+<!-- Thanh phân trang dùng chung -->
+{% if page_obj.paginator.num_pages > 1 %}
+<nav class="flex items-center justify-center gap-2 mt-10" aria-label="Phân trang">
+
+    {% if page_obj.has_previous %}
+        <a href="?{% querystring page=page_obj.previous_page_number %}"
+           class="btn btn-outline btn-sm" aria-label="Trang trước">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+            </svg>
+        </a>
+    {% endif %}
+
+    {% for num in page_obj.paginator.page_range %}
+        {% if num == page_obj.number %}
+            <span class="btn btn-primary btn-sm min-w-10" aria-current="page">{{ num }}</span>
+        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+            <a href="?{% querystring page=num %}"
+               class="btn btn-outline btn-sm min-w-10">{{ num }}</a>
+        {% elif num == 1 or num == page_obj.paginator.num_pages %}
+            <a href="?{% querystring page=num %}"
+               class="btn btn-outline btn-sm min-w-10">{{ num }}</a>
+        {% elif num == page_obj.number|add:'-3' or num == page_obj.number|add:'3' %}
+            <span class="px-1 text-slate-400">…</span>
+        {% endif %}
+    {% endfor %}
+
+    {% if page_obj.has_next %}
+        <a href="?{% querystring page=page_obj.next_page_number %}"
+           class="btn btn-outline btn-sm" aria-label="Trang sau">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+            </svg>
+        </a>
+    {% endif %}
+</nav>
+
+<p class="text-center text-xs text-slate-400 mt-3">
+    Trang {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}
+    — Tổng {{ page_obj.paginator.count }} kết quả
+</p>
+{% endif %}

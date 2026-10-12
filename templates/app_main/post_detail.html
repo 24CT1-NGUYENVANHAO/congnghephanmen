@@ -1,0 +1,391 @@
+{% extends 'base.html' %}
+{% load app_extras humanize %}
+
+{% block title %}{{ post.title }} — SáchGóc Uni{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- Đường dẫn -->
+    <nav class="flex items-center gap-2 text-xs text-slate-500 mb-5 flex-wrap">
+        <a href="{% url 'home' %}" class="hover:text-indigo-600 transition">Trang chủ</a>
+        <span>/</span>
+        {% if post.category %}
+            <a href="?cat={{ post.category.pk }}" class="hover:text-indigo-600 transition">
+                {{ post.category.icon }} {{ post.category.name }}
+            </a>
+            <span>/</span>
+        {% endif %}
+        <span class="text-slate-700 font-medium truncate">{{ post.title|truncatechars:50 }}</span>
+    </nav>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+        <!-- ============ CỘT TRÁI: THƯ VIỆN ẢNH ============ -->
+        <div class="space-y-3">
+            <div class="card overflow-hidden relative group">
+                <!-- Lớp phủ khi đã bán -->
+                {% if post.is_sold %}
+                    <div class="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2"
+                         style="background:rgba(15,23,42,0.6);backdrop-filter:blur(3px);">
+                        <span class="badge badge-danger px-5 py-2.5 text-sm font-extrabold uppercase tracking-wider shadow-lg">
+                            ❌ Đã bán / Đã tặng
+                        </span>
+                        <span class="text-white text-xs">Sản phẩm này đã không còn trên sàn</span>
+                    </div>
+                {% endif %}
+
+                {% if post.get_absolute_image_url %}
+                    <img id="main-image" src="{{ post.get_absolute_image_url }}" alt="{{ post.title }}"
+                         class="w-full aspect-[4/3] object-cover transition-opacity duration-300">
+                {% else %}
+                    <div class="w-full aspect-[4/3] flex flex-col items-center justify-center text-slate-300 bg-slate-50">
+                        <svg class="w-24 h-24 mb-3" fill="none" stroke="currentColor" stroke-width="1" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                  d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-5l-2 3h-3l-2-3H4"/>
+                        </svg>
+                        <span class="text-sm font-medium">Người đăng chưa đăng ảnh</span>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Ảnh nhỏ -->
+            {% if post.gallery|length > 1 %}
+                <div class="grid grid-cols-5 gap-2">
+                    {% for photo in post.gallery %}
+                        <button type="button" data-gallery-thumb
+                                data-src="{{ photo.url }}" data-alt="{{ post.title }}"
+                                class="aspect-square rounded-lg overflow-hidden border-2 transition hover:border-indigo-400
+                                       {% if forloop.first %}border-indigo-500{% else %}border-slate-200{% endif %}">
+                            <img src="{{ photo.url }}" alt="" loading="lazy" class="w-full h-full object-cover">
+                        </button>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- ============ CỘT PHẢI: THÔNG TIN ============ -->
+        <div class="space-y-5">
+
+            <!-- Thẻ giá + tiêu đề -->
+            <div class="card p-6">
+                <div class="flex flex-wrap items-center gap-2 mb-3">
+                    {% if post.category %}
+                        <span class="badge badge-brand">{{ post.category.icon }} {{ post.category.name }}</span>
+                    {% endif %}
+                    <span class="badge badge-info">{{ post.get_condition_display }}</span>
+                    {% if post.is_free or post.price == 0 %}
+                        <span class="badge badge-success font-bold">🎁 Tặng miễn phí</span>
+                    {% endif %}
+                </div>
+
+                <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900 leading-tight mb-4">
+                    {{ post.title }}
+                </h1>
+
+                <div class="flex items-end gap-3 pb-4 border-b border-slate-100">
+                    <span class="text-4xl font-extrabold {% if post.is_free or post.price == 0 %}text-emerald-600{% else %}text-indigo-600{% endif %}">
+                        {{ post.price_display }}
+                    </span>
+                    {% if not post.is_free and post.price > 0 %}
+                        <span class="text-sm text-slate-400 mb-1">có thể thương lượng</span>
+                    {% endif %}
+                </div>
+
+                <!-- Meta -->
+                <div class="grid grid-cols-2 gap-3 mt-4 text-sm">
+                    <div class="flex items-center gap-2 text-slate-600">
+                        <span class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">👁️</span>
+                        <div>
+                            <p class="text-xs text-slate-400">Lượt xem</p>
+                            <p class="font-semibold">{{ post.view_count|intcomma }}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 text-slate-600">
+                        <span class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">🕐</span>
+                        <div>
+                            <p class="text-xs text-slate-400">Đăng ngày</p>
+                            <p class="font-semibold">{{ post.created_at|date:"d/m/Y" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Thông tin người bán -->
+            <div class="card p-5">
+                <div class="flex items-start gap-4">
+                    <a href="{% url 'user_profile' post.seller.username %}"
+                       class="w-14 h-14 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white
+                              flex items-center justify-center text-xl font-bold uppercase shrink-0">
+                        {{ post.seller.username|first }}
+                    </a>
+
+                    <div class="flex-1 min-w-0">
+                        <a href="{% url 'user_profile' post.seller.username %}"
+                           class="font-bold text-slate-900 hover:text-indigo-600 transition block truncate">
+                            {{ post.seller.profile.display_name }}
+                        </a>
+                        <p class="text-xs text-slate-400 mb-2">@{{ post.seller.username }}</p>
+
+                        <div class="flex flex-wrap items-center gap-2">
+                            {% if seller_avg %}
+                                <span class="flex items-center gap-1 text-xs">
+                                    <span class="text-amber-400">★★★★★</span>
+                                    <span class="font-bold text-slate-700">{{ seller_avg|floatformat:1 }}</span>
+                                    <span class="text-slate-400">({{ seller_reviews_count }})</span>
+                                </span>
+                            {% endif %}
+                            {% if post.seller.profile.faculty %}
+                                <span class="badge badge-slate text-[10px]">{{ post.seller.profile.faculty }}</span>
+                            {% endif %}
+                            <span class="badge badge-brand text-[10px]">
+                                {{ post.seller.profile.total_sold }} đã giao dịch
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Thông tin học thuật -->
+                <div class="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-slate-100 text-sm">
+                    {% if post.course_code %}
+                        <div>
+                            <p class="text-xs text-slate-400 mb-0.5">Mã học phần</p>
+                            <p class="font-mono font-semibold text-indigo-600">{{ post.course_code }}</p>
+                        </div>
+                    {% endif %}
+                    {% if post.faculty %}
+                        <div>
+                            <p class="text-xs text-slate-400 mb-0.5">Khoa / Ngành</p>
+                            <p class="font-semibold text-slate-700">{{ post.faculty }}</p>
+                        </div>
+                    {% endif %}
+                    {% if post.location %}
+                        <div class="col-span-2">
+                            <p class="text-xs text-slate-400 mb-0.5">Khu vực giao dịch</p>
+                            <p class="font-semibold text-slate-700">📍 {{ post.location }}</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Hành động -->
+            <div class="card p-5 space-y-3">
+                {% if user.is_authenticated %}
+                    {% if user == post.seller %}
+                        <!-- Chủ bài đăng -->
+                        <div class="p-4 rounded-xl bg-amber-50 border border-amber-200">
+                            <p class="text-sm font-semibold text-amber-800 mb-3">📌 Đây là tin đăng của bạn</p>
+                            <div class="grid grid-cols-2 gap-2">
+                                <a href="{% url 'edit_post' post.pk %}" class="btn btn-outline btn-sm">✏️ Sửa tin</a>
+                                <form action="{% url 'toggle_sold' post.pk %}" method="post">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-warning btn-sm btn-block">
+                                        {% if post.is_sold %}🔄 Mở lại{% else %}✅ Đánh dấu đã bán{% endif %}
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+
+                    {% elif post.is_sold %}
+                        <button class="btn btn-block btn-lg" disabled
+                                style="background:var(--slate-100);color:var(--slate-400);border:1px solid var(--slate-200);">
+                            🔒 Sản phẩm này đã bán
+                        </button>
+
+                    {% else %}
+                        <!-- Nút liên hệ -->
+                        <div class="grid grid-cols-2 gap-3">
+                            {% if post.seller.email %}
+                                <a href="mailto:{{ post.seller.email }}?subject={{ post.title|urlencode }}&body={{ user.profile.display_name|urlencode }} xin liên hệ về sản phẩm {{ post.title|urlencode }}"
+                                   class="btn btn-success btn-lg">
+                                    💬 Nhắn tin người bán
+                                </a>
+                            {% else %}
+                                <button class="btn btn-block btn-lg" disabled style="opacity:0.5;cursor:not-allowed">
+                                    💬 Người bán chưa cập nhật email
+                                </button>
+                            {% endif %}
+
+                            <form action="{% url 'toggle_favorite' post.pk %}" method="post">
+                                {% csrf_token %}
+                                <button id="favorite-button" type="submit" data-url="{% url 'toggle_favorite' post.pk %}"
+                                        class="btn btn-outline btn-lg w-full
+                                               {% if is_favorited %}text-rose-500 border-rose-300 bg-rose-50{% else %}text-slate-400{% endif %}">
+                                    <span data-icon>{% if is_favorited %}♥{% else %}♡{% endif %}</span>
+                                    Yêu thích
+                                    <span id="favorite-count" class="badge badge-slate">{{ post.favorited_by.count }}</span>
+                                </button>
+                            </form>
+                        </div>
+
+                        <p class="text-xs text-slate-400 text-center leading-relaxed">
+                            🔒 Hãy gặp mặt trực tiếp tại khuôn viên trường.
+                            Không chuyển tiền trước khi nhận sản phẩm.
+                        </p>
+                    {% endif %}
+
+                {% else %}
+                    <!-- Khách chưa đăng nhập -->
+                    <a href="{% url 'login' %}?next={{ request.path }}"
+                       class="btn btn-primary btn-lg btn-block">🔑 Đăng nhập để liên hệ</a>
+                    <p class="text-xs text-slate-400 text-center">
+                        Chưa có tài khoản?
+                        <a href="{% url 'register' %}" class="text-indigo-600 font-semibold hover:underline">Đăng ký miễn phí</a>
+                    </p>
+                {% endif %}
+            </div>
+
+            <!-- Báo cáo vi phạm -->
+            {% if can_report %}
+                <a href="{% url 'report_post' post.pk %}" class="text-xs text-slate-400 hover:text-red-500 transition">
+                    🚩 Báo cáo nội dung này
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- ============ MÔ TẢ CHI TIẾT ============ -->
+    <section class="card p-6 mt-8">
+        <h2 class="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+            📝 Mô tả chi tiết
+        </h2>
+        <div class="text-slate-600 leading-relaxed whitespace-pre-line text-sm">{{ post.description }}</div>
+    </section>
+
+    <!-- ============ BÌNH LUẬN & HỎI ĐÁP ============ -->
+    <section class="card p-6 mt-6">
+        <h2 class="text-lg font-bold text-slate-900 mb-5 flex items-center gap-2">
+            💬 Hỏi đáp &amp; Bình luận
+            <span class="badge badge-brand">{{ comments|length }}</span>
+        </h2>
+
+        <!-- Form gửi bình luận -->
+        {% if user.is_authenticated %}
+            {% if user == post.seller and not comments %}
+                <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-500 mb-6">
+                    💡 Hãy trả lời các câu hỏi của người mua để tăng độ tin cậy cho tin đăng của bạn.
+                </div>
+            {% endif %}
+            <form action="{% url 'add_comment' post.pk %}" method="post"
+                  class="comment-form mb-8 space-y-3">
+                {% csrf_token %}
+                <textarea name="content" rows="3" required maxlength="1000"
+                          placeholder="Viết câu hỏi hoặc thông tin trao đổi với người bán..."
+                          class="form-input"></textarea>
+                <div class="flex items-center justify-between">
+                    <p class="text-xs text-slate-400">Tối đa 1000 ký tự</p>
+                    <button type="submit" class="btn btn-primary btn-sm">Gửi bình luận</button>
+                </div>
+            </form>
+        {% else %}
+            <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-600 mb-6 text-center">
+                Vui lòng <a href="{% url 'login' %}?next={{ request.path }}"
+                          class="text-indigo-600 font-semibold hover:underline">đăng nhập</a>
+                để đặt câu hỏi cho người bán.
+            </div>
+        {% endif %}
+
+        <!-- Danh sách bình luận -->
+        <div class="space-y-4">
+            {% for comment in comments %}
+                <div class="flex gap-3">
+                    <span class="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 text-white
+                                 flex items-center justify-center text-xs font-bold uppercase shrink-0">
+                        {{ comment.author.username|first }}
+                    </span>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap mb-1">
+                            <a href="{% url 'user_profile' comment.author.username %}"
+                               class="font-semibold text-sm text-slate-800 hover:text-indigo-600 transition">
+                                {{ comment.author.profile.display_name }}
+                            </a>
+                            {% if comment.author == post.seller %}
+                                <span class="badge badge-brand text-[10px]">Người bán</span>
+                            {% endif %}
+                            <span class="text-xs text-slate-400">{{ comment.created_at|timesince }} trước</span>
+
+                            {% if user.is_authenticated and comment.author == user or user == post.seller or user.is_staff %}
+                                <form action="{% url 'delete_comment' comment.pk %}" method="post"
+                                      class="ml-auto"
+                                      onsubmit="return confirmAction('Xoá bình luận này?')">
+                                    {% csrf_token %}
+                                    <button type="submit" class="text-xs text-slate-300 hover:text-red-500 transition">
+                                        🗑️
+                                    </button>
+                                </form>
+                            {% endif %}
+                        </div>
+
+                        <p class="text-sm text-slate-700 leading-relaxed bg-slate-50 rounded-xl rounded-tl-sm px-4 py-3">
+                            {{ comment.content }}
+                        </p>
+
+                        <!-- Trả lời -->
+                        {% if user.is_authenticated %}
+                            <button type="button" class="text-xs text-indigo-600 hover:underline mt-1.5"
+                                    onclick="toggleReply({{ comment.pk }})">↩ Trả lời</button>
+                        {% endif %}
+
+                        <form id="reply-{{ comment.pk }}" class="hidden mt-3 space-y-2"
+                              action="{% url 'add_comment' post.pk %}" method="post">
+                            {% csrf_token %}
+                            <input type="hidden" name="parent_id" value="{{ comment.pk }}">
+                            <textarea name="content" rows="2" required maxlength="1000"
+                                      placeholder="Trả lời {{ comment.author.profile.display_name }}..."
+                                      class="form-input text-sm"></textarea>
+                            <button type="submit" class="btn btn-primary btn-sm">Gửi trả lời</button>
+                        </form>
+
+                        <!-- Các trả lời -->
+                        {% for reply in comment.replies.all %}
+                            <div class="flex gap-2.5 mt-3 pl-3" style="border-left:2px solid var(--slate-200);">
+                                <span class="w-7 h-7 rounded-lg bg-slate-200 text-slate-600
+                                             flex items-center justify-center text-[10px] font-bold uppercase shrink-0">
+                                    {{ reply.author.username|first }}
+                                </span>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <span class="font-semibold text-xs text-slate-700">
+                                            {{ reply.author.profile.display_name }}
+                                        </span>
+                                        {% if reply.author == post.seller %}
+                                            <span class="badge badge-brand text-[9px]">Người bán</span>
+                                        {% endif %}
+                                        <span class="text-[11px] text-slate-400">{{ reply.created_at|timesince }}</span>
+                                    </div>
+                                    <p class="text-sm text-slate-600 mt-0.5">{{ reply.content }}</p>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% empty %}
+                <div class="text-center py-10 text-slate-400">
+                    <p class="text-3xl mb-2">💭</p>
+                    <p class="text-sm">Chưa có bình luận nào. Hãy là người đầu tiên đặt câu hỏi!</p>
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <!-- ============ SẢN PHẨM LIÊN QUAN ============ -->
+    {% if related_posts %}
+        <section class="mt-8">
+            <h2 class="text-lg font-bold text-slate-900 mb-4">🔗 Sản phẩm liên quan</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                {% for post in related_posts %}
+                    {% include 'partials/post_card.html' %}
+                {% endfor %}
+            </div>
+        </section>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleReply(id) {
+    document.getElementById('reply-' + id).classList.toggle('hidden');
+}
+</script>
+{% endblock %}

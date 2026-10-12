@@ -1,0 +1,333 @@
+/* ==========================================================================
+   SáchGóc Uni — Design System
+   Bảng màu, typography và component dùng chung cho toàn bộ giao diện.
+   ========================================================================== */
+
+:root {
+    /* -- Màu thương hiệu -- */
+    --brand-50: #eef2ff;
+    --brand-100: #e0e7ff;
+    --brand-200: #c7d2fe;
+    --brand-300: #a5b4fc;
+    --brand-400: #818cf8;
+    --brand-500: #6366f1;
+    --brand-600: #4f46e5;
+    --brand-700: #4338ca;
+    --brand-800: #3730a3;
+    --brand-900: #312e81;
+
+    /* -- Màu trạng thái -- */
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --info: #0ea5e9;
+
+    /* -- Trung tính -- */
+    --slate-50: #f8fafc;
+    --slate-100: #f1f5f9;
+    --slate-200: #e2e8f0;
+    --slate-300: #cbd5e1;
+    --slate-400: #94a3b8;
+    --slate-500: #64748b;
+    --slate-600: #475569;
+    --slate-700: #334155;
+    --slate-800: #1e293b;
+    --slate-900: #0f172a;
+
+    /* -- Bo góc & đổ bóng -- */
+    --radius-sm: 0.5rem;
+    --radius: 0.75rem;
+    --radius-lg: 1rem;
+    --radius-xl: 1.5rem;
+
+    --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+    --shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+    --shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.12);
+    --shadow-xl: 0 24px 56px rgba(79, 70, 229, 0.16);
+
+    /* -- Transition -- */
+    --transition: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ==========================================================================
+   RESET & BASE
+   ========================================================================== */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    margin: 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+                 Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: var(--slate-50);
+    color: var(--slate-800);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    margin: 0;
+    font-weight: 700;
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+    color: var(--slate-900);
+}
+
+p { margin: 0 0 1rem; }
+p:last-child { margin-bottom: 0; }
+
+a {
+    color: var(--brand-600);
+    text-decoration: none;
+    transition: color var(--transition);
+}
+a:hover { color: var(--brand-700); }
+
+img { max-width: 100%; display: block; }
+
+/* Ẩn thanh cuộn ngang trong thanh lọc */
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* ==========================================================================
+   FOCUS — hỗ trợ điều hướng bằng bàn phím
+   ========================================================================== */
+
+:focus-visible {
+    outline: 3px solid var(--brand-400);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+/* ==========================================================================
+   BUTTONS
+   ========================================================================== */
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.25rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all var(--transition);
+    text-decoration: none;
+}
+
+.btn:disabled,
+.btn.disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.btn-primary {
+    background: var(--brand-600);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.28);
+}
+.btn-primary:hover {
+    background: var(--brand-700);
+    color: #fff;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(79, 70, 229, 0.36);
+}
+
+.btn-success {
+    background: var(--success);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.28);
+}
+.btn-success:hover {
+    background: #059669;
+    color: #fff;
+    transform: translateY(-1px);
+}
+
+.btn-outline {
+    background: #fff;
+    color: var(--slate-700);
+    border-color: var(--slate-300);
+}
+.btn-outline:hover {
+    background: var(--slate-50);
+    border-color: var(--brand-400);
+    color: var(--brand-700);
+}
+
+.btn-ghost {
+    background: transparent;
+    color: var(--slate-600);
+}
+.btn-ghost:hover { background: var(--slate-100); color: var(--slate-900); }
+
+.btn-danger {
+    background: var(--danger);
+    color: #fff;
+}
+.btn-danger:hover { background: #dc2626; color: #fff; }
+
+.btn-warning {
+    background: var(--warning);
+    color: #fff;
+}
+.btn-warning:hover { background: #d97706; color: #fff; }
+
+.btn-sm { padding: 0.375rem 0.75rem; font-size: 0.8125rem; border-radius: var(--radius-sm); }
+.btn-lg { padding: 0.875rem 1.75rem; font-size: 1rem; border-radius: var(--radius-lg); }
+.btn-block { width: 100%; }
+
+/* ==========================================================================
+   CARD
+   ========================================================================== */
+
+.card {
+    background: #fff;
+    border: 1px solid var(--slate-200);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+}
+
+.card-hover {
+    transition: transform var(--transition), box-shadow var(--transition),
+                border-color var(--transition);
+}
+.card-hover:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--brand-200);
+}
+
+/* ==========================================================================
+   BADGE
+   ========================================================================== */
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.625rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1rem;
+    white-space: nowrap;
+}
+
+.badge-brand   { background: var(--brand-50);   color: var(--brand-700); }
+.badge-success { background: #d1fae5;           color: #047857; }
+.badge-warning { background: #fef3c7;           color: #b45309; }
+.badge-danger  { background: #fee2e2;           color: #b91c1c; }
+.badge-info    { background: #e0f2fe;           color: #0369a1; }
+.badge-slate   { background: var(--slate-100);  color: var(--slate-600); }
+.badge-dark    { background: var(--slate-800);  color: #fff; }
+
+/* ==========================================================================
+   FORM
+   ========================================================================== */
+
+.form-label {
+    display: block;
+    margin-bottom: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--slate-700);
+}
+
+.form-input {
+    width: 100%;
+    padding: 0.625rem 1rem;
+    border: 1px solid var(--slate-300);
+    border-radius: var(--radius);
+    font-size: 0.875rem;
+    background: #fff;
+    color: var(--slate-800);
+    transition: all var(--transition);
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: var(--brand-500);
+    box-shadow: 0 0 0 4px var(--brand-100);
+}
+
+.form-input.is-invalid {
+    border-color: var(--danger);
+}
+.form-input.is-invalid:focus { box-shadow: 0 0 0 4px #fee2e2; }
+
+.form-help { margin-top: 0.375rem; font-size: 0.75rem; color: var(--slate-500); }
+.form-error { margin-top: 0.375rem; font-size: 0.75rem; font-weight: 500; color: var(--danger); }
+
+.form-check {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.625rem;
+    cursor: pointer;
+}
+.form-check input { margin-top: 0.1875rem; }
+
+/* ==========================================================================
+   THUMBNAIL BÌNH LUẬN
+   ========================================================================== */
+
+.comment-form textarea { min-height: 88px; }
+
+/* ==========================================================================
+   SKELETON LOADING
+   ========================================================================== */
+
+.skeleton {
+    background: linear-gradient(
+        90deg,
+        var(--slate-100) 25%,
+        var(--slate-200) 50%,
+        var(--slate-100) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.4s infinite;
+    border-radius: var(--radius-sm);
+}
+
+@keyframes shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* ==========================================================================
+   CUSTOM SCROLLBAR
+   ========================================================================== */
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--slate-100); }
+::-webkit-scrollbar-thumb {
+    background: var(--slate-300);
+    border-radius: 5px;
+    border: 2px solid var(--slate-100);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--slate-400); }
+
+/* ==========================================================================
+   PRINT
+   ========================================================================== */
+
+@media print {
+    .no-print, nav, footer, .btn { display: none !important; }
+    body { background: #fff; }
+}

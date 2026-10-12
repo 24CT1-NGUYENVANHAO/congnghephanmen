@@ -1,208 +1,473 @@
-# 📚 SáchGóc Uni - Sàn Giao Dịch & Chia Sẻ Đồ Dùng Sinh Viên
+# 📚 SáchGóc Uni — Sàn Giao Dịch & Chia Sẻ Đồ Dùng Sinh Viên
 
-[![GitDiagram Architecture](https://img.shields.io/badge/GitDiagram-Explore%20System%20Architecture-2563eb?style=for-the-badge&logo=diagramsdotnet)](https://gitdiagram.com/24CT1-NGUYENVANHAO/congnghephanmen)
-[![Django](https://img.shields.io/badge/Django-5.2%20%7C%204.2-092E20?style=for-the-badge&logo=django&logoColor=white)](https://www.djangoproject.com/)
-[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
-[![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
+[![Django](https://img.shields.io/badge/Django-4.2%20%7C%205.2-092E20?style=for-the-badge&logo=django&logoColor=white)](https://www.djangoproject.com/)
+[![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?style=for-the-badge&logo=mysql&logoColor=white)](https://www.mysql.com/)
+[![Tailwind](https://img.shields.io/badge/CSS%20Design%20System-Custom-38B2AC?style=for-the-badge)](https://tailwindcss.com/)
 
-Dự án phát triển nền tảng web thương mại điện tử dành cho sinh viên trường Đại học Kiến trúc Đà Nẵng và cộng đồng sinh viên nói chung, hỗ trợ trao đổi, mua bán sách cũ, giáo trình và tặng đồ dùng học tập miễn phí (0đ).
+> **Đồ án Công nghệ Phần mềm** — Nền tảng thương mại điện tử dành cho sinh viên
+> Trường Đại học Kiến trúc Đà Nẵng và cộng đồng sinh viên nói chung.
 
-> 💡 **Trực quan hóa Kiến trúc Dự án trên GitDiagram:** Bạn có thể xem và tương tác trực tiếp với sơ đồ kiến trúc mã nguồn của repository này tại: **[gitdiagram.com/24CT1-NGUYENVANHAO/congnghephanmen](https://gitdiagram.com/24CT1-NGUYENVANHAO/congnghephanmen)**
-
----
-
-## 🏗️ 1. Sơ Đồ Kiến Trúc & Luồng Xử Lý Tổng Thể Hệ Thống
-
-GitHub và GitDiagram hỗ trợ hiển thị trực quan sơ đồ kiến trúc chi tiết của dự án thông qua Mermaid:
-
-```mermaid
-graph TD
-    %% Tầng Giao diện người dùng
-    subgraph Client_Layer ["1. Tầng Giao diện & Người dùng (Client Side)"]
-        User([👤 Người dùng / Sinh viên]) -->|Gửi HTTP Request GET / POST| Browser[Trình duyệt Web <br> Tailwind CSS UI]
-        Browser -->|Hiển thị Giao diện phản hồi| User
-    end
-
-    Browser -->|Giao thức HTTP / HTTPS| ServerCore
-
-    %% Tầng Máy chủ & Điều hướng
-    subgraph ServerCore ["2. Tầng Máy chủ & Điều phối (Django Core Server)"]
-        Server[Django WSGI / ASGI Server] --> Middleware{Django Security & Session Middleware}
-        
-        Middleware --> RootURL[core/urls.py <br> Bộ định tuyến cấp Dự án]
-        RootURL --> AppURL[app_main/urls.py <br> Bộ định tuyến cấp Ứng dụng]
-        RootURL --> AdminURL[django.contrib.admin <br> Bảng điều khiển Quản trị]
-        
-        %% Tầng Điều khiển Logic (Views)
-        AppURL --> Views{app_main/views.py <br> Bộ điều khiển Logic trung tâm}
-        
-        %% Phân nhánh các luồng nghiệp vụ thực tế
-        subgraph Business_Modules ["3. Các Phân hệ Nghiệp vụ Chính"]
-            Views -->|Xác thực tài khoản| AuthModule[Auth System <br> Đăng ký / Đăng nhập / Đăng xuất]
-            Views -->|Quản lý bài đăng| PostModule[Sản phẩm & Bài đăng <br> Đăng tin, Tặng 0đ, Lọc danh mục]
-            Views -->|Tương tác xã hội| SocialModule[Bình luận trao đổi <br> Wishlist yêu thích]
-        end
-        
-        %% Tầng xử lý Form và Bảo mật dữ liệu
-        AuthModule --> FormsCheck[app_main/forms.py <br> Kiểm tra tính hợp lệ & Upload File]
-        PostModule --> FormsCheck
-        
-        %% Tầng Mô hình dữ liệu ORM
-        FormsCheck --> ModelsMap[app_main/models.py <br> Định nghĩa các Model & Quan hệ ORM]
-    end
-
-    %% Tầng Lưu trữ Cơ sở dữ liệu vật lý
-    subgraph Storage_Layer ["4. Tầng Cơ Sở Dữ Liệu & Lưu Trữ (Storage Layer)"]
-        ModelsMap -->|ORM persistence| MySQL[(MySQL)]
-        MySQL -->|QuerySet data| ModelsMap
-        
-        PostModule -->|Lưu trữ file ảnh sản phẩm| MediaFolder[(Thư mục /media/posts <br> Ảnh sản phẩm thực tế)]
-    end
-
-    %% Tầng tổng hợp dữ liệu trả về giao diện
-    ModelsMap --> TemplateEngine[Django Template Engine <br> Biên dịch HTML kết hợp Context dữ liệu]
-    MediaFolder --> TemplateEngine
-    AuthModule --> TemplateEngine
-
-    TemplateEngine -->|Phản hồi HTTP Response HTML/CSS| Browser
-
-    %% Định nghĩa màu sắc sinh động
-    classDef client fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
-    classDef server fill:#f1f8e9,stroke:#33691e,stroke-width:2px;
-    classDef logic fill:#fff8e1,stroke:#ff8f00,stroke-width:2px;
-    classDef db fill:#ffebee,stroke:#c62828,stroke-width:2px;
-
-    class User,Browser client;
-    class Server,Middleware,RootURL,AppURL,AdminURL,Views,FormsCheck,TemplateEngine server;
-    class AuthModule,PostModule,SocialModule,ModelsMap logic;
-    class MySQL,MediaFolder db;
-```
-
-### 🧩 Architectural Components & File Mapping (Bản đồ thành phần cho GitDiagram)
-
-Hệ thống được cấu trúc thành các module rõ ràng tương ứng trực tiếp với cây mã nguồn:
-
-- **1. Presentation / Frontend Layer**: [`app_main/templates/`](app_main/templates/) - Giao diện người dùng sinh viên với Tailwind CSS và Django Templates (`base.html`, `home.html`, `detail.html`, `create_post.html`, `my_posts.html`, `login.html`, `register.html`).
-- **2. Routing & Dispatcher Layer**: [`core/urls.py`](core/urls.py) và [`app_main/urls.py`](app_main/urls.py) phân phối và điều hướng HTTP requests từ Client đến các Views xử lý.
-- **3. Controller & Business Logic**: [`app_main/views.py`](app_main/views.py) trung tâm điều khiển logic: xác thực tài khoản, tìm kiếm bài đăng, lọc đồ 0đ, xem chi tiết, đăng tin, mua hàng, yêu thích wishlist, bình luận.
-- **4. Form & Data Validation**: [`app_main/forms.py`](app_main/forms.py) thẩm định tính hợp lệ của dữ liệu đầu vào và tiếp nhận file ảnh sản phẩm (`PostForm`, `CommentForm`).
-- **5. Data Models & ORM**: [`app_main/models.py`](app_main/models.py) định nghĩa các thực thể và mối quan hệ CSDL (`User`, `Category`, `Post`, `Comment`, `Review`).
-- **6. Administration & Moderation**: [`app_main/admin.py`](app_main/admin.py) hệ thống quản trị: kiểm duyệt tin đăng, khóa/mở khóa tài khoản sinh viên.
-- **7. Database (MySQL)**: **MySQL** Server (`sachgocuni_db`, Port `3307`/`3306`, Driver: `PyMySQL` & `mysqlclient`). Toàn bộ hoạt động ORM persistence đều lưu trữ trực tiếp vào **MySQL**.
-- **8. Media Storage**: Thư mục lưu trữ ảnh thực tế của sản phẩm [`media/posts/`](media/posts/).
-- **9. Mock Data & Utilities**: [`seed_data.py`](seed_data.py) script khởi tạo sẵn 15+ dữ liệu mẫu sinh động.
-- **10. Automated Testing**: [`app_main/tests.py`](app_main/tests.py) bộ kiểm thử tự động cho Models và Views.
+Chuyên dụng cho **mua bán sách cũ, giáo trình, dụng cụ học tập** và **tặng đồ dùng 0đ**.
 
 ---
 
-## 📊 2. Sơ Đồ Thực Thể Cơ Sở Dữ Liệu (ERD)
+## 📑 Mục lục
 
-```mermaid
-erDiagram
-    User ||--o{ Post : "đăng tin (seller)"
-    User ||--o{ Comment : "bình luận (author)"
-    User ||--o{ Review : "đánh giá uy tín"
-    User }o--o{ Post : "yêu thích (wishlist)"
-    Category ||--o{ Post : "phân loại"
-    Post ||--o{ Comment : "chứa bình luận"
-
-    Category {
-        int id PK
-        string name "Tên danh mục"
-        string slug UK "Đường dẫn"
-    }
-
-    Post {
-        int id PK
-        string title "Tiêu đề sản phẩm"
-        decimal price "Giá bán (VNĐ)"
-        boolean is_free "Tặng miễn phí 0đ"
-        string condition "Tình trạng (Mới/Cũ)"
-        string image "Ảnh sản phẩm"
-        boolean is_sold "Đã bán"
-        datetime created_at "Ngày đăng"
-    }
-
-    Comment {
-        int id PK
-        text content "Nội dung trao đổi"
-        datetime created_at "Thời gian"
-    }
-
-    Review {
-        int id PK
-        int rating "Số sao (1-5)"
-        text comment "Nhận xét"
-    }
-```
+1. [Tính năng](#-tính-năng)
+2. [Công nghệ sử dụng](#-công-nghệ-sử-dụng)
+3. [Cài đặt & chạy dự án](#-cài-đặt--chạy-dự-án)
+4. [Tài khoản mẫu](#-tài-khoản-mẫu)
+5. [Cấu trúc dự án](#-cấu-trúc-dự-án)
+6. [Kiểm thử](#-kiểm-thử)
+7. [Sơ đồ kiến trúc](#-sơ-đồ-kiến-trúc)
 
 ---
 
-## 📁 3. Cấu Trúc Thư Mục Dự Án (Project Structure)
+## ✨ Tính năng
 
-```text
-24CT1-NGUYEN_VAN HAO/
-├── core/                       # Cấu hình dự án Django cấp cao nhất
-│   ├── settings.py             # Cài đặt ứng dụng, Database, Media, Static
-│   ├── urls.py                 # Điều phối URL gốc (Admin, App, Auth)
-│   ├── wsgi.py                 # Cổng giao tiếp Web Server chuẩn WSGI
-│   └── asgi.py                 # Cổng giao tiếp Asynchronous ASGI
-├── app_main/                   # Ứng dụng chính của nền tảng SáchGóc Uni
-│   ├── models.py               # Thực thể CSDL: Category, Post, Comment, Review
-│   ├── views.py                # Xử lý logic Controller (Trang chủ, Chi tiết, Đăng tin...)
-│   ├── forms.py                # Form xử lý dữ liệu và tải file ảnh (PostForm, CommentForm)
-│   ├── urls.py                 # Định tuyến các trang chức năng của ứng dụng
-│   ├── admin.py                # Quản trị viên Django: duyệt bài, khóa tài khoản vi phạm
-│   ├── apps.py                 # Khai báo thông tin ứng dụng
-│   ├── tests.py                # Bộ Unit Tests tự động kiểm tra Models & Views
-│   ├── migrations/             # Lịch sử đồng bộ cấu trúc Database
-│   └── templates/              # Giao diện HTML tích hợp Tailwind CSS
-│       ├── app_main/           # base.html, home.html, detail.html, create_post.html, my_posts.html
-│       └── registration/       # login.html, register.html
-├── media/                      # Thư mục chứa hình ảnh sản phẩm người dùng upload
-│   └── posts/
-├── seed_data.py                # Script tự động tạo 15+ dữ liệu mẫu ban đầu
-├── requirements.txt            # Danh sách các thư viện Python cần thiết
-├── ARCHITECTURE.md             # Đặc tả chi tiết cấu trúc hệ thống cho GitDiagram
-├── manage.py                   # Script quản lý dòng lệnh của Django
-└── README.md                   # Tài liệu hướng dẫn dự án
-```
+### 🛒 Nghiệp vụ chính
+
+| Tính năng | Mô tả |
+|---|---|
+| 📖 **Mua bán sản phẩm** | Đăng bán giáo trình, dụng cụ vẽ, thiết bị với giá tuỳ chọn |
+| 🎁 **Tặng miễn phí 0đ** | Chuyên mục tặng lại đồ cho tân sinh viên |
+| 🔍 **Tìm kiếm thông minh** | Tìm theo tiêu đề, mô tả, mã học phần, khoa |
+| 🧩 **Bộ lọc nâng cao** | Lọc theo danh mục, tình trạng, khoa, khoảng giá |
+| ↕️ **5 kiểu sắp xếp** | Mới nhất, cũ nhất, giá tăng/giảm, phổ biến nhất |
+| 📄 **Phân trang** | Tự động chia trang, giữ nguyên bộ lọc khi chuyển trang |
+
+### 👥 Tương tác & niềm tin
+
+| Tính năng | Mô tả |
+|---|---|
+| 💬 **Bình luận & trả lời** | Hỏi đáp trực tiếp, hỗ trợ trả lời lồng 1 cấp |
+| ♡ **Wishlist** | Lưu sản phẩm yêu thích (AJAX, không tải lại trang) |
+| ⭐ **Đánh giá uy tín** | Chấm điểm 1-5 sao cho người bán, mỗi người 1 lần |
+| 📊 **Trang hồ sơ** | Lịch sử bán, số tin đang bán, điểm uy tín, đánh giá nhận về |
+| 🚩 **Báo cáo vi phạm** | Người dùng tố bài đăng, Admin xử lý |
+
+### 🛡️ Bảo mật & kiểm duyệt
+
+| Tính năng | Mô tả |
+|---|---|
+| 🔐 **Xác thực** | Đăng ký/đăng nhập bằng username **hoặc** Gmail |
+| 🛡️ **Chống CSRF** | Mọi hành động đổi trạng thái đều POST + CSRF token |
+| 🔑 **Mật khẩu mạnh** | Tối thiểu 8 ký tự, có hoa + số, không chứa thông tin cá nhân |
+| 🚫 **Phân quyền** | Chỉ chủ bài đăng được sửa/xoá; chỉ tác giả/chủ bài xoá bình luận |
+| 📋 **Vòng đời bài đăng** | Chờ duyệt → Đang hiển thị → Đã bán / Bị từ chối / Đã ẩn |
+| 🛡️ **Trang quản trị** | Duyệt/ẩn/từ chối bài đăng, khoá tài khoản, xử lý báo cáo |
+| 🧹 **Kiểm duyệt tự động** | Bài chưa duyệt không hiển thị trên trang chủ |
+
+### 🎨 Trải nghiệm người dùng
+
+- Giao diện responsive (mobile → desktop), hiệu ứng hover mượt mà
+- Thông báo toast + hộp thoại thông báo tự động biến mất
+- Trạng thái rỗng (empty state) thân thiện cho mọi danh sách
+- Trang lỗi 404 / 500 riêng đồng bộ giao diện
+- Thư viện ảnh sản phẩm nhiều ảnh (tối đa 5 ảnh/bài)
+- Đếm lượt xem bài đăng
 
 ---
 
-## 🚀 4. Hướng Dẫn Cài Đặt & Khởi Chạy
+## 🛠 Công nghệ sử dụng
 
-### Bước 1: Cài đặt các thư viện cần thiết
+| Lớp | Công nghệ | Vai trò |
+|---|---|---|
+| **Frontend** | Django Template, CSS Design System thuần | Giao diện, không phụ thuộc CDN |
+| **Backend** | Django 4.2 / 5.2 (MTV) | Xử lý logic nghiệp vụ |
+| **CSDL** | MySQL 8.0 (mặc định) hoặc SQLite | Lưu trữ dữ liệu qua ORM |
+| **Cấu hình** | django-environ + `.env` | Quản lý bí mật, không hardcode |
+| **Media** | Pillow | Xử lý & kiểm tra ảnh tải lên |
+
+> **Không dùng Tailwind CDN** — toàn bộ giao diện dùng CSS thuần được viết tay
+> trong `static/css/main.css` để hoạt động offline và chịu được đánh giá đồ án.
+
+---
+
+## 🚀 Cài đặt & chạy dự án
+
+### Bước 1 — Cài thư viện
+
 ```bash
 pip install -r requirements.txt
 ```
 
-### Bước 2: Khởi tạo Cơ sở dữ liệu
-Đảm bảo dịch vụ MySQL (XAMPP/MySQL Server) đang bật tại cổng `3307` (hoặc cấu hình lại trong [`core/settings.py`](file:///d:/24CT1-NGUYEN_VAN%20HAO/core/settings.py)):
+### Bước 2 — Tạo file cấu hình
+
 ```bash
-python manage.py makemigrations
+cp .env.example .env      # Windows: copy .env.example .env
+```
+
+Mở `.env` và chỉnh thông tin MySQL cho đúng máy của bạn:
+
+```env
+USE_SQLITE=False
+DB_NAME=sachgocuni_db
+DB_USER=root
+DB_PASSWORD=123456
+DB_HOST=127.0.0.1
+DB_PORT=3306
+```
+
+<details>
+<summary>💡 Không muốn dùng XAMPP/MySQL?</summary>
+
+Đặt `USE_SQLITE=True` trong `.env` — dự án sẽ tự chuyển sang SQLite,
+không cần cài đặt hay bật MySQL. Phần còn lại giữ nguyên.
+
+</details>
+
+### Bước 3 — Tạo database
+
+**Nếu dùng MySQL**, tạo database trước:
+
+```sql
+CREATE DATABASE sachgocuni_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+### Bước 4 — Áp dụng migration
+
+```bash
 python manage.py migrate
 ```
 
-### Bước 3: Nạp dữ liệu mẫu ban đầu (Demo Data)
+### Bước 5 — Nạp dữ liệu mẫu
+
 ```bash
 python seed_data.py
 ```
-> Script sẽ tự động tạo tài khoản mẫu `sinhvien_demo` (mật khẩu: `123456`) cùng với các danh mục và sản phẩm mẫu sinh động.
 
-### Bước 4: Khởi động Server
+Tạo 6 danh mục, 34 sản phẩm, hơn 100 bình luận, yêu thích và đánh giá.
+
+### Bước 6 — Khởi chạy
+
 ```bash
 python manage.py runserver
 ```
-Truy cập hệ thống tại: **`http://127.0.0.1:8000/`**
+
+Truy cập: **http://127.0.0.1:8000/**
 
 ---
 
-## 🌟 5. Các Tính Năng Nổi Bật
-- 📖 **Mua bán & Trao đổi:** Đăng bán giáo trình, dụng cụ vẽ kỹ thuật, thiết bị điện tử giá rẻ.
-- 🎁 **Tặng đồ dùng 0đ:** Chuyên mục dành riêng cho sinh viên khóa trên tặng lại đồ cho tân sinh viên.
-- 🔍 **Tìm kiếm & Bộ lọc nhanh:** Lọc theo từng danh mục khoa ngành hoặc lọc nhanh đồ tặng miễn phí.
-- 💬 **Hỏi đáp trực tiếp:** Tính năng bình luận ngay dưới bài đăng giúp người mua và người bán dễ dàng kết nối.
-- ⭐ **Đánh giá uy tín & Wishlist:** Đánh giá điểm sao người bán và lưu lại các sản phẩm yêu thích.
-- 🔒 **Quản trị toàn diện (Admin):** Kiểm duyệt bài đăng, gắn cờ sản phẩm và khóa/mở khóa tài khoản người dùng vi phạm.
+## 🔑 Tài khoản mẫu
+
+| Vai trò | Username | Mật khẩu | Đường dẫn |
+|---|---|---|---|
+| 👑 Quản trị | `admin` | `admin123` | `/django-admin/` |
+| 🎓 Sinh viên | `sinhvien_demo` | `123456` | `/dang-nhap/` |
+| 🎓 Sinh viên | `thanhhoa` | `123456` | `/dang-nhap/` |
+| 🎓 Sinh viên | `minhthu` | `123456` | `/dang-nhap/` |
+| 🎓 Sinh viên | `quynhanh` | `123456` | `/dang-nhap/` |
+
+> Trang đăng nhập có nút **"Điền nhanh"** để test tiện hơn.
+
+---
+
+## 📁 Cấu trúc dự án
+
+```text
+24CT1-NGUYEN_VAN HAO/
+│
+├── core/                          # Cấu hình dự án cấp cao nhất
+│   ├── settings.py                # Đọc cấu hình từ .env, MySQL/SQLite
+│   ├── urls.py                    # Định tuyến gốc + xử lý 404/500
+│   ├── wsgi.py / asgi.py          # Cổng giao tiếp web server
+│
+├── app_main/                      # Ứng dụng chính
+│   ├── models.py                  # 8 model: Category, Profile, Post, PostImage,
+│   │                              #   Favorite, Comment, Review, Report
+│   ├── views.py                   # 20 view xử lý toàn bộ nghiệp vụ
+│   ├── forms.py                   # Form + validation tập trung
+│   ├── urls.py                    # 20 route
+│   ├── admin.py                   # Trang quản trị kiểm duyệt
+│   ├── signals.py                 # Tự tạo Profile khi đăng ký
+│   ├── context_processors.py      # Biến dùng chung cho template
+│   ├── templatetags/app_extras.py # Filter & tag tùy chỉnh
+│   ├── tests.py                   # 85 test tự động
+│   └── migrations/                # Lịch sử cấu trúc CSDL
+│
+├── templates/                     # Template dùng chung
+│   ├── base.html                  # Khung trang (nav, messages, footer)
+│   ├── 404.html / 500.html        # Trang lỗi
+│   ├── app_main/                  # 10 trang nghiệp vụ
+│   ├── registration/              # Đăng nhập / Đăng ký
+│   └── partials/                  # navbar, footer, messages, card, phân trang
+│
+├── static/
+│   ├── css/main.css               # Design system (~450 dòng)
+│   └── js/main.js                 # Menu, yêu thích AJAX, validate mật khẩu
+│
+├── media/                         # Ảnh người dùng tải lên (không commit)
+├── seed_data.py                   # Script nạp dữ liệu mẫu
+├── requirements.txt
+├── .env.example                   # Mẫu cấu hình (copy thành .env)
+└── manage.py
+```
+
+---
+
+## 🧪 Kiểm thử
+
+```bash
+python manage.py test                    # Chạy toàn bộ
+python manage.py test app_main.tests.InteractionTests   # Chỉ 1 nhóm
+python manage.py test --verbosity 2      # Chi tiết từng test
+```
+
+**85 test tự động** bao phủ:
+
+| Nhóm | Số test | Nội dung |
+|---|---|---|
+| Model | 16 | Sinh slug, đồng bộ trạng thái, ràng buộc unique |
+| Form | 11 | Mật khẩu yếu, Gmail trùng, trùng username |
+| Public view | 15 | Tìm kiếm, lọc, sắp xếp, phân trang |
+| Auth | 7 | Đăng ký, đăng nhập bằng email, đăng xuất |
+| Phân quyền | 8 | Chặn truy cập trái phép, sở hữu bài đăng |
+| Tương tác | 14 | Yêu thích, bình luận, đánh giá, báo cáo |
+| Hồ sơ | 3 | Sửa hồ sơ, đổi mật khẩu |
+| **Tổng** | **85** | ✅ |
+
+Bao gồm các test bảo mật quan trọng:
+
+- ❌ Đổi trạng thái bằng `GET` phải bị từ chối (405) — chống CSRF
+- ❌ Sửa/xoá bài đăng của người khác phải bị chặn
+- ❌ Mật khẩu rỗng không gây crash (lỗi `IndexError` ở bản cũ)
+- ✅ Hành trình đầy đủ: đăng ký → đăng tin → tìm kiếm → yêu thích → bình luận → đánh giá
+
+---
+
+## 📊 Sơ đồ kiến trúc
+
+### Kiến trúc tổng thể (MVC)
+
+```mermaid
+graph TD
+    User([👤 Người dùng]) -->|HTTP| Browser[Trình duyệt]
+
+    subgraph Client ["Tầng trình bày"]
+        Templates[📄 Django Templates<br/>base + partials]
+        CSS[🎨 main.css<br/>Design system]
+        JS[⚡ main.js<br/>AJAX, menu, validate]
+    end
+
+    Browser --> Templates
+    Templates --> CSS
+    Templates --> JS
+
+    subgraph Server ["Tầng ứng dụng Django"]
+        Middleware[🛡️ Middleware<br/>Security • Session • CSRF • Auth]
+        URLs[🔗 core/urls.py<br/>+ app_main/urls.py]
+
+        subgraph Business ["📦 Nghiệp vụ"]
+            Views[🎯 views.py<br/>20 view]
+            Forms[📝 forms.py<br/>Validation]
+            Signals[⚡ signals.py<br/>Tự tạo Profile]
+        end
+
+        Admin[🛡️ admin.py<br/>Kiểm duyệt]
+        Models[🗃️ models.py<br/>8 model ORM]
+        Tags[🏷️ templatetags<br/>Filter & tag]
+        CtxProc[📦 context_processors]
+    end
+
+    Browser -->|GET / POST| Middleware
+    Middleware --> URLs
+    URLs --> Views
+    URLs --> Admin
+    Views --> Forms
+    Views --> Models
+    Views --> Tags
+    Views --> CtxProc
+    Admin --> Models
+    Forms --> Models
+    Signals --> Models
+
+    Models -->|ORM| DB[(MySQL 8.0<br/>hoặc SQLite)]
+    Models -->|ImageField| Media[(📁 media/<br/>Ảnh sản phẩm)]
+
+    DB --> Models
+    Models --> Templates
+    Tags --> Templates
+    CtxProc --> Templates
+    Media --> Templates
+
+    classDef client fill:#e0e7ff,stroke:#4338ca
+    classDef server fill:#dcfce7,stroke:#16a34a
+    classDef logic fill:#fef3c7,stroke:#d97706
+    classDef data fill:#fee2e2,stroke:#dc2626
+    class User,Browser,Templates,CSS,JS client
+    class Middleware,URLs,Admin server
+    class Views,Forms,Signals,Tags,CtxProc logic
+    class Models,DB,Media data
+```
+
+### Sơ đồ quan hệ CSDL (ERD)
+
+```mermaid
+erDiagram
+    User ||--|| Profile : "có hồ sơ"
+    User ||--o{ Post : "đăng tin"
+    User ||--o{ Comment : "viết bình luận"
+    User ||--o{ Review : "được đánh giá"
+    User ||--o{ Report : "gửi báo cáo"
+    User ||--o{ Favorite : "yêu thích"
+    Category ||--o{ Post : "phân loại"
+    Post ||--o{ PostImage : "có nhiều ảnh"
+    Post ||--o{ Comment : "nhận bình luận"
+    Post ||--o{ Favorite : "được yêu thích"
+    Post ||--o{ Report : "bị báo cáo"
+    Post ||--o{ Review : "được đánh giá"
+    Comment ||--o{ Comment : "trả lời"
+
+    User {
+        int id PK
+        string username UK
+        string email UK
+        string first_name
+        string last_name
+        bool is_staff
+        bool is_active
+    }
+
+    Profile {
+        int id PK
+        int user_id FK UK
+        string student_id
+        string faculty
+        string phone
+        text bio
+        image avatar
+    }
+
+    Category {
+        int id PK
+        string name
+        string slug UK
+        string icon
+        int order
+    }
+
+    Post {
+        int id PK
+        string title
+        string slug UK
+        text description
+        int seller_id FK
+        int category_id FK
+        string course_code
+        string faculty
+        decimal price
+        bool is_free
+        string condition
+        string location
+        image image
+        string status
+        bool is_sold
+        int view_count
+        datetime created_at
+    }
+
+    PostImage {
+        int id PK
+        int post_id FK
+        image image
+        int order
+    }
+
+    Favorite {
+        int id PK
+        int user_id FK
+        int post_id FK
+        datetime created_at
+    }
+
+    Comment {
+        int id PK
+        int post_id FK
+        int author_id FK
+        int parent_id FK
+        text content
+        datetime created_at
+    }
+
+    Review {
+        int id PK
+        int seller_id FK
+        int reviewer_id FK
+        int post_id FK
+        int rating "1-5 sao"
+        text content
+        datetime created_at
+    }
+
+    Report {
+        int id PK
+        int post_id FK
+        int reporter_id FK
+        string reason
+        text detail
+        string status
+        datetime created_at
+    }
+```
+
+### Vòng đời bài đăng
+
+```mermaid
+stateDiagram-v2
+    [*] --> ACTIVE: Người dùng đăng tin
+    ACTIVE --> SOLD: Đánh dấu đã bán
+    SOLD --> ACTIVE: Mở lại bài
+    ACTIVE --> HIDDEN: Chủ bài ẩn / Admin ẩn
+    HIDDEN --> ACTIVE: Mở lại
+    ACTIVE --> REJECTED: Admin từ chối
+    REJECTED --> ACTIVE: Sửa & lưu lại
+    ACTIVE --> [*]: Xoá
+    SOLD --> [*]: Xoá
+```
+
+---
+
+## 📝 Ghi chú kỹ thuật
+
+### Vì sao bỏ cấu hình MySQL hardcode?
+
+Bản cũ ghi cứng `PORT = '3307'` và `PASSWORD = ''`, khiến dự án **không kết nối được**
+với MySQL thật. Nay mọi thông tin nhạy cảm đọc từ `.env` nên chạy được trên mọi máy.
+
+### Vì sao mọi thay đổi trạng thái dùng POST?
+
+Bản cũ cho phép đánh dấu "đã bán" / "yêu thích" bằng thẻ `<a href>` (GET).
+Kẻ tấn công có thể chèn ảnh `<img src="...toggle-sold/1">` vào trang khác để tự ý
+đổi trạng thái — đây là lỗ hổng **CSRF**. Nay dùng `@require_POST` + CSRF token.
+
+### Vì sao có bảng `Favorite` thay vì `ManyToManyField` trực tiếp?
+
+`ManyToManyField` không lưu thời điểm yêu thích. Bảng nối `Favorite` cho phép
+hiển thị "yêu thích gần đây" và thêm ràng buộc unique `(user, post)`.
+
+### Hiệu năng
+
+- Index được đặt trên `created_at`, `(status, created_at)`, `(category, status)`
+- `select_related` cho seller/category, `prefetch_related` cho ảnh & bình luận
+- Tăng lượt xem bằng `F()` expression, không tốn query `SELECT`
+- Ảnh dùng `loading="lazy"` để tải trang nhanh hơn
+
+---
+
+## 📄 Giấy phép
+
+Dự án phục vụ mục đích học tập. Đồ dùng học tập được giao dịch giữa sinh viên,
+người bán tự chịu trách nhiệm về tình trạng sản phẩm và giao dịch.
+
+---
+
+<div align="center">
+
+**SáchGóc Uni** — Đồ án Công nghệ Phần mềm
+Trường Đại học Kiến trúc Đà Nẵng
+
+Made with ❤️ cho cộng đồng sinh viên
+
+</div>

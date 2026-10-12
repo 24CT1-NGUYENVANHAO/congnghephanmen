@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Tin của tôi — SáchGóc Uni{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- Tiêu đề -->
+    <div class="flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-extrabold text-slate-900">📦 Quản lý tin đăng</h1>
+            <p class="text-sm text-slate-500 mt-1">Theo dõi và quản lý toàn bộ sản phẩm của bạn</p>
+        </div>
+        <a href="{% url 'create_post' %}" class="btn btn-primary">➕ Đăng tin mới</a>
+    </div>
+
+    <!-- Thống kê -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="card p-5">
+            <p class="text-xs text-slate-400 mb-1">Tổng tin đăng</p>
+            <p class="text-2xl font-extrabold text-slate-900">{{ stats.total }}</p>
+        </div>
+        <div class="card p-5">
+            <p class="text-xs text-slate-400 mb-1">Đang hiển thị</p>
+            <p class="text-2xl font-extrabold text-emerald-600">{{ stats.active }}</p>
+        </div>
+        <div class="card p-5">
+            <p class="text-xs text-slate-400 mb-1">Đã bán / tặng</p>
+            <p class="text-2xl font-extrabold text-slate-600">{{ stats.sold }}</p>
+        </div>
+        <div class="card p-5">
+            <p class="text-xs text-slate-400 mb-1">Tổng lượt xem</p>
+            <p class="text-2xl font-extrabold text-indigo-600">{{ stats.total_views|intcomma }}</p>
+        </div>
+    </div>
+
+    <!-- Bộ lọc trạng thái -->
+    <div class="flex flex-wrap gap-2">
+        <a href="{% url 'my_posts' %}"
+           class="btn btn-sm {% if not status_filter %}btn-primary{% else %}btn-outline{% endif %}">
+            Tất cả ({{ stats.total }})
+        </a>
+        <a href="?status=active"
+           class="btn btn-sm {% if status_filter == 'active' %}btn-primary{% else %}btn-outline{% endif %}">
+            Đang hiển thị ({{ stats.active }})
+        </a>
+        <a href="?status=sold"
+           class="btn btn-sm {% if status_filter == 'sold' %}btn-primary{% else %}btn-outline{% endif %}">
+            Đã bán ({{ stats.sold }})
+        </a>
+    </div>
+
+    <!-- Bảng danh sách -->
+    {% if posts %}
+        <div class="card overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left" style="min-width:800px;">
+                    <thead style="background:var(--slate-50);border-bottom:1px solid var(--slate-200);">
+                        <tr>
+                            <th class="px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Sản phẩm</th>
+                            <th class="px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Giá</th>
+                            <th class="px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Lượt xem</th>
+                            <th class="px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Trạng thái</th>
+                            <th class="px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for post in posts %}
+                        <tr class="border-b border-slate-100 hover:bg-slate-50 transition">
+
+                            <!-- Sản phẩm -->
+                            <td class="px-5 py-4">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-14 h-14 rounded-lg overflow-hidden bg-slate-100 shrink-0">
+                                        {% if post.get_absolute_image_url %}
+                                            <img src="{{ post.get_absolute_image_url }}" alt="" class="w-full h-full object-cover">
+                                        {% else %}
+                                            <div class="w-full h-full flex items-center justify-center text-slate-300">
+                                                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                          d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-5l-2 3h-3l-2-3H4"/>
+                                                </svg>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="min-w-0">
+                                        <a href="{{ post.get_absolute_url }}"
+                                           class="font-semibold text-sm text-slate-800 hover:text-indigo-600 transition line-clamp-2">
+                                            {{ post.title }}
+                                        </a>
+                                        <p class="text-xs text-slate-400 mt-0.5">
+                                            {{ post.category.name|default:"Chưa phân loại" }}
+                                            · {{ post.created_at|date:"d/m/Y" }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </td>
+
+                            <!-- Giá -->
+                            <td class="px-5 py-4">
+                                <span class="font-bold text-sm {% if post.is_free %}text-emerald-600{% else %}text-indigo-600{% endif %}">
+                                    {{ post.price_display }}
+                                </span>
+                            </td>
+
+                            <!-- Lượt xem -->
+                            <td class="px-5 py-4">
+                                <span class="text-sm text-slate-600">{{ post.view_count|intcomma }} 👁️</span>
+                            </td>
+
+                            <!-- Trạng thái -->
+                            <td class="px-5 py-4">
+                                {% if post.status == 'ACTIVE' %}
+                                    <span class="badge badge-success">Đang hiển thị</span>
+                                {% elif post.status == 'SOLD' %}
+                                    <span class="badge badge-slate">Đã bán / tặng</span>
+                                {% elif post.status == 'REJECTED' %}
+                                    <span class="badge badge-danger" title="{{ post.rejection_reason }}">Bị từ chối</span>
+                                {% elif post.status == 'PENDING' %}
+                                    <span class="badge badge-warning">Chờ duyệt</span>
+                                {% else %}
+                                    <span class="badge badge-slate">Đã ẩn</span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Thao tác -->
+                            <td class="px-5 py-4">
+                                <div class="flex items-center justify-end gap-2">
+                                    <a href="{{ post.get_absolute_url }}"
+                                       class="btn btn-ghost btn-sm" title="Xem">👁️</a>
+
+                                    <a href="{% url 'edit_post' post.pk %}"
+                                       class="btn btn-outline btn-sm" title="Sửa">✏️</a>
+
+                                    <form action="{% url 'toggle_sold' post.pk %}" method="post"
+                                          onsubmit="return confirmAction('Đổi trạng thái bài đăng?')">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-outline btn-sm"
+                                                title="{% if post.is_sold %}Mở lại{% else %}Đánh dấu đã bán{% endif %}">
+                                            {% if post.is_sold %}🔄{% else %}✅{% endif %}
+                                        </button>
+                                    </form>
+
+                                    <form action="{% url 'delete_post' post.pk %}" method="post"
+                                          onsubmit="return confirmAction('Xoá vĩnh viễn bài đăng này?')">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-ghost btn-sm text-red-500" title="Xoá">🗑️</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {% include 'partials/pagination.html' %}
+
+    {% else %}
+        <div class="card p-12 text-center">
+            <div class="text-5xl mb-4">📦</div>
+            <h3 class="text-lg font-bold text-slate-800 mb-2">
+                {% if status_filter %}Không có tin nào ở trạng thái này{% else %}Bạn chưa đăng tin nào{% endif %}
+            </h3>
+            <p class="text-sm text-slate-500 mb-6">
+                Hãy thanh lý đồ cũ hoặc tặng miễn phí cho đàn em — chỉ mất 2 phút!
+            </p>
+            <a href="{% url 'create_post' %}" class="btn btn-primary">➕ Đăng tin đầu tiên</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

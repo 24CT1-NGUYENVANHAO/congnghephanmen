@@ -1,0 +1,36 @@
+{% if messages %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-88 pt-4" id="message-container">
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags|default:'info' }} mb-2"
+             role="alert"
+             style="display:flex;align-items:flex-start;gap:0.75rem;padding:0.875rem 1rem;
+                    border-radius:0.75rem;border:1px solid;font-size:0.875rem;
+                    box-shadow:var(--shadow-sm);animation:slideIn 0.3s ease-out;">
+
+            <span class="shrink-0 text-lg leading-none">
+                {% if 'success' in message.tags %}✅
+                {% elif 'error' in message.tags %}❌
+                {% elif 'warning' in message.tags %}⚠️
+                {% else %}ℹ️{% endif %}
+            </span>
+
+            <p class="flex-1 leading-relaxed">{{ message }}</p>
+
+            <button type="button" onclick="this.parentElement.remove()"
+                    class="shrink-0 opacity-50 hover:opacity-100 transition text-lg leading-none"
+                    aria-label="Đóng">×</button>
+        </div>
+    {% endfor %}
+</div>
+
+<style>
+@keyframes slideIn {
+    from { opacity: 0; transform: translateY(-12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.alert-success { background:#ecfdf5; border-color:#a7f3d0; color:#047857; }
+.alert-error   { background:#fef2f2; border-color:#fecaca; color:#b91c1c; }
+.alert-warning { background:#fffbeb; border-color:#fde68a; color:#b45309; }
+.alert-info    { background:#eff6ff; border-color:#bfdbfe; color:#1d4ed8; }
+</style>
+{% endif %}

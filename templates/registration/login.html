@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+
+{% block title %}Đăng nhập — SáchGóc Uni{% endblock %}
+
+{% block content %}
+<div class="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-10"
+     style="background:linear-gradient(135deg,#eef2ff 0%,#faf5ff 50%,#eff6ff 100%);">
+
+    <div class="w-full max-w-md">
+
+        <div class="text-center mb-6">
+            <div class="inline-flex w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600
+                        items-center justify-center text-2xl shadow-lg mb-3">🎓</div>
+            <h1 class="text-2xl font-extrabold text-slate-900">Đăng nhập</h1>
+            <p class="text-sm text-slate-500 mt-1">Chào mừng trở lại với SáchGóc Uni</p>
+        </div>
+
+        <div class="card p-6 md:p-8">
+            {% if form.errors %}
+                <div class="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
+                    Tên đăng nhập hoặc mật khẩu không chính xác. Vui lòng thử lại.
+                </div>
+            {% endif %}
+
+            <form method="post" class="space-y-4" data-once>
+                {% csrf_token %}
+                {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+
+                <div>
+                    <label for="id_username" class="form-label">
+                        Tên đăng nhập hoặc Email <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" name="username" id="id_username" required autofocus autocomplete="username"
+                           placeholder="hao.nguyen24 hoặc email@gmail.com"
+                           class="form-input" value="{{ form.username.value|default:'' }}">
+                </div>
+
+                <div>
+                    <label for="id_password" class="form-label">
+                        Mật khẩu <span class="text-red-500">*</span>
+                    </label>
+                    <div class="relative">
+                        <input type="password" name="password" id="id_password" required autocomplete="current-password"
+                               placeholder="Nhập mật khẩu" class="form-input !pr-12">
+                        <button type="button" data-toggle-password data-target="id_password"
+                                class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"
+                                aria-label="Hiện mật khẩu">👁️</button>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-lg btn-block">Đăng nhập</button>
+            </form>
+
+            <p class="text-center text-sm text-slate-500 mt-6 pt-6 border-t border-slate-100">
+                Chưa có tài khoản?
+                <a href="{% url 'register' %}" class="text-indigo-600 font-semibold hover:underline">Đăng ký miễn phí</a>
+            </p>
+        </div>
+
+        <!-- Tài khoản demo -->
+        <div class="mt-5 p-4 rounded-xl bg-white/70 border border-indigo-100 backdrop-blur-sm">
+            <p class="text-xs font-semibold text-slate-600 mb-2">🔑 Tài khoản demo để thử nhanh:</p>
+            <div class="flex items-center justify-between text-xs font-mono text-slate-500">
+                <span>sinhvien_demo / 123456</span>
+                <button type="button" class="text-indigo-600 hover:underline font-sans"
+                        onclick="document.getElementById('id_username').value='sinhvien_demo';
+                                 document.getElementById('id_password').value='123456';">
+                    Điền nhanh
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

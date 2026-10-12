@@ -7,3 +7,8 @@ class AppMainConfig(AppConfig):
     name = 'app_main'
     verbose_name = 'SáchGóc Uni - Sàn Giao Dịch Sinh Viên'
 
+    def ready(self):
+        """Nạp tín hiệu (signals) khi ứng dụng khởi động."""
+        from . import signals  # noqa: F401
+
+

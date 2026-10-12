@@ -1,0 +1,128 @@
+{% load static %}
+<nav class="sticky top-0 z-50 bg-white/90 backdrop-blur-lg border-b border-slate-200 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16 gap-4">
+
+            <!-- Logo -->
+            <a href="{% url 'home' %}" class="flex items-center gap-2 shrink-0 group">
+                <span class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-xl shadow-md group-hover:scale-105 transition-transform">🎓</span>
+                <span class="font-extrabold text-lg tracking-tight text-slate-900">
+                    SáchGóc<span class="text-indigo-600">Uni</span>
+                </span>
+            </a>
+
+            <!-- Menu desktop -->
+            <div class="hidden lg:flex items-center gap-1">
+                <a href="{% url 'home' %}"
+                   class="px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition">
+                    Trang chủ
+                </a>
+                <a href="{% url 'home' %}?free=1"
+                   class="px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition">
+                    🎁 Tặng 0đ
+                </a>
+                <a href="{% url 'about' %}"
+                   class="px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition">
+                    Giới thiệu
+                </a>
+                {% if user.is_authenticated %}
+                    <a href="{% url 'my_posts' %}"
+                       class="px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition">
+                        Tin của tôi
+                    </a>
+                    <a href="{% url 'wishlist' %}"
+                       class="px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition">
+                        ♡ Yêu thích
+                    </a>
+                {% endif %}
+            </div>
+
+            <!-- Khu vực người dùng -->
+            <div class="flex items-center gap-2">
+                {% if user.is_authenticated %}
+                    <a href="{% url 'create_post' %}" class="btn btn-primary btn-sm hidden sm:inline-flex">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        Đăng tin
+                    </a>
+
+                    <!-- Menu tài khoản -->
+                    <div class="relative" id="user-menu">
+                        <button type="button"
+                                onclick="toggleUserMenu()"
+                                class="flex items-center gap-2 px-2 py-1.5 rounded-xl hover:bg-slate-100 transition"
+                                aria-haspopup="true" aria-expanded="false">
+                            <span class="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center text-xs font-bold uppercase">
+                                {{ user.username|first }}
+                            </span>
+                            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </button>
+
+                        <!-- Dropdown -->
+                        <div id="user-menu-dropdown"
+                             class="hidden absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-50">
+                            <div class="px-4 py-3 border-b border-slate-100 bg-slate-50">
+                                <p class="font-semibold text-sm text-slate-900 truncate">{{ user.profile.display_name }}</p>
+                                <p class="text-xs text-slate-500 truncate">@{{ user.username }}</p>
+                            </div>
+                            <div class="py-1">
+                                <a href="{% url 'user_profile' user.username %}" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition">
+                                    👤 Hồ sơ của tôi
+                                </a>
+                                <a href="{% url 'edit_profile' %}" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition">
+                                    ⚙️ Chỉnh sửa hồ sơ
+                                </a>
+                                <a href="{% url 'change_password' %}" class="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition">
+                                    🔐 Đổi mật khẩu
+                                </a>
+                                {% if user.is_staff %}
+                                    <a href="/django-admin/" class="flex items-center gap-3 px-4 py-2 text-sm text-purple-700 hover:bg-purple-50 transition">
+                                        🛡️ Trang quản trị
+                                        {% if pending_reports > 0 %}
+                                            <span class="ml-auto badge badge-danger text-[10px]">{{ pending_reports }}</span>
+                                        {% endif %}
+                                    </a>
+                                {% endif %}
+                            </div>
+                            <form action="{% url 'logout' %}" method="post" class="border-t border-slate-100">
+                                {% csrf_token %}
+                                <button type="submit" class="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition">
+                                    🚪 Đăng xuất
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Nút menu mobile -->
+                    <button type="button" onclick="toggleMobileMenu()"
+                            class="lg:hidden p-2 rounded-lg hover:bg-slate-100 transition" aria-label="Mở menu">
+                        <svg class="w-6 h-6 text-slate-700" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+                        </svg>
+                    </button>
+
+                {% else %}
+                    <a href="{% url 'login' %}" class="btn btn-ghost btn-sm">Đăng nhập</a>
+                    <a href="{% url 'register' %}" class="btn btn-primary btn-sm">Đăng ký</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Menu mobile -->
+    <div id="mobile-menu" class="hidden lg:hidden border-t border-slate-200 bg-white">
+        <div class="max-w-7xl mx-auto px-4 py-3 space-y-1">
+            <a href="{% url 'home' %}" class="block px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100">Trang chủ</a>
+            <a href="{% url 'home' %}?free=1" class="block px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100">🎁 Sản phẩm tặng 0đ</a>
+            <a href="{% url 'about' %}" class="block px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100">Giới thiệu</a>
+            {% if user.is_authenticated %}
+                <a href="{% url 'create_post' %}" class="block px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100">➕ Đăng tin mới</a>
+                <a href="{% url 'my_posts' %}" class="block px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100">📦 Tin của tôi</a>
+                <a href="{% url 'wishlist' %}" class="block px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100">♡ Danh sách yêu thích</a>
+            {% endif %}
+        </div>
+    </div>
+</nav>

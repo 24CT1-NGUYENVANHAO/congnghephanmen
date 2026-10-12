@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+
+{% block title %}Yêu thích — SáchGóc Uni{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <div>
+        <h1 class="text-2xl font-extrabold text-slate-900">♡ Danh sách yêu thích</h1>
+        <p class="text-sm text-slate-500 mt-1">
+            {% if page_obj.paginator.count %}
+                Bạn đã lưu {{ page_obj.paginator.count }} sản phẩm để theo dõi
+            {% else %}
+                Lưu lại những sản phẩm bạn quan tâm
+            {% endif %}
+        </p>
+    </div>
+
+    {% if page_obj.object_list %}
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            {% for favorite in page_obj.object_list %}
+                {% with post=favorite.post %}
+                    {% include 'partials/post_card.html' %}
+                {% endwith %}
+            {% endfor %}
+        </div>
+
+        {% include 'partials/pagination.html' %}
+
+    {% else %}
+        <div class="card p-12 text-center">
+            <div class="text-5xl mb-4">💔</div>
+            <h3 class="text-lg font-bold text-slate-800 mb-2">Danh sách còn trống</h3>
+            <p class="text-sm text-slate-500 mb-6 max-w-md mx-auto">
+                Nhấn biểu tượng <span class="text-rose-500 font-bold">♡</span> trên mỗi sản phẩm
+                để lưu lại và xem lại sau.
+            </p>
+            <a href="{% url 'home' %}" class="btn btn-primary">Khám phá sản phẩm</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

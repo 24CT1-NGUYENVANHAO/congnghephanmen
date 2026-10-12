@@ -1,51 +1,307 @@
-from django.contrib import admin
-from django.contrib.auth.models import User
-from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import Category, Post, Comment, Review
+"""
+Trang quản trị Django cho SáchGóc Uni.
 
-# Tùy chỉnh tiêu đề hiển thị trên trang Admin
-admin.site.site_header = "HỆ THỐNG QUẢN TRỊ SÁCHGÓC UNI"
-admin.site.site_title = "Admin SáchGócUni"
-admin.site.index_title = "Bảng điều khiển & Quản trị hệ thống"
+Cung cấp chức năng kiểm duyệt bài đăng, duyệt báo cáo vi phạm,
+xem thống kê và khóa/mở khóa tài khoản sinh viên.
+"""
+
+from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.auth.models import User
+from django.db.models import Avg, Count
+from django.utils.html import format_html
+
+from .models import Category, Comment, Favorite, Post, PostImage, Profile, Report, Review
+
+
+# ---------------------------------------------------------------------------
+#  INLINE
+# ---------------------------------------------------------------------------
+
+class PostImageInline(admin.TabularInline):
+    """Cho phép thêm/xoá nhiều ảnh phụ ngay trong trang sửa bài đăng."""
+    model = PostImage
+    extra = 1
+    fields = ['image', 'order']
+
+
+class CommentInline(admin.TabularInline):
+    """Xem bình luận ngay trong trang bài đăng."""
+    model = Comment
+    extra = 0
+    fields = ['author', 'content', 'created_at']
+    readonly_fields = ['author', 'created_at']
+    max_num = 20
+
+
+# ---------------------------------------------------------------------------
+#  CATEGORY
+# ---------------------------------------------------------------------------
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'slug')
+    list_display = ('order', 'icon', 'name', 'slug', 'total_posts', 'created_display')
+    list_editable = ('icon',)
+    list_display_links = ('name',)
     prepopulated_fields = {'slug': ('name',)}
-    search_fields = ('name',)
+    search_fields = ('name', 'description')
+    ordering = ('order', 'name')
+
+    @admin.display(description="Số bài đăng")
+    def total_posts(self, obj):
+        return obj.posts.count()
+
+    @admin.display(description="Biểu tượng")
+    def created_display(self, obj):
+        return obj.icon
+
+
+# ---------------------------------------------------------------------------
+#  POST
+# ---------------------------------------------------------------------------
 
 @admin.register(Post)
 class PostAdmin(admin.ModelAdmin):
-    list_display = ('title', 'seller', 'category', 'price', 'is_free', 'is_sold', 'created_at')
-    list_filter = ('category', 'is_sold', 'is_free', 'condition', 'created_at')
-    search_fields = ('title', 'course_code', 'faculty', 'seller__username')
-    list_editable = ('is_sold', 'is_free')
+    list_display = (
+        'title_display', 'seller', 'category', 'price_display',
+        'condition', 'status', 'view_count', 'created_at'
+    )
+    list_filter = ('status', 'is_free', 'condition', 'category', 'created_at')
+    search_fields = ('title', 'description', 'course_code', 'faculty', 'seller__username')
+    readonly_fields = ('view_count', 'created_at', 'updated_at', 'slug')
+    list_display_links = ('title_display',)
     date_hierarchy = 'created_at'
+    inlines = [PostImageInline, CommentInline]
+    actions = ['approve_posts', 'hide_posts', 'mark_sold', 'feature_posts']
+    list_per_page = 25
+
+    fieldsets = (
+        ('Thông tin cơ bản', {
+            'fields': ('title', 'description', 'category', 'seller')
+        }),
+        ('Giá & Tình trạng', {
+            'fields': ('price', 'is_free', 'condition', 'status', 'rejection_reason')
+        }),
+        ('Thông tin học thuật', {
+            'classes': ('collapse',),
+            'fields': ('course_code', 'faculty', 'location')
+        }),
+        ('Ảnh & Thống kê', {
+            'classes': ('collapse',),
+            'fields': ('image', 'view_count', 'slug', 'created_at', 'updated_at')
+        }),
+    )
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('seller', 'category')
+
+    @admin.display(description="Tiêu đề", ordering='title')
+    def title_display(self, obj):
+        thumb = format_html(
+            '<img src="{}" style="width:40px;height:40px;object-fit:cover;'
+            'border-radius:6px;margin-right:8px;" />',
+            obj.get_absolute_image_url() or ''
+        )
+        return format_html('{}{}', thumb, obj.title[:60])
+
+    @admin.display(description="Giá", ordering='price')
+    def price_display(self, obj):
+        return "Miễn phí" if obj.is_free or obj.price == 0 else f"{int(obj.price):,}đ"
+
+    @admin.display(description="Trạng thái", ordering='status')
+    def status_badge(self, obj):
+        colors = {
+            'ACTIVE': ('#10b981', 'Đang hiển thị'),
+            'PENDING': ('#f59e0b', 'Chờ duyệt'),
+            'SOLD': ('#6b7280', 'Đã bán'),
+            'REJECTED': ('#ef4444', 'Từ chối'),
+            'HIDDEN': ('#64748b', 'Đã ẩn'),
+        }
+        color, label = colors.get(obj.status, ('#6b7280', obj.status))
+        return format_html(
+            '<span style="background:{};color:white;padding:3px 10px;'
+            'border-radius:12px;font-size:11px;font-weight:bold;">{}</span>',
+            color, label
+        )
+
+    # --- Hành động kiểm duyệt hàng loạt ---
+    @admin.action(description="✅ Duyệt hiển thị")
+    def approve_posts(self, request, queryset):
+        updated = queryset.update(status=Post.Status.ACTIVE, rejection_reason='')
+        self.message_user(request, f"Đã duyệt {updated} bài đăng.")
+
+    @admin.action(description="🚫 Ẩn bài đăng")
+    def hide_posts(self, request, queryset):
+        updated = queryset.update(status=Post.Status.HIDDEN)
+        self.message_user(request, f"Đã ẩn {updated} bài đăng.")
+
+    @admin.action(description="💰 Đánh dấu đã bán")
+    def mark_sold(self, request, queryset):
+        updated = queryset.update(status=Post.Status.SOLD, is_sold=True)
+        self.message_user(request, f"Đã đánh dấu {updated} bài đăng là đã bán.")
+
+    @admin.action(description="⭐ Đánh dấu nổi bật (đưa lên đầu)")
+    def feature_posts(self, request, queryset):
+        # Bài ACTIVE được đưa lên đầu bằng cách cập nhật updated_at
+        from django.utils import timezone
+        updated = queryset.update(created_at=timezone.now())
+        self.message_user(request, f"Đã làm nổi bật {updated} bài đăng.")
+
+
+# ---------------------------------------------------------------------------
+#  PROFILE
+# ---------------------------------------------------------------------------
+
+@admin.register(Profile)
+class ProfileAdmin(admin.ModelAdmin):
+    list_display = ('user', 'student_id', 'faculty', 'phone', 'rating_display')
+    search_fields = ('user__username', 'student_id', 'faculty')
+    list_filter = ('faculty',)
+
+    @admin.display(description="Điểm uy tín")
+    def rating_display(self, obj):
+        average = obj.average_rating
+        return f"⭐ {average:.1f}/5 ({obj.total_reviews})" if average else "Chưa có đánh giá"
+
+
+# ---------------------------------------------------------------------------
+#  TƯƠNG TÁC
+# ---------------------------------------------------------------------------
 
 @admin.register(Comment)
 class CommentAdmin(admin.ModelAdmin):
-    list_display = ('id', 'author', 'post', 'created_at')
-    search_fields = ('author__username', 'content', 'post__title')
+    list_display = ('id', 'author', 'post_title', 'content_preview', 'created_at')
+    list_filter = ('created_at',)
+    search_fields = ('content', 'author__username', 'post__title')
+    readonly_fields = ('post', 'author', 'content', 'created_at')
+    date_hierarchy = 'created_at'
+
+    @admin.display(description="Bài đăng")
+    def post_title(self, obj):
+        return obj.post.title[:50]
+
+    @admin.display(description="Nội dung")
+    def content_preview(self, obj):
+        return obj.content[:80] + ("..." if len(obj.content) > 80 else "")
+
 
 @admin.register(Review)
 class ReviewAdmin(admin.ModelAdmin):
-    list_display = ('id', 'seller', 'reviewer', 'rating', 'created_at')
+    list_display = ('seller', 'reviewer', 'stars_display', 'content_preview', 'created_at')
     list_filter = ('rating', 'created_at')
-    search_fields = ('seller__username', 'reviewer__username', 'comment')
+    search_fields = ('seller__username', 'reviewer__username', 'content')
+    date_hierarchy = 'created_at'
 
-# Tùy chỉnh Quản lý Người dùng (Khóa / Mở khóa tài khoản)
+    @admin.display(description="Sao")
+    def stars_display(self, obj):
+        return "★" * obj.rating + "☆" * (5 - obj.rating)
+
+    @admin.display(description="Nhận xét")
+    def content_preview(self, obj):
+        return obj.content[:60] if obj.content else "(không có nhận xét)"
+
+
+@admin.register(Favorite)
+class FavoriteAdmin(admin.ModelAdmin):
+    list_display = ('user', 'post_title', 'created_at')
+    search_fields = ('user__username', 'post__title')
+    list_filter = ('created_at',)
+
+    @admin.display(description="Bài đăng")
+    def post_title(self, obj):
+        return obj.post.title[:50]
+
+
+@admin.register(Report)
+class ReportAdmin(admin.ModelAdmin):
+    """Bảng điều khiển xử lý báo cáo vi phạm."""
+
+    list_display = ('id', 'post_title', 'reporter', 'reason', 'status_badge', 'created_at')
+    list_filter = ('status', 'reason', 'created_at')
+    search_fields = ('post__title', 'reporter__username', 'detail')
+    readonly_fields = ('post', 'reporter', 'reason', 'detail', 'created_at')
+    actions = ['resolve_reports', 'dismiss_reports']
+    date_hierarchy = 'created_at'
+
+    @admin.display(description="Bài đăng bị báo cáo")
+    def post_title(self, obj):
+        return obj.post.title[:50]
+
+    @admin.display(description="Trạng thái")
+    def status_badge(self, obj):
+        colors = {'PENDING': '#f59e0b', 'RESOLVED': '#10b981', 'DISMISSED': '#6b7280'}
+        labels = {'PENDING': 'Chờ xử lý', 'RESOLVED': 'Đã xử lý', 'DISMISSED': 'Bỏ qua'}
+        color = colors.get(obj.status, '#6b7280')
+        label = labels.get(obj.status, obj.status)
+        return format_html(
+            '<span style="background:{};color:white;padding:3px 10px;'
+            'border-radius:12px;font-size:11px;font-weight:bold;">{}</span>',
+            color, label
+        )
+
+    @admin.action(description="✅ Đánh dấu đã xử lý")
+    def resolve_reports(self, request, queryset):
+        updated = queryset.update(status=Report.Status.RESOLVED)
+        self.message_user(request, f"Đã xử lý {updated} báo cáo.")
+
+    @admin.action(description="⚪ Bỏ qua báo cáo")
+    def dismiss_reports(self, request, queryset):
+        updated = queryset.update(status=Report.Status.DISMISSED)
+        self.message_user(request, f"Đã bỏ qua {updated} báo cáo.")
+
+
+# ---------------------------------------------------------------------------
+#  QUẢN LÝ TÀI KHOẢN
+# ---------------------------------------------------------------------------
+
+class ProfileInline(admin.StackedInline):
+    model = Profile
+    can_delete = False
+    extra = 0
+    fields = ('student_id', 'faculty', 'phone', 'bio', 'avatar')
+
+
 admin.site.unregister(User)
+
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff', 'is_active', 'date_joined')
-    list_filter = ('is_staff', 'is_superuser', 'is_active')
+    """Mở rộng trang quản lý người dùng của Django."""
+
+    list_display = (
+        'username', 'email', 'full_name', 'faculty',
+        'rating_display', 'post_count', 'is_staff', 'is_active', 'date_joined'
+    )
+    list_filter = ('is_staff', 'is_superuser', 'is_active', 'date_joined')
+    search_fields = ('username', 'email', 'first_name', 'last_name')
     actions = ['deactivate_users', 'activate_users']
+    inlines = [ProfileInline]
 
-    @admin.action(description='🔒 Khóa tài khoản đã chọn')
+    @admin.display(description="Họ tên", ordering='first_name')
+    def full_name(self, obj):
+        return obj.get_full_name() or "—"
+
+    @admin.display(description="Khoa")
+    def faculty(self, obj):
+        return obj.profile.faculty or "—"
+
+    @admin.display(description="Uy tín")
+    def rating_display(self, obj):
+        stats = obj.reviews_received.aggregate(avg=Avg('rating'), count=Count('id'))
+        if stats['count']:
+            return f"⭐ {stats['avg']:.1f} ({stats['count']})"
+        return "—"
+
+    @admin.display(description="Số tin")
+    def post_count(self, obj):
+        return obj.posts.count()
+
+    @admin.action(description="🔒 Khoá tài khoản đã chọn")
     def deactivate_users(self, request, queryset):
-        queryset.update(is_active=False)
+        updated = queryset.update(is_active=False)
+        self.message_user(request, f"Đã khoá {updated} tài khoản.")
 
-    @admin.action(description='🔓 Mở khóa tài khoản đã chọn')
+    @admin.action(description="🔓 Mở khoá tài khoản đã chọn")
     def activate_users(self, request, queryset):
-        queryset.update(is_active=True)
+        updated = queryset.update(is_active=True)
+        self.message_user(request, f"Đã mở khoá {updated} tài khoản.")

@@ -1,0 +1,256 @@
+{% extends 'base.html' %}
+{% load app_extras humanize %}
+
+{% block title %}SáchGóc Uni — Sàn Giao Dịch & Chia Sẻ Đồ Dùng Sinh Viên{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- ================= HERO ================= -->
+    <section class="relative overflow-hidden rounded-3xl px-6 py-12 md:px-12 md:py-16 text-white shadow-xl"
+             style="background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 45%,#2563eb 100%);">
+
+        <!-- Họa tiết nền -->
+        <div class="absolute inset-0 opacity-10" aria-hidden="true">
+            <div style="position:absolute;top:-60px;right:-40px;width:320px;height:320px;background:#fff;border-radius:50%;filter:blur(60px)"></div>
+            <div style="position:absolute;bottom:-80px;left:-30px;width:280px;height:280px;background:#a5b4fc;border-radius:50%;filter:blur(60px)"></div>
+        </div>
+
+        <div class="relative max-w-3xl mx-auto text-center">
+            <span class="inline-flex items-center gap-2 bg-white/15 backdrop-blur-md px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider mb-5">
+                🎓 Sàn giao dịch sinh viên
+            </span>
+
+            <h1 class="text-3xl md:text-5xl font-extrabold tracking-tight leading-tight mb-4">
+                Góc trao đổi giáo trình<br class="hidden md:block">
+                &amp; đồ dùng học tập
+            </h1>
+
+            <p class="text-indigo-100 text-base md:text-lg mb-8 max-w-2xl mx-auto leading-relaxed">
+                Tiết kiệm chi phí học tập, thanh lý đồ cũ hoặc tặng lại cho đàn em khóa sau —
+                kết nối sinh viên trường Đại học Kiến trúc Đà Nẵng và các trường bạn.
+            </p>
+
+            <!-- Ô tìm kiếm -->
+            <form method="get" action="{% url 'home' %}" class="flex flex-col sm:flex-row gap-2 bg-white p-2 rounded-2xl shadow-lg max-w-2xl mx-auto">
+                <div class="flex-1 flex items-center gap-2 px-3">
+                    <svg class="w-5 h-5 text-slate-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                    <input type="text" name="q" value="{{ query }}"
+                           placeholder="Tìm sách, giáo trình, mã môn, thiết bị..."
+                           class="w-full text-sm focus:outline-none bg-transparent py-2.5 text-slate-800"
+                           aria-label="Tìm kiếm sản phẩm">
+                </div>
+
+                {% if free_only %}<input type="hidden" name="free" value="1">{% endif %}
+                {% if selected_category %}<input type="hidden" name="cat" value="{{ selected_category.pk }}">{% endif %}
+
+                <button type="submit" class="btn btn-primary sm:px-8">Tìm kiếm</button>
+            </form>
+
+            <!-- Danh mục nhanh -->
+            <div class="mt-6 flex flex-wrap items-center justify-center gap-2">
+                <a href="{% url 'home' %}{% if query %}?q={{ query }}{% endif %}"
+                   class="px-3.5 py-1.5 rounded-full text-xs font-semibold transition
+                          {% if not selected_category %}bg-white text-indigo-700 shadow{% else %}bg-white/15 text-white hover:bg-white/25{% endif %}">
+                    🔥 Tất cả
+                </a>
+                {% for cat in categories %}
+                    <a href="?cat={{ cat.pk }}{% if query %}&q={{ query }}{% endif %}{% if free_only %}&free=1{% endif %}"
+                       class="px-3.5 py-1.5 rounded-full text-xs font-semibold transition
+                              {% if selected_category.pk == cat.pk %}bg-white text-indigo-700 shadow{% else %}bg-white/15 text-white hover:bg-white/25{% endif %}">
+                        {{ cat.icon }} {{ cat.name }}
+                        <span class="opacity-70">({{ cat.total }})</span>
+                    </a>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <!-- ================= THANH CÔNG CỤ ================= -->
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+            <h2 class="text-lg font-bold text-slate-900">
+                {% if query %}Kết quả cho "{{ query }}"
+                {% elif free_only %}Sản phẩm tặng miễn phí
+                {% elif selected_category %}{{ selected_category.icon }} {{ selected_category.name }}
+                {% else %}Sản phẩm mới đăng{% endif %}
+            </h2>
+            <span class="badge badge-brand">{{ total_posts|intcomma }} kết quả</span>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <!-- Nút bật/tắt bộ lọc -->
+            <button type="button" id="filter-toggle" class="btn btn-outline btn-sm lg:hidden">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+                </svg>
+                Bộ lọc
+            </button>
+
+            <!-- Sắp xếp -->
+            <form method="get" class="flex items-center gap-2">
+                {% if query %}<input type="hidden" name="q" value="{{ query }}">{% endif %}
+                {% if selected_category %}<input type="hidden" name="cat" value="{{ selected_category.pk }}">{% endif %}
+                {% if free_only %}<input type="hidden" name="free" value="1">{% endif %}
+                {% if condition %}<input type="hidden" name="condition" value="{{ condition }}">{% endif %}
+                {% if faculty %}<input type="hidden" name="faculty" value="{{ faculty }}">{% endif %}
+                {% if min_price %}<input type="hidden" name="min_price" value="{{ min_price }}">{% endif %}
+                {% if max_price %}<input type="hidden" name="max_price" value="{{ max_price }}">{% endif %}
+
+                <select name="sort" onchange="this.form.submit()"
+                        class="form-input !py-1.5 !w-auto text-xs font-medium cursor-pointer">
+                    <option value="newest"      {% if sort == 'newest' %}selected{% endif %}>🕐 Mới nhất</option>
+                    <option value="oldest"      {% if sort == 'oldest' %}selected{% endif %}>🕐 Cũ nhất</option>
+                    <option value="price_asc"   {% if sort == 'price_asc' %}selected{% endif %}>💰 Giá thấp → cao</option>
+                    <option value="price_desc"  {% if sort == 'price_desc' %}selected{% endif %}>💰 Giá cao → thấp</option>
+                    <option value="popular"     {% if sort == 'popular' %}selected{% endif %}>🔥 Phổ biến nhất</option>
+                </select>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= BỘ LỌC NÂNG CAO ================= -->
+    <div id="filter-panel" class="card p-5">
+        <form method="get" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            {% if query %}<input type="hidden" name="q" value="{{ query }}">{% endif %}
+            {% if selected_category %}<input type="hidden" name="cat" value="{{ selected_category.pk }}">{% endif %}
+            <input type="hidden" name="sort" value="{{ sort }}">
+
+            <!-- Tình trạng -->
+            <div>
+                <label class="form-label">Tình trạng</label>
+                <select name="condition" class="form-input">
+                    <option value="">Tất cả tình trạng</option>
+                    {% for value, label in condition_choices %}
+                        <option value="{{ value }}" {% if condition == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Khoa / ngành -->
+            <div>
+                <label class="form-label">Khoa / Ngành</label>
+                <select name="faculty" class="form-input">
+                    <option value="">Tất cả khoa</option>
+                    {% for f in faculties %}
+                        <option value="{{ f }}" {% if faculty == f %}selected{% endif %}>{{ f }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Giá thấp nhất -->
+            <div>
+                <label class="form-label">Giá từ (đ)</label>
+                <input type="number" name="min_price" value="{{ min_price }}"
+                       placeholder="0" min="0" step="1000" class="form-input">
+            </div>
+
+            <!-- Giá cao nhất -->
+            <div>
+                <label class="form-label">Đến giá (đ)</label>
+                <input type="number" name="max_price" value="{{ max_price }}"
+                       placeholder="Không giới hạn" min="0" step="1000" class="form-input">
+            </div>
+
+            <!-- Nút -->
+            <div class="flex items-end gap-2">
+                <label class="form-check items-center">
+                    <input type="checkbox" name="free" value="1" {% if free_only %}checked{% endif %}
+                           class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+                    <span class="text-sm font-medium text-slate-700 whitespace-nowrap">Chỉ đồ tặng</span>
+                </label>
+                <button type="submit" class="btn btn-primary btn-sm ml-auto">Lọc</button>
+            </div>
+        </form>
+
+        <!-- Tiêu chí đang áp dụng -->
+        {% if query or free_only or condition or faculty or min_price or max_price or selected_category %}
+        <div class="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-slate-100">
+            <span class="text-xs font-semibold text-slate-500">Đang lọc:</span>
+            {% if query %}
+                <a href="{% querystring q=None %}" class="badge badge-brand hover:opacity-80">
+                    🔍 {{ query }} <span class="ml-1">×</span>
+                </a>
+            {% endif %}
+            {% if selected_category %}
+                <a href="{% querystring cat=None %}" class="badge badge-brand hover:opacity-80">
+                    {{ selected_category.name }} <span class="ml-1">×</span>
+                </a>
+            {% endif %}
+            {% if free_only %}
+                <a href="{% querystring free=None %}" class="badge badge-success hover:opacity-80">
+                    🎁 Tặng 0đ <span class="ml-1">×</span>
+                </a>
+            {% endif %}
+            {% if condition %}
+                <a href="{% querystring condition=None %}" class="badge badge-info hover:opacity-80">
+                    {{ post.get_condition_display|default:condition }} <span class="ml-1">×</span>
+                </a>
+            {% endif %}
+            {% if faculty %}
+                <a href="{% querystring faculty=None %}" class="badge badge-slate hover:opacity-80">
+                    {{ faculty }} <span class="ml-1">×</span>
+                </a>
+            {% endif %}
+            {% if min_price or max_price %}
+                <a href="{% querystring min_price=None max_price=None %}" class="badge badge-slate hover:opacity-80">
+                    💰 {{ min_price|default:'0' }} – {{ max_price|default:'∞' }}đ <span class="ml-1">×</span>
+                </a>
+            {% endif %}
+            <a href="{% url 'home' %}" class="text-xs text-slate-400 hover:text-red-500 font-medium ml-1">
+                Xoá tất cả
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- ================= LƯỚI SẢN PHẨM ================= -->
+    {% if posts %}
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            {% for post in posts %}
+                {% include 'partials/post_card.html' %}
+            {% endfor %}
+        </div>
+
+        {% include 'partials/pagination.html' %}
+
+    {% else %}
+        <!-- Trạng thái rỗng -->
+        <div class="card p-12 text-center">
+            <div class="text-5xl mb-4">🔍</div>
+            <h3 class="text-lg font-bold text-slate-800 mb-2">Không tìm thấy sản phẩm phù hợp</h3>
+            <p class="text-sm text-slate-500 mb-6 max-w-md mx-auto">
+                {% if query %}
+                    Không có kết quả cho từ khoá "<strong>{{ query }}</strong>".
+                    Thử từ khoá khác hoặc bỏ bớt bộ lọc nhé!
+                {% else %}
+                    Chưa có sản phẩm nào. Hãy là người đầu tiên đăng tin!
+                {% endif %}
+            </p>
+            <div class="flex flex-wrap items-center justify-center gap-3">
+                <a href="{% url 'home' %}" class="btn btn-outline">Xem tất cả sản phẩm</a>
+                <a href="{% url 'create_post' %}" class="btn btn-primary">➕ Đăng tin ngay</a>
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- ================= KÊNH GỌI HÀNH ĐỘNG ================= -->
+    {% if not user.is_authenticated %}
+    <section class="card p-8 md:p-10 text-center"
+             style="background:linear-gradient(135deg,#eef2ff 0%,#faf5ff 100%);border-color:#c7d2fe;">
+        <h2 class="text-xl md:text-2xl font-extrabold text-slate-900 mb-2">
+            Bạn có đồ cũ không dùng tới?
+        </h2>
+        <p class="text-sm text-slate-600 mb-6 max-w-xl mx-auto">
+            Đăng bán hoặc tặng miễn phí trong vòng 2 phút. Miễn phí trọn đời cho sinh viên!
+        </p>
+        <div class="flex flex-wrap items-center justify-center gap-3">
+            <a href="{% url 'register' %}" class="btn btn-primary btn-lg">Tạo tài khoản miễn phí</a>
+            <a href="{% url 'login' %}" class="btn btn-outline btn-lg">Tôi đã có tài khoản</a>
+        </div>
+    </section>
+    {% endif %}
+</div>
+{% endblock %}

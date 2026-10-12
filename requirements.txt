@@ -1,11 +1,20 @@
-# Django Web Framework & Core Dependencies
-Django>=4.2,<5.3
-asgiref>=3.7.0
-sqlparse>=0.5.0
+# ============================================================
+#  SáchGóc Uni - Thư viện phụ thuộc Python
+#  Cài đặt:  pip install -r requirements.txt
+# ============================================================
 
-# Image & File Handling for Post Uploads
+# --- Django Web Framework ---
+Django>=4.2,<5.3
+
+# --- Quản lý biến môi trường (đọc file .env) ---
+django-environ>=0.11.0
+
+# --- Xử lý ảnh (bắt buộc cho ImageField) ---
 Pillow>=10.0.0
 
-# Database Drivers (MySQL / MariaDB)
+# --- Driver MySQL ---
 mysqlclient>=2.2.0
 PyMySQL>=1.1.0
+
+# --- Test runner tốc hơn cho Django ---
+django-crispy-forms>=2.3

@@ -1,0 +1,35 @@
+{% load static %}<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Không tìm thấy trang (404) — SáchGóc Uni</title>
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+</head>
+<body class="flex items-center justify-center min-h-screen px-4"
+      style="background:linear-gradient(135deg,#eef2ff 0%,#faf5ff 100%);">
+
+    <div class="text-center max-w-lg">
+        <p class="text-8xl font-extrabold"
+           style="background:linear-gradient(135deg,#4f46e5,#a855f7);-webkit-background-clip:text;
+                  background-clip:text;color:transparent;line-height:1;">404</p>
+
+        <h1 class="text-2xl font-extrabold text-slate-900 mt-4 mb-3">Không tìm thấy trang</h1>
+
+        <p class="text-slate-500 mb-8 leading-relaxed">
+            Trang bạn tìm không tồn tại hoặc đã bị di chuyển/xoá.
+            Có thể bài đăng đã được gỡ bỏ khỏi sàn.
+        </p>
+
+        <div class="flex flex-wrap justify-center gap-3">
+            <a href="/" class="btn btn-primary">🏠 Về trang chủ</a>
+            <a href="/#san-pham" class="btn btn-outline">🔍 Xem sản phẩm</a>
+        </div>
+
+        <p class="mt-8 text-xs text-slate-400">
+            Nếu bạn nghĩ đây là lỗi,
+            <a href="mailto:support@sachgocuni.edu.vn" class="text-indigo-600 hover:underline">liên hệ với chúng tôi</a>.
+        </p>
+    </div>
+</body>
+</html>

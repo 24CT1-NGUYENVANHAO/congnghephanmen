@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+{% load humanize app_extras %}
+
+{% block title %}{{ profile.display_name }} — SáchGóc Uni{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- Hồ sơ -->
+    <div class="card overflow-hidden">
+        <!-- Dải màu nền -->
+        <div style="height:120px;background:linear-gradient(135deg,#4f46e5,#7c3aed,#2563eb);"></div>
+
+        <div class="px-6 pb-6">
+            <div class="flex flex-col sm:flex-row sm:items-end gap-4 -mt-12">
+                <!-- Avatar -->
+                <div class="w-24 h-24 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white
+                            flex items-center justify-center text-3xl font-bold uppercase ring-4 ring-white shrink-0">
+                    {{ profile_user.username|first }}
+                </div>
+
+                <!-- Thông tin -->
+                <div class="flex-1 min-w-0 pb-1">
+                    <h1 class="text-2xl font-extrabold text-slate-900">{{ profile.display_name }}</h1>
+                    <p class="text-sm text-slate-500">@{{ profile_user.username }}</p>
+
+                    <div class="flex flex-wrap items-center gap-2 mt-2">
+                        {% if average_rating %}
+                            <span class="flex items-center gap-1 text-sm">
+                                {{ average_rating|stars }}
+                                <span class="font-bold text-slate-700">{{ average_rating|floatformat:1 }}</span>
+                                <span class="text-xs text-slate-400">({{ review_count }} đánh giá)</span>
+                            </span>
+                        {% else %}
+                            <span class="badge badge-slate text-xs">Chưa có đánh giá</span>
+                        {% endif %}
+
+                        {% if profile.faculty %}
+                            <span class="badge badge-brand text-xs">{{ profile.faculty }}</span>
+                        {% endif %}
+                        {% if profile.student_id %}
+                            <span class="badge badge-slate text-xs font-mono">MSV: {{ profile.student_id }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Nút hành động -->
+                <div class="flex gap-2 pb-1">
+                    {% if user == profile_user %}
+                        <a href="{% url 'edit_profile' %}" class="btn btn-outline btn-sm">⚙️ Sửa hồ sơ</a>
+                    {% else %}
+                        {% if profile_user.email %}
+                            <a href="mailto:{{ profile_user.email }}"
+                               class="btn btn-outline btn-sm">✉️ Liên hệ</a>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Giới thiệu -->
+            {% if profile.bio %}
+                <p class="mt-5 text-sm text-slate-600 leading-relaxed max-w-3xl">{{ profile.bio }}</p>
+            {% endif %}
+
+            <!-- Thống kê -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 pt-6 border-t border-slate-100">
+                <div class="text-center">
+                    <p class="text-2xl font-extrabold text-indigo-600">{{ total_posts }}</p>
+                    <p class="text-xs text-slate-500 mt-0.5">Tin đăng</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-2xl font-extrabold text-emerald-600">{{ total_sold }}</p>
+                    <p class="text-xs text-slate-500 mt-0.5">Đã giao dịch</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-2xl font-extrabold text-amber-500">
+                        {% if average_rating %}{{ average_rating|floatformat:1 }}{% else %}—{% endif %}
+                    </p>
+                    <p class="text-xs text-slate-500 mt-0.5">Uy tín</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-2xl font-extrabold text-slate-700">{{ review_count }}</p>
+                    <p class="text-xs text-slate-500 mt-0.5">Đánh giá</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Cột trái: Sản phẩm -->
+        <div class="lg:col-span-2 space-y-4">
+            <h2 class="text-lg font-bold text-slate-900">
+                Sản phẩm đang bán
+                <span class="badge badge-brand ml-1">{{ posts|length }}</span>
+            </h2>
+
+            {% if posts %}
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    {% for post in posts %}
+                        {% include 'partials/post_card.html' %}
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="card p-10 text-center">
+                    <div class="text-4xl mb-3">📭</div>
+                    <p class="text-sm text-slate-500">
+                        Người dùng này hiện chưa có sản phẩm nào đang bán.
+                    </p>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Cột phải: Đánh giá -->
+        <div class="space-y-4">
+            <h2 class="text-lg font-bold text-slate-900">
+                Đánh giá uy tín
+                {% if review_count %}<span class="badge badge-brand ml-1">{{ review_count }}</span>{% endif %}
+            </h2>
+
+            <!-- Form đánh giá (khi không phải chính mình) -->
+            {% if review_form %}
+                <div class="card p-5">
+                    <h3 class="text-sm font-bold text-slate-800 mb-3">⭐ Đánh giá {{ profile.display_name }}</h3>
+                    <form action="{% url 'add_review' profile_user.username %}" method="post" class="space-y-3">
+                        {% csrf_token %}
+                        {{ review_form.rating }}
+                        {{ review_form.content }}
+                        <button type="submit" class="btn btn-primary btn-sm btn-block">Gửi đánh giá</button>
+                    </form>
+                </div>
+            {% elif user == profile_user %}
+                <div class="card p-5 bg-slate-50">
+                    <p class="text-sm text-slate-600">
+                        💡 Hồ sơ của bạn sẽ hiển thị uy tín cao hơn khi có đánh giá từ
+                        người đã giao dịch.
+                    </p>
+                </div>
+            {% elif user.is_authenticated %}
+                <div class="card p-5 bg-emerald-50" style="border-color:#a7f3d0;">
+                    <p class="text-sm text-emerald-800">
+                        ✅ Bạn đã đánh giá người dùng này rồi.
+                    </p>
+                </div>
+            {% endif %}
+
+            <!-- Danh sách đánh giá -->
+            <div class="space-y-3">
+                {% for review in reviews %}
+                    <div class="card p-4">
+                        <div class="flex items-center gap-3 mb-2">
+                            <span class="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 text-white
+                                         flex items-center justify-center text-xs font-bold uppercase shrink-0">
+                                {{ review.reviewer.username|first }}
+                            </span>
+                            <div class="min-w-0 flex-1">
+                                <a href="{% url 'user_profile' review.reviewer.username %}"
+                                   class="font-semibold text-sm text-slate-800 hover:text-indigo-600 transition block truncate">
+                                    {{ review.reviewer.profile.display_name }}
+                                </a>
+                                <span class="text-xs">{{ review.rating|stars }}</span>
+                            </div>
+                            <span class="text-xs text-slate-400 shrink-0">{{ review.created_at|timesince }}</span>
+                        </div>
+
+                        {% if review.content %}
+                            <p class="text-sm text-slate-600 leading-relaxed">{{ review.content }}</p>
+                        {% endif %}
+
+                        {% if review.post %}
+                            <a href="{{ review.post.get_absolute_url }}"
+                               class="inline-flex items-center gap-1.5 mt-2 text-xs text-indigo-600 hover:underline">
+                                📦 {{ review.post.title|truncatechars:40 }}
+                            </a>
+                        {% endif %}
+                    </div>
+                {% empty %}
+                    <div class="card p-8 text-center">
+                        <div class="text-3xl mb-2">💬</div>
+                        <p class="text-sm text-slate-400">
+                            Chưa có đánh giá nào cho người dùng này.
+                        </p>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

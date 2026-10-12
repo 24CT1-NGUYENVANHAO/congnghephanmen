@@ -1,0 +1,28 @@
+{% load static %}<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lỗi máy chủ (500) — SáchGóc Uni</title>
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+</head>
+<body class="flex items-center justify-center min-h-screen px-4"
+      style="background:linear-gradient(135deg,#fef2f2 0%,#fffbeb 100%);">
+
+    <div class="text-center max-w-lg">
+        <p class="text-8xl font-extrabold text-red-500 leading-none">500</p>
+
+        <h1 class="text-2xl font-extrabold text-slate-900 mt-4 mb-3">Đã xảy ra lỗi</h1>
+
+        <p class="text-slate-500 mb-8 leading-relaxed">
+            Máy chủ gặp sự cố tạm thời khi xử lý yêu cầu của bạn.
+            Vui lòng thử lại sau ít phút.
+        </p>
+
+        <div class="flex flex-wrap justify-center gap-3">
+            <a href="/" class="btn btn-primary">🏠 Về trang chủ</a>
+            <button type="button" onclick="location.reload()" class="btn btn-outline">🔄 Tải lại trang</button>
+        </div>
+    </div>
+</body>
+</html>
