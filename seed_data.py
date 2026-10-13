@@ -445,10 +445,11 @@ def run():
         while post_cursor < len(created_posts) and order is None:
             post_obj = created_posts[post_cursor]
             post_cursor += 1
-            for buyer in users:
-                if buyer != post_obj.seller:
-                    order = (post_obj, buyer)
-                    break
+            # Chọn ngẫu nhiên trong các user khác người bán để dữ liệu mẫu
+            # không bị dồn toàn bộ vào một người mua duy nhất.
+            candidates = [u for u in users if u != post_obj.seller]
+            if candidates:
+                order = (post_obj, random.choice(candidates))
 
         if order is None:
             break

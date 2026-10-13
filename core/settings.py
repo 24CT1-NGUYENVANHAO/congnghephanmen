@@ -207,6 +207,14 @@ else:
         DB_AUTO_FALLBACK = True
         _cfg = _mysql['default']
         _warn("Không kết nối được MySQL - đang dùng SQLite tạm thời.")
+        _warn(
+            "CẢNH BÁO: dữ liệu bạn thấy trên web KHÔNG nằm trong MySQL "
+            f"'{_cfg['NAME']}'. Mọi thứ đăng/đăng ký bây giờ sẽ lưu vào "
+            "db.sqlite3 và sẽ BIẾN MẤT khi bạn sửa cấu hình rồi migrate lại.\n"
+            "   ==> Hãy sửa DB_PORT/DB_PASSWORD trong .env cho đúng, rồi chạy:\n"
+            "          python manage.py migrate\n"
+            "          python seed_data.py"
+        )
         print(
             f"   Đã thử    : mysql://{_cfg['USER']}@{_cfg['HOST']}:{_cfg['PORT']}"
             f"/{_cfg['NAME']}\n"
