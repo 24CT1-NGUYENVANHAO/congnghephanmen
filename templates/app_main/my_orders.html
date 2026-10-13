@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+
+{% block title %}Đơn hàng — SáchGóc Uni{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <div>
+        <h1 class="text-2xl font-extrabold text-slate-900">📋 Đơn hàng của tôi</h1>
+        <p class="text-sm text-slate-500 mt-1">Theo dõi các giao dịch bạn đặt và đã bán</p>
+    </div>
+
+    <!-- Đơn chờ xác nhận (người bán) -->
+    {% if pending_sell_count > 0 %}
+    <div class="p-4 rounded-xl bg-amber-50 border border-amber-200">
+        <p class="text-sm text-amber-800">
+            🔔 Bạn có <strong>{{ pending_sell_count }}</strong> yêu cầu mua đang chờ xác nhận.
+            <a href="#ban" class="font-semibold underline ml-1">Xem ngay</a>
+        </p>
+    </div>
+    {% endif %}
+
+    <!-- ============ ĐƠN MUA ============ -->
+    <section class="space-y-3">
+        <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+            🛒 Đơn tôi đặt mua
+            <span class="badge badge-brand">{{ buying|length }}</span>
+        </h2>
+
+        {% for order in buying %}
+        <div class="card p-4 flex flex-col sm:flex-row sm:items-center gap-4">
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap mb-1">
+                    <span class="badge badge-slate">Đơn #{{ order.pk }}</span>
+                    {% if order.status == 'PENDING' %}<span class="badge badge-warning">Chờ xác nhận</span>
+                    {% elif order.status == 'CONFIRMED' %}<span class="badge badge-info">Đã xác nhận</span>
+                    {% elif order.status == 'COMPLETED' %}<span class="badge badge-success">Hoàn tất</span>
+                    {% else %}<span class="badge badge-danger">{{ order.get_status_display }}</span>{% endif %}
+                </div>
+                <a href="{{ order.post.get_absolute_url }}"
+                   class="font-semibold text-sm text-slate-800 hover:text-indigo-600 transition line-clamp-1">
+                    {{ order.post.title }}
+                </a>
+                <p class="text-xs text-slate-400 mt-0.5">
+                    👤 {{ order.seller.profile.display_name }} · {{ order.created_at|date:"d/m/Y H:i" }}
+                </p>
+            </div>
+            <div class="flex items-center gap-3 shrink-0">
+                <span class="font-extrabold {% if order.price_snapshot == 0 %}text-emerald-600{% else %}text-indigo-600{% endif %}">
+                    {{ order.price_display }}
+                </span>
+                <a href="{% url 'order_detail' order.pk %}" class="btn btn-outline btn-sm">Chi tiết</a>
+            </div>
+        </div>
+        {% empty %}
+        <div class="card p-8 text-center text-slate-400">
+            <p class="text-3xl mb-2">🛒</p>
+            <p class="text-sm">Bạn chưa đặt mua sản phẩm nào.</p>
+            <a href="{% url 'home' %}" class="btn btn-primary btn-sm mt-4 inline-flex">Khám phá sản phẩm</a>
+        </div>
+        {% endfor %}
+    </section>
+
+    <!-- ============ ĐƠN BÁN ============ -->
+    <section id="ban" class="space-y-3 pt-4">
+        <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+            💰 Đơn người khác mua sản phẩm của tôi
+            <span class="badge badge-brand">{{ selling|length }}</span>
+        </h2>
+
+        {% for order in selling %}
+        <div class="card p-4 flex flex-col sm:flex-row sm:items-center gap-4"
+             {% if order.status == 'PENDING' %}style="border-color:#fcd34d;background:#fffbeb;"{% endif %}>
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap mb-1">
+                    <span class="badge badge-slate">Đơn #{{ order.pk }}</span>
+                    {% if order.status == 'PENDING' %}<span class="badge badge-warning">Chờ bạn xác nhận</span>
+                    {% elif order.status == 'CONFIRMED' %}<span class="badge badge-info">Đã xác nhận</span>
+                    {% elif order.status == 'COMPLETED' %}<span class="badge badge-success">Hoàn tất</span>
+                    {% else %}<span class="badge badge-danger">{{ order.get_status_display }}</span>{% endif %}
+                </div>
+                <a href="{{ order.post.get_absolute_url }}"
+                   class="font-semibold text-sm text-slate-800 hover:text-indigo-600 transition line-clamp-1">
+                    {{ order.post.title }}
+                </a>
+                <p class="text-xs text-slate-400 mt-0.5">
+                    👤 {{ order.buyer.profile.display_name }}
+                    {% if order.contact %} · 📞 {{ order.contact }}{% endif %}
+                </p>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+                <span class="font-extrabold {% if order.price_snapshot == 0 %}text-emerald-600{% else %}text-indigo-600{% endif %}">
+                    {{ order.price_display }}
+                </span>
+                <a href="{% url 'order_detail' order.pk %}" class="btn btn-outline btn-sm">Xử lý</a>
+            </div>
+        </div>
+        {% empty %}
+        <div class="card p-8 text-center text-slate-400">
+            <p class="text-3xl mb-2">💰</p>
+            <p class="text-sm">Chưa có ai đặt mua sản phẩm của bạn.</p>
+        </div>
+        {% endfor %}
+    </section>
+</div>
+{% endblock %}

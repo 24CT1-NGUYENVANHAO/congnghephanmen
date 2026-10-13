@@ -41,6 +41,7 @@
                         <li><a href="{% url 'user_profile' user.username %}" class="hover:text-indigo-400 transition">Hồ sơ của tôi</a></li>
                         <li><a href="{% url 'my_posts' %}" class="hover:text-indigo-400 transition">Quản lý tin đăng</a></li>
                         <li><a href="{% url 'wishlist' %}" class="hover:text-indigo-400 transition">Yêu thích</a></li>
+                        <li><a href="{% url 'my_orders' %}" class="hover:text-indigo-400 transition">Đơn hàng</a></li>
                     {% else %}
                         <li><a href="{% url 'login' %}" class="hover:text-indigo-400 transition">Đăng nhập</a></li>
                         <li><a href="{% url 'register' %}" class="hover:text-indigo-400 transition">Đăng ký</a></li>

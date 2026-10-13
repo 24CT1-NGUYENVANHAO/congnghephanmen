@@ -31,7 +31,7 @@ from django.db import transaction  # noqa: E402
 from django.utils import timezone  # noqa: E402
 
 from app_main.models import (  # noqa: E402
-    Category, Comment, Favorite, Post, Review,
+    Category, Comment, Favorite, Order, Post, Review,
 )
 
 # Thư mục chứa ảnh minh hoạ do generate_images.py tạo ra
@@ -423,7 +423,63 @@ def run():
 
     print(f"   ✅ Đã tạo {review_count} đánh giá.")
 
-    # --- 9. Thống kê & thông tin đăng nhập ---
+    # --- 10. Đơn hàng mẫu (đặt mua) ---
+    print("\n Đơn hàng mẫu (chức năng Đặt mua)…")
+    Order.objects.all().delete()
+    order_count = 0
+
+    # Kịch bản: 1 đơn cho mỗi trạng thái để minh hoạ đủ luồng
+    scenarios = [
+        (Order.Status.PENDING,   'Còn hàng không ạ? Mình có thể gặp tối mai.'),
+        (Order.Status.CONFIRMED, 'Mình lấy sau khi thi giữa kỳ nhé.'),
+        (Order.Status.COMPLETED, 'Cảm ơn bạn, giao dịch mượt lắm!'),
+        (Order.Status.REJECTED,  'Xin lỗi, sản phẩm đã có người hẹn trước.'),
+    ]
+
+    # Duyệt qua các bài đăng, mỗi bài tìm người mua khác người bán
+    post_cursor = 0
+    for index, (status, note) in enumerate(scenarios):
+        order = None
+
+        # Tìm cặp (bài đăng, người mua) hợp lệ
+        while post_cursor < len(created_posts) and order is None:
+            post_obj = created_posts[post_cursor]
+            post_cursor += 1
+            for buyer in users:
+                if buyer != post_obj.seller:
+                    order = (post_obj, buyer)
+                    break
+
+        if order is None:
+            break
+
+        post_obj, buyer = order
+
+        order = Order.objects.create(
+            post=post_obj,
+            buyer=buyer,
+            seller=post_obj.seller,
+            price_snapshot=post_obj.price,
+            message='Xin chào, mình muốn mua sản phẩm này. '
+                    'Có thể giao dịch vào cuối tuần này được không ạ?',
+            contact=f'09{20000000 + index * 111111:08d}',
+            status=status,
+            seller_note=note if status in (
+                Order.Status.CONFIRMED, Order.Status.REJECTED
+            ) else '',
+        )
+
+        # Đơn hoàn tất thì sản phẩm chuyển sang đã bán
+        if status == Order.Status.COMPLETED:
+            post_obj.status = Post.Status.SOLD
+            post_obj.is_sold = True
+            post_obj.save(update_fields=['status', 'is_sold', 'updated_at'])
+
+        order_count += 1
+
+    print(f"   ✅ Đã tạo {order_count} đơn hàng.")
+
+    # --- 10. Thống kê & thông tin đăng nhập ---
     print("\n" + "=" * 60)
     print("  ✅ HOÀN TẤT NẠP DỮ LIỆU!")
     print("=" * 60)
@@ -435,6 +491,7 @@ def run():
      • Bình luận   : {Comment.objects.count()}
      • Yêu thích  : {Favorite.objects.count()}
      • Đánh giá    : {Review.objects.count()}
+     • Đơn hàng    : {Order.objects.count()}
      • Người dùng  : {User.objects.count()}
 
   🔑 TÀI KHOẢN ĐĂNG NHẬP:

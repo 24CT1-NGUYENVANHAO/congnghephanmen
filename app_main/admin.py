@@ -11,7 +11,9 @@ from django.contrib.auth.models import User
 from django.db.models import Avg, Count
 from django.utils.html import format_html
 
-from .models import Category, Comment, Favorite, Post, PostImage, Profile, Report, Review
+from .models import (
+    Category, Comment, Favorite, Order, Post, PostImage, Profile, Report, Review,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -305,3 +307,91 @@ class UserAdmin(BaseUserAdmin):
     def activate_users(self, request, queryset):
         updated = queryset.update(is_active=True)
         self.message_user(request, f"Đã mở khoá {updated} tài khoản.")
+
+
+# ===========================================================================
+#  ĐẶT MUA - ĐƠN HÀNG
+# ===========================================================================
+
+@admin.register(Order)
+class OrderAdmin(admin.ModelAdmin):
+    """Theo dõi đơn hàng giữa người mua và người bán."""
+
+    list_display = [
+        'id_short', 'post_title', 'buyer_name', 'seller_name',
+        'price_display_short', 'status_badge', 'created_at',
+    ]
+    list_filter = ['status', 'created_at']
+    search_fields = ['post__title', 'buyer__username', 'seller__username']
+    autocomplete_fields = ['post', 'buyer', 'seller']
+    readonly_fields = ['price_snapshot', 'created_at', 'updated_at']
+    date_hierarchy = 'created_at'
+    list_per_page = 25
+    ordering = ['-created_at']
+
+    fieldsets = (
+        ('Giao dịch', {
+            'fields': ('post', 'buyer', 'seller', 'price_snapshot', 'status')
+        }),
+        ('Nội dung liên hệ', {
+            'fields': ('message', 'contact', 'seller_note')
+        }),
+        ('Thông tin hệ thống', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',),
+        }),
+    )
+
+    @admin.display(description="Mã", ordering='id')
+    def id_short(self, obj):
+        return f"#{obj.pk}"
+
+    @admin.display(description="Sản phẩm", ordering='post__title')
+    def post_title(self, obj):
+        return format_html('<strong>{}</strong>', obj.post.title[:60])
+
+    @admin.display(description="Người mua", ordering='buyer__username')
+    def buyer_name(self, obj):
+        return obj.buyer.profile.display_name
+
+    @admin.display(description="Người bán", ordering='seller__username')
+    def seller_name(self, obj):
+        return obj.seller.profile.display_name
+
+    @admin.display(description="Giá chốt", ordering='price_snapshot')
+    def price_display_short(self, obj):
+        if obj.price_snapshot == 0:
+            return "Miễn phí"
+        return f"{int(obj.price_snapshot):,}đ".replace(",", ".")
+
+    @admin.display(description="Trạng thái", ordering='status')
+    def status_badge(self, obj):
+        colors = {
+            Order.Status.PENDING:   ('#92400e', '#fef3c7'),
+            Order.Status.CONFIRMED: ('#1e40af', '#dbeafe'),
+            Order.Status.COMPLETED: ('#14532d', '#dcfce7'),
+            Order.Status.REJECTED:  ('#7f1d1d', '#fee2e2'),
+            Order.Status.CANCELLED: ('#334155', '#e2e8f0'),
+        }
+        fg, bg = colors.get(obj.status, ('#334155', '#e2e8f0'))
+        return format_html(
+            '<span style="padding:3px 10px;border-radius:9999px;'
+            'background:{};color:{};font-weight:600;font-size:11px;white-space:nowrap;">{}</span>',
+            bg, fg, obj.get_status_display(),
+        )
+
+    @admin.action(description="✅ Đánh dấu hoàn tất + chuyển sản phẩm sang Đã bán")
+    def mark_completed(self, request, queryset):
+        count = 0
+        for order in queryset.filter(
+            status__in=[Order.Status.PENDING, Order.Status.CONFIRMED]
+        ):
+            order.status = Order.Status.COMPLETED
+            order.save(update_fields=['status', 'updated_at'])
+            order.post.status = Post.Status.SOLD
+            order.post.is_sold = True
+            order.post.save(update_fields=['status', 'is_sold', 'updated_at'])
+            count += 1
+        self.message_user(request, f"Đã hoàn tất {count} đơn hàng.")
+
+    actions = [mark_completed]

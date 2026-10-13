@@ -18,9 +18,11 @@ Chuyên dụng cho **mua bán sách cũ, giáo trình, dụng cụ học tập**
 2. [Công nghệ sử dụng](#-công-nghệ-sử-dụng)
 3. [Cài đặt & chạy dự án](#-cài-đặt--chạy-dự-án)
 4. [Tài khoản mẫu](#-tài-khoản-mẫu)
-5. [Cấu trúc dự án](#-cấu-trúc-dự-án)
-6. [Kiểm thử](#-kiểm-thử)
-7. [Sơ đồ kiến trúc](#-sơ-đồ-kiến-trúc)
+5. [Kết nối CSDL](#-kết-nối-csdl)
+6. [Cấu trúc dự án](#-cấu-trúc-dự-án)
+7. [Kiểm thử](#-kiểm-thử)
+8. [Sơ đồ kiến trúc](#-sơ-đồ-kiến-trúc)
+9. [Biểu đồ tuần tự](#-biểu-đồ-tuần-tự-sequence-diagram)
 
 ---
 
@@ -31,6 +33,8 @@ Chuyên dụng cho **mua bán sách cũ, giáo trình, dụng cụ học tập**
 | Tính năng | Mô tả |
 |---|---|
 | 📖 **Mua bán sản phẩm** | Đăng bán giáo trình, dụng cụ vẽ, thiết bị với giá tuỳ chọn |
+| 🛒 **Đặt mua trong hệ thống** | Gửi yêu cầu → người bán xác nhận/từ chối → hoàn tất. Giá chốt không đổi sau khi đặt |
+| 📋 **Quản lý đơn hàng** | 5 trạng thái: Chờ xác nhận, Đã xác nhận, Hoàn tất, Từ chối, Đã huỷ |
 | 🎁 **Tặng miễn phí 0đ** | Chuyên mục tặng lại đồ cho tân sinh viên |
 | 🔍 **Tìm kiếm thông minh** | Tìm theo tiêu đề, mô tả, mã học phần, khoa |
 | 🧩 **Bộ lọc nâng cao** | Lọc theo danh mục, tình trạng, khoa, khoảng giá |
@@ -318,24 +322,27 @@ Kết quả:
 │   ├── wsgi.py / asgi.py          # Cổng giao tiếp web server
 │
 ├── app_main/                      # Ứng dụng chính
-│   ├── models.py                  # 8 model: Category, Profile, Post, PostImage,
-│   │                              #   Favorite, Comment, Review, Report
-│   ├── views.py                   # 20 view xử lý toàn bộ nghiệp vụ
+│   ├── models.py                  # 9 model: Category, Profile, Post, PostImage,
+│   │                              #   Favorite, Comment, Review, Report, Order
+│   ├── views.py                   # 31 view xử lý toàn bộ nghiệp vụ
 │   ├── forms.py                   # Form + validation tập trung
-│   ├── urls.py                    # 20 route
+│   ├── urls.py                    # 29 route
 │   ├── admin.py                   # Trang quản trị kiểm duyệt
 │   ├── signals.py                 # Tự tạo Profile khi đăng ký
 │   ├── context_processors.py      # Biến dùng chung cho template
 │   ├── templatetags/app_extras.py # Filter & tag tùy chỉnh
-│   ├── tests.py                   # 85 test tự động
+│   ├── tests.py                   # 114 test tự động
 │   └── migrations/                # Lịch sử cấu trúc CSDL
 │
 ├── templates/                     # Template dùng chung
 │   ├── base.html                  # Khung trang (nav, messages, footer)
 │   ├── 404.html / 500.html        # Trang lỗi
-│   ├── app_main/                  # 10 trang nghiệp vụ
+│   ├── app_main/                  # 13 trang nghiệp vụ
 │   ├── registration/              # Đăng nhập / Đăng ký
 │   └── partials/                  # navbar, footer, messages, card, phân trang
+│
+├── docs/
+│   └── sequence-diagrams.md       # 7 sơ đồ Mermaid (4 chức năng chính)
 │
 ├── static/
 │   ├── css/main.css               # Design token + component dùng chung
@@ -349,6 +356,8 @@ Kết quả:
 ├── download_images.py             # Tải ảnh thật từ Openverse (CC)
 ├── make_contact_sheet.py          # Gộp ảnh để kiểm tra bằng mắt
 ├── load_tzinfo.py                 # Nạp dữ liệu múi giờ vào MySQL (chạy 1 lần)
+├── make_sequence_diagrams.py      # Sinh docs/sequence-diagrams.md
+├── check_mermaid.py               # Kiểm tra cú pháp sơ đồ trước khi dán
 ├── requirements.txt
 ├── .env.example                   # Mẫu cấu hình (copy thành .env)
 └── manage.py
@@ -364,18 +373,20 @@ python manage.py test app_main.tests.InteractionTests   # Chỉ 1 nhóm
 python manage.py test --verbosity 2      # Chi tiết từng test
 ```
 
-**85 test tự động** bao phủ:
+**114 test tự động** bao phủ:
 
 | Nhóm | Số test | Nội dung |
 |---|---|---|
-| Model | 16 | Sinh slug, đồng bộ trạng thái, ràng buộc unique |
-| Form | 11 | Mật khẩu yếu, Gmail trùng, trùng username |
+| Model | 21 | Sinh slug, đồng bộ trạng thái, ràng buộc unique, đơn hàng |
+| Form | 15 | Mật khẩu yếu, Gmail trùng, trùng username, liên hệ hợp lệ |
 | Public view | 15 | Tìm kiếm, lọc, sắp xếp, phân trang |
 | Auth | 7 | Đăng ký, đăng nhập bằng email, đăng xuất |
 | Phân quyền | 8 | Chặn truy cập trái phép, sở hữu bài đăng |
 | Tương tác | 14 | Yêu thích, bình luận, đánh giá, báo cáo |
+| **Đặt mua** | **26** | Đặt mua, xác nhận, từ chối, hoàn tất, huỷ, phân quyền |
 | Hồ sơ | 3 | Sửa hồ sơ, đổi mật khẩu |
-| **Tổng** | **85** | ✅ |
+| Kịch bản đầu-cuối | 5 | Luồng mua → bán → hoàn tất, đăng tin → bán |
+| **Tổng** | **114** | ✅ |
 
 Bao gồm các test bảo mật quan trọng:
 
@@ -413,23 +424,23 @@ flowchart TD
     subgraph BACKEND ["🟩 PHẦN 2 · BACKEND — Tầng ứng dụng Django"]
         direction TB
         B1["🛡️ Middleware<br/><b>Session · CSRF · Auth · Security</b>"]
-        B2["🔗 urls.py<br/><b>core + app_main · 22 route</b>"]
+        B2["🔗 urls.py<br/><b>core + app_main · 29 route</b>"]
 
         subgraph NGHIEPVU ["Module nghiệp vụ"]
             direction LR
-            B3["🎯 views.py<br/><b>20 view</b>"]
+            B3["🎯 views.py<br/><b>31 view</b>"]
             B4["📝 forms.py<br/><b>Validation tập trung</b>"]
             B5["🛡️ admin.py<br/><b>Kiểm duyệt hàng loạt</b>"]
         end
 
-        B6["🗃️ models.py<br/><b>8 model ORM</b>"]
+        B6["🗃️ models.py<br/><b>9 model ORM</b>"]
         B7["🏷️ templatetags + context_processors<br/><b>Filter & biến dùng chung</b>"]
         B8["⚡ signals.py<br/><b>Tự tạo Profile</b>"]
     end
 
     subgraph DATABASE ["🟥 PHẦN 3 · DATABASE — Lưu trữ"]
         direction TB
-        D1[("🄽 MySQL 8.0 / MariaDB<br/><b>sachgocuni_db · 8 bảng</b>")]
+        D1[("🄽 MySQL 8.0 / MariaDB<br/><b>sachgocuni_db · 9 bảng</b>")]
         D2[("📁 media/posts/<br/><b>Ảnh sản phẩm</b>")]
         D3["⚙️ .env<br/><b>Cấu hình kết nối CSDL</b>"]
     end
@@ -484,6 +495,8 @@ erDiagram
     Post ||--o{ Favorite : "được yêu thích"
     Post ||--o{ Report : "bị báo cáo"
     Post ||--o{ Review : "được đánh giá"
+    Post ||--o{ Order : "có đơn hàng"
+    User ||--o{ Order : "đặt mua / nhận đơn"
     Comment ||--o{ Comment : "trả lời"
 
     User {
@@ -592,6 +605,32 @@ stateDiagram-v2
     ACTIVE --> [*]: Xoá
     SOLD --> [*]: Xoá
 ```
+
+---
+
+## 🔄 Biểu đồ tuần tự (Sequence Diagram)
+
+Bốn chức năng chính được vẽ theo **đúng mã nguồn đang chạy**:
+
+| # | Chức năng | View xử lý | Route |
+|---|---|---|---|
+| 1 | Đăng nhập | `views.user_login` | `POST /dang-nhap/` |
+| 2 | Đăng ký | `views.register` | `POST /dang-ky/` |
+| 3 | Đăng tin sản phẩm | `views.create_post` | `POST /dang-tin/` |
+| 4 | Đặt mua | `views.buy_post` | `POST /san-pham/<pk>/dat-mua/` |
+
+📄 **[Xem toàn bộ sơ đồ → `docs/sequence-diagrams.md`](docs/sequence-diagrams.md)**
+
+File đó chứa 7 sơ đồ Mermaid sẵn sàng dán vào
+[app.diagrams.net](https://app.diagrams.net) để xuất ảnh PNG:
+
+```bash
+python make_sequence_diagrams.py   # Sinh lại file docs/sequence-diagrams.md
+python check_mermaid.py            # Kiểm tra cú pháp trước khi dán
+```
+
+Cách dán: mở app.diagrams.net → **Arrange ▸ Insert ▸ Advanced ▸ Mermaid…** →
+dán code trong khối `mermaid` → **File ▸ Export as ▸ PNG**.
 
 ---
 

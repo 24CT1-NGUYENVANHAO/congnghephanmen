@@ -1,0 +1,164 @@
+{% extends 'base.html' %}
+
+{% block title %}Chi tiết đơn #{{ order.pk }} — SáchGóc Uni{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-5">
+
+    <a href="{% url 'my_orders' %}"
+       class="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-indigo-600 transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+        </svg>
+        Quay lại danh sách đơn
+    </a>
+
+    <!-- Tiêu đề -->
+    <div class="card p-6">
+        <div class="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+                <h1 class="text-2xl font-extrabold text-slate-900">Đơn hàng #{{ order.pk }}</h1>
+                <p class="text-sm text-slate-500 mt-1">{{ order.created_at|date:"d/m/Y H:i" }}</p>
+            </div>
+            {% if order.status == 'PENDING' %}<span class="badge badge-warning text-sm px-4 py-2">Chờ xác nhận</span>
+            {% elif order.status == 'CONFIRMED' %}<span class="badge badge-info text-sm px-4 py-2">Đã xác nhận</span>
+            {% elif order.status == 'COMPLETED' %}<span class="badge badge-success text-sm px-4 py-2">Hoàn tất</span>
+            {% else %}<span class="badge badge-danger text-sm px-4 py-2">{{ order.get_status_display }}</span>{% endif %}
+        </div>
+
+        <!-- Sản phẩm -->
+        <div class="flex items-center gap-4 mt-5 pt-5 border-t border-slate-100">
+            <div class="w-20 h-20 rounded-lg overflow-hidden bg-slate-100 shrink-0">
+                {% if order.post.get_absolute_image_url %}
+                    <img src="{{ order.post.get_absolute_image_url }}" alt="" class="w-full h-full object-cover">
+                {% else %}
+                    <div class="w-full h-full flex items-center justify-center text-slate-300">📦</div>
+                {% endif %}
+            </div>
+            <div class="flex-1 min-w-0">
+                <a href="{{ order.post.get_absolute_url }}"
+                   class="font-semibold text-slate-800 hover:text-indigo-600 transition line-clamp-2">
+                    {{ order.post.title }}
+                </a>
+                <p class="text-2xl font-extrabold mt-1 {% if order.price_snapshot == 0 %}text-emerald-600{% else %}text-indigo-600{% endif %}">
+                    {{ order.price_display }}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hai bên giao dịch -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="card p-5">
+            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Người bán</p>
+            <div class="flex items-center gap-3">
+                <span class="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white
+                             flex items-center justify-center font-bold uppercase">
+                    {{ order.seller.username|first }}
+                </span>
+                <div class="min-w-0">
+                    <a href="{% url 'user_profile' order.seller.username %}"
+                       class="font-semibold text-sm text-slate-800 hover:text-indigo-600 transition block truncate">
+                        {{ order.seller.profile.display_name }}
+                    </a>
+                    <p class="text-xs text-slate-400">@{{ order.seller.username }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card p-5">
+            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Người mua</p>
+            <div class="flex items-center gap-3">
+                <span class="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white
+                             flex items-center justify-center font-bold uppercase">
+                    {{ order.buyer.username|first }}
+                </span>
+                <div class="min-w-0">
+                    <a href="{% url 'user_profile' order.buyer.username %}"
+                       class="font-semibold text-sm text-slate-800 hover:text-indigo-600 transition block truncate">
+                        {{ order.buyer.profile.display_name }}
+                    </a>
+                    <p class="text-xs text-slate-400">
+                        @{{ order.buyer.username }}
+                        {% if order.contact %}<br>📞 {{ order.contact }}{% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lời nhắn -->
+    {% if order.message %}
+    <div class="card p-5">
+        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Lời nhắn của người mua</p>
+        <p class="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{{ order.message }}</p>
+    </div>
+    {% endif %}
+
+    {% if order.seller_note %}
+    <div class="card p-5" style="background:#fffbeb;border-color:#fcd34d;">
+        <p class="text-xs font-semibold text-amber-700 uppercase tracking-wider mb-2">Ghi chú của người bán</p>
+        <p class="text-sm text-amber-900 leading-relaxed">{{ order.seller_note }}</p>
+    </div>
+    {% endif %}
+
+    <!-- Hành động -->
+    <div class="card p-5">
+        {% if order.status == 'PENDING' %}
+            {% if user == order.seller %}
+                <p class="text-sm text-slate-600 mb-4">
+                    Bạn nhận được yêu cầu mua này. Hãy liên hệ người mua để hẹn gặp,
+                    hoặc từ chối nếu sản phẩm không còn.
+                </p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <form action="{% url 'accept_order' order.pk %}" method="post"
+                          onsubmit="return confirmAction('Xác nhận đơn hàng này?')">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-success btn-block">✅ Xác nhận đơn hàng</button>
+                    </form>
+                    <form action="{% url 'reject_order' order.pk %}" method="post"
+                          onsubmit="return confirmAction('Từ chối đơn hàng này?')">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline btn-block">🚫 Từ chối</button>
+                    </form>
+                </div>
+            {% else %}
+                <p class="text-sm text-slate-600 mb-4">
+                    Yêu cầu đã gửi tới người bán. Bạn có thể huỷ nếu không còn mua nữa.
+                </p>
+                <form action="{% url 'cancel_order' order.pk %}" method="post"
+                      onsubmit="return confirmAction('Huỷ đơn hàng này?')">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline btn-block">✕ Huỷ đơn hàng</button>
+                </form>
+            {% endif %}
+
+        {% elif order.status == 'CONFIRMED' %}
+            <p class="text-sm text-slate-600 mb-4">
+                Hai bên đã xác nhận. Giao dịch hoàn tất thì bấm bên dưới — sản phẩm
+                sẽ chuyển sang trạng thái "Đã bán".
+            </p>
+            <form action="{% url 'complete_order' order.pk %}" method="post"
+                  onsubmit="return confirmAction('Xác nhận giao dịch đã hoàn tất?')">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-success btn-block">🎊 Giao dịch đã hoàn tất</button>
+            </form>
+
+        {% elif order.status == 'COMPLETED' %}
+            <div class="text-center">
+                <p class="text-sm text-emerald-700 font-semibold mb-3">
+                    🎊 Giao dịch đã hoàn tất!
+                </p>
+                {% if user == order.buyer %}
+                    <a href="{% url 'user_profile' order.seller.username %}"
+                       class="btn btn-outline btn-block">⭐ Đánh giá người bán</a>
+                {% else %}
+                    <p class="text-sm text-slate-500">
+                        Cảm ơn bạn. Hãy chờ người mua đánh giá.
+                    </p>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

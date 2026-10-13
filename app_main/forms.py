@@ -10,7 +10,7 @@ from django import forms
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 
-from .models import Category, Comment, Post, PostImage, Report, Review
+from .models import Category, Comment, Order, Post, PostImage, Report, Review
 
 
 # Class CSS dùng chung cho ô nhập — giúp giao diện đồng nhất
@@ -377,3 +377,63 @@ class ReportForm(forms.ModelForm):
             }),
         }
         labels = {'reason': "Lý do báo cáo", 'detail': "Chi tiết (không bắt buộc)"}
+
+
+# ---------------------------------------------------------------------------
+#  ĐẶT MUA
+# ---------------------------------------------------------------------------
+
+class OrderForm(forms.ModelForm):
+    """Gửi yêu cầu đặt mua sản phẩm."""
+
+    class Meta:
+        model = Order
+        fields = ['message', 'contact']
+        widgets = {
+            'message': forms.Textarea(attrs={
+                'class': TEXTAREA_CLASS,
+                'placeholder': 'Xin chào, tôi muốn mua sản phẩm này. '
+                               'Có thể giao dịch vào thời gian nào ạ?',
+                'rows': 4, 'maxlength': 500,
+            }),
+            'contact': forms.TextInput(attrs={
+                'class': INPUT_CLASS,
+                'placeholder': 'Số điện thoại hoặc email để người bán liên hệ',
+                'maxlength': 120,
+            }),
+        }
+        labels = {
+            'message': "Lời nhắn cho người bán",
+            'contact': "Thông tin liên hệ",
+        }
+        help_texts = {
+            'message': "Không bắt buộc. Nên nói rõ thời gian và địa điểm giao dịch.",
+            'contact': "Người bán sẽ dùng thông tin này để liên hệ với bạn.",
+        }
+
+    def clean_contact(self):
+        """Kiểm tra thông tin liên hệ có chứa email hoặc số điện thoại."""
+        contact = self.cleaned_data.get('contact', '').strip()
+        if not contact:
+            return contact
+        has_email = '@' in contact
+        has_phone = any(char.isdigit() for char in contact)
+        if not (has_email or has_phone):
+            raise ValidationError(
+                "Thông tin liên hệ phải chứa email hoặc số điện thoại."
+            )
+        return contact
+
+
+class OrderDecisionForm(forms.Form):
+    """Ghi chú của người bán khi xác nhận / từ chối đơn hàng."""
+
+    seller_note = forms.CharField(
+        required=False, max_length=300,
+        widget=forms.Textarea(attrs={
+            'class': TEXTAREA_CLASS,
+            'placeholder': 'Ghi chú thêm cho người mua (không bắt buộc)...',
+            'rows': 3, 'maxlength': 300,
+        }),
+        label="Ghi chú"
+    )

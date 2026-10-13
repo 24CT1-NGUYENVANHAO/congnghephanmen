@@ -13,7 +13,7 @@ from django.urls import reverse
 
 from .forms import RegisterForm
 from .models import (
-    Category, Comment, Favorite, Post, Profile, Report, Review,
+    Category, Comment, Favorite, Order, Post, Profile, Report, Review,
 )
 
 # Hash mật khẩu nhanh để test chạy nhanh hơn (chỉ dùng trong test)
@@ -882,3 +882,331 @@ class UserJourneyTests(TestCase):
         client.force_login(other)
         response = client.get(reverse('home'))
         self.assertNotContains(response, 'Giáo trình Đồ hoạ kỹ thuật')
+
+
+# ===========================================================================
+#  ĐẶT MUA - ĐƠN HÀNG
+# ===========================================================================
+
+class OrderModelTests(TestCase):
+    """Kiểm thử model Order."""
+
+    def setUp(self):
+        self.seller = create_user('nguoiban')
+        self.buyer = create_user('nguoimua')
+        self.post = Post.objects.create(
+            title='Bàn học gỗ chân sắt', price=250000, seller=self.seller,
+        )
+
+    def test_order_default_is_pending(self):
+        order = Order.objects.create(
+            post=self.post, buyer=self.buyer, seller=self.seller,
+        )
+        self.assertEqual(order.status, Order.Status.PENDING)
+        self.assertTrue(order.is_open)
+
+    def test_price_snapshot_survives_post_price_edit(self):
+        order = Order.objects.create(
+            post=self.post, buyer=self.buyer, seller=self.seller,
+            price_snapshot=250000,
+        )
+        self.post.price = 999000
+        self.post.save()
+        order.refresh_from_db()
+        self.assertEqual(order.price_snapshot, 250000)
+
+    def test_price_display_free(self):
+        order = Order.objects.create(
+            post=self.post, buyer=self.buyer, seller=self.seller, price_snapshot=0,
+        )
+        self.assertEqual(order.price_display, 'Miễn phí')
+
+    def test_price_display_formats_thousands(self):
+        order = Order.objects.create(
+            post=self.post, buyer=self.buyer, seller=self.seller,
+            price_snapshot=1250000,
+        )
+        self.assertEqual(order.price_display, '1.250.000đ')
+
+    def test_is_open_false_after_rejected(self):
+        order = Order.objects.create(
+            post=self.post, buyer=self.buyer, seller=self.seller,
+            status=Order.Status.REJECTED,
+        )
+        self.assertFalse(order.is_open)
+
+    def test_indexes_created_for_lookup(self):
+        """Truy vấn đơn hàng theo người mua/người bán cần index."""
+        index_names = {idx.name for idx in Order._meta.indexes}
+        self.assertIn('idx_order_buyer_status', index_names)
+        self.assertIn('idx_order_seller_status', index_names)
+
+    def test_rejected_order_allows_new_request(self):
+        """Sau khi bị từ chối, người mua được gửi yêu cầu lại."""
+        Order.objects.create(
+            post=self.post, buyer=self.buyer, seller=self.seller,
+            status=Order.Status.REJECTED,
+        )
+        order2 = Order.objects.create(
+            post=self.post, buyer=self.buyer, seller=self.seller,
+            status=Order.Status.PENDING,
+        )
+        self.assertEqual(order2.status, Order.Status.PENDING)
+
+
+class OrderFormTests(TestCase):
+    """Kiểm thử OrderForm."""
+
+    def setUp(self):
+        from .forms import OrderForm
+        self.FormClass = OrderForm
+
+    def test_valid_with_phone(self):
+        form = self.FormClass(data={'contact': '0901234567', 'message': 'Xin chao'})
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_valid_with_email(self):
+        form = self.FormClass(data={'contact': 'ban@gmail.com'})
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_contact_without_phone_or_email_rejected(self):
+        form = self.FormClass(data={'contact': 'gap nhau o san truong'})
+        self.assertFalse(form.is_valid())
+        self.assertIn('contact', form.errors)
+
+    def test_blank_contact_allowed(self):
+        form = self.FormClass(data={})
+        self.assertTrue(form.is_valid(), form.errors)
+
+
+class OrderFlowTests(TestCase):
+    """Kiểm thử toàn bộ luồng đặt mua."""
+
+    def setUp(self):
+        self.seller = create_user('nguoiban')
+        self.buyer = create_user('nguoimua')
+        self.client_buyer = Client()
+        self.client_buyer.force_login(self.buyer)
+        self.post = Post.objects.create(
+            title='Máy tính Casio fx-991ES Plus', price=450000, seller=self.seller,
+        )
+
+    def test_buy_post_requires_login(self):
+        response = self.client.get(reverse('buy_post', args=[self.post.pk]))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/dang-nhap/', response.url)
+
+    def test_buy_post_get_shows_form(self):
+        response = self.client_buyer.get(reverse('buy_post', args=[self.post.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Đặt mua')
+
+    def test_buy_own_post_rejected(self):
+        self.client_buyer.force_login(self.seller)
+        response = self.client_buyer.get(reverse('buy_post', args=[self.post.pk]))
+        self.assertRedirects(response, self.post.get_absolute_url())
+
+    def test_buy_sold_post_rejected(self):
+        self.post.status = Post.Status.SOLD
+        self.post.is_sold = True
+        self.post.save()
+        response = self.client_buyer.get(reverse('buy_post', args=[self.post.pk]))
+        self.assertRedirects(response, self.post.get_absolute_url())
+
+    def test_create_order_success(self):
+        response = self.client_buyer.post(reverse('buy_post', args=[self.post.pk]), {
+            'message': 'Mình muốn mua, giao dịch tối nay được không?',
+            'contact': '0901234567',
+        })
+        self.assertRedirects(response, reverse('my_orders'))
+        order = Order.objects.get()
+        self.assertEqual(order.buyer, self.buyer)
+        self.assertEqual(order.seller, self.seller)
+        self.assertEqual(order.status, Order.Status.PENDING)
+        self.assertEqual(order.price_snapshot, 450000)
+
+    def test_duplicate_order_redirects_to_list(self):
+        Order.objects.create(
+            post=self.post, buyer=self.buyer, seller=self.seller,
+            status=Order.Status.PENDING,
+        )
+        response = self.client_buyer.post(reverse('buy_post', args=[self.post.pk]), {
+            'contact': '0901234567',
+        })
+        self.assertRedirects(response, reverse('my_orders'))
+        self.assertEqual(Order.objects.count(), 1)
+
+    def test_seller_accept_order(self):
+        order = Order.objects.create(
+            post=self.post, buyer=self.buyer, seller=self.seller,
+            status=Order.Status.PENDING,
+        )
+        self.client_buyer.force_login(self.seller)
+        response = self.client_buyer.post(reverse('accept_order', args=[order.pk]))
+        self.assertRedirects(response, reverse('order_detail', args=[order.pk]))
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.Status.CONFIRMED)
+
+    def test_buyer_cannot_accept_own_order(self):
+        order = Order.objects.create(
+            post=self.post, buyer=self.buyer, seller=self.seller,
+            status=Order.Status.PENDING,
+        )
+        response = self.client_buyer.post(reverse('accept_order', args=[order.pk]))
+        self.assertRedirects(response, reverse('my_orders'))
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.Status.PENDING)
+
+    def test_buyer_cannot_reject_own_order(self):
+        order = Order.objects.create(
+            post=self.post, buyer=self.buyer, seller=self.seller,
+            status=Order.Status.PENDING,
+        )
+        response = self.client_buyer.post(reverse('reject_order', args=[order.pk]))
+        self.assertRedirects(response, reverse('my_orders'))
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.Status.PENDING)
+
+    def test_seller_reject_order_saves_note(self):
+        order = Order.objects.create(
+            post=self.post, buyer=self.buyer, seller=self.seller,
+            status=Order.Status.PENDING,
+        )
+        self.client_buyer.force_login(self.seller)
+        self.client_buyer.post(reverse('reject_order', args=[order.pk]), {
+            'seller_note': 'Xin lỗi, sản phẩm hỏng rồi.',
+        })
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.Status.REJECTED)
+        self.assertEqual(order.seller_note, 'Xin lỗi, sản phẩm hỏng rồi.')
+        # Sản phẩm vẫn còn hiển thị
+        self.post.refresh_from_db()
+        self.assertTrue(self.post.is_available)
+
+    def test_complete_order_marks_post_sold(self):
+        order = Order.objects.create(
+            post=self.post, buyer=self.buyer, seller=self.seller,
+            status=Order.Status.CONFIRMED,
+        )
+        self.client_buyer.post(reverse('complete_order', args=[order.pk]))
+        order.refresh_from_db()
+        self.post.refresh_from_db()
+        self.assertEqual(order.status, Order.Status.COMPLETED)
+        self.assertEqual(self.post.status, Post.Status.SOLD)
+        self.assertTrue(self.post.is_sold)
+
+    def test_complete_rejected_order_not_allowed(self):
+        order = Order.objects.create(
+            post=self.post, buyer=self.buyer, seller=self.seller,
+            status=Order.Status.REJECTED,
+        )
+        self.client_buyer.post(reverse('complete_order', args=[order.pk]))
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.Status.REJECTED)
+
+    def test_buyer_cancel_order(self):
+        order = Order.objects.create(
+            post=self.post, buyer=self.buyer, seller=self.seller,
+            status=Order.Status.PENDING,
+        )
+        response = self.client_buyer.post(reverse('cancel_order', args=[order.pk]))
+        self.assertRedirects(response, reverse('my_orders'))
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.Status.CANCELLED)
+
+    def test_state_change_views_reject_get(self):
+        order = Order.objects.create(
+            post=self.post, buyer=self.buyer, seller=self.seller,
+            status=Order.Status.PENDING,
+        )
+        for name in ('accept_order', 'reject_order', 'complete_order', 'cancel_order'):
+            response = self.client_buyer.get(reverse(name, args=[order.pk]))
+            self.assertEqual(response.status_code, 405, name)
+
+    def test_order_detail_only_for_buyer_and_seller(self):
+        order = Order.objects.create(
+            post=self.post, buyer=self.buyer, seller=self.seller,
+            status=Order.Status.PENDING,
+        )
+        self.assertEqual(
+            self.client_buyer.get(
+                reverse('order_detail', args=[order.pk])
+            ).status_code, 200
+        )
+        self.client_buyer.force_login(self.seller)
+        self.assertEqual(
+            self.client_buyer.get(
+                reverse('order_detail', args=[order.pk])
+            ).status_code, 200
+        )
+        self.client_buyer.force_login(create_user('nguoila'))
+        response = self.client_buyer.get(reverse('order_detail', args=[order.pk]))
+        self.assertRedirects(response, reverse('my_orders'))
+
+    def test_my_orders_separates_buying_and_selling(self):
+        Order.objects.create(
+            post=self.post, buyer=self.buyer, seller=self.seller,
+            status=Order.Status.PENDING,
+        )
+        response = self.client_buyer.get(reverse('my_orders'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context['buying']), 1)
+        self.assertEqual(len(response.context['selling']), 0)
+        self.assertEqual(response.context['pending_sell_count'], 0)
+
+        self.client_buyer.force_login(self.seller)
+        response = self.client_buyer.get(reverse('my_orders'))
+        self.assertEqual(len(response.context['buying']), 0)
+        self.assertEqual(len(response.context['selling']), 1)
+        self.assertEqual(response.context['pending_sell_count'], 1)
+
+    def test_post_detail_shows_buy_button_then_order_link(self):
+        response = self.client_buyer.get(self.post.get_absolute_url())
+        self.assertContains(response, reverse('buy_post', args=[self.post.pk]))
+
+        order = Order.objects.create(
+            post=self.post, buyer=self.buyer, seller=self.seller,
+            status=Order.Status.PENDING,
+        )
+        response = self.client_buyer.get(self.post.get_absolute_url())
+        self.assertContains(response, reverse('order_detail', args=[order.pk]))
+
+
+class OrderJourneyTests(TestCase):
+    """Kịch bản đầu-cuối: mua → xác nhận → hoàn tất → sản phẩm ẩn khỏi sàn."""
+
+    def test_full_purchase_journey(self):
+        seller = create_user('nguoiban')
+        buyer = create_user('nguoimua')
+        client = Client()
+
+        post = Post.objects.create(
+            title='Giáo trình Giải tích cao cấp', price=90000, seller=seller,
+        )
+
+        # 1. Người mua đặt hàng
+        client.force_login(buyer)
+        client.post(reverse('buy_post', args=[post.pk]), {
+            'message': 'Còn hàng không ạ?',
+            'contact': '0987654321',
+        })
+        order = Order.objects.get()
+        self.assertEqual(order.status, Order.Status.PENDING)
+
+        # 2. Người bán xác nhận
+        client.force_login(seller)
+        client.post(reverse('accept_order', args=[order.pk]))
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.Status.CONFIRMED)
+
+        # 3. Hoàn tất giao dịch
+        client.post(reverse('complete_order', args=[order.pk]))
+        order.refresh_from_db()
+        post.refresh_from_db()
+        self.assertEqual(order.status, Order.Status.COMPLETED)
+        self.assertTrue(post.is_sold)
+
+        # 4. Sản phẩm không còn xuất hiện trên trang chủ
+        client.force_login(create_user('nguoikhac'))
+        response = client.get(reverse('home'))
+        self.assertNotContains(response, 'Giải tích cao cấp')

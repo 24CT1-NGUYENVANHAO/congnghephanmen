@@ -508,3 +508,87 @@ class Report(models.Model):
 
     def __str__(self):
         return f"{self.reporter.username} báo cáo: {self.post.title[:30]}"
+
+
+# ---------------------------------------------------------------------------
+#  ĐẶT MUA — ĐƠN HÀNG
+# ---------------------------------------------------------------------------
+
+class Order(models.Model):
+    """
+    Đơn đặt mua sản phẩm.
+
+    Luồng xử lý: người mua gửi yêu cầu → người bán xác nhận hoặc từ chối →
+    giao dịch hoàn tất. Mỗi người mua chỉ được gửi 1 yêu cầu còn mở cho
+    mỗi sản phẩm.
+
+    Ràng buộc "1 đơn mở / 1 sản phẩm / 1 người mua" được kiểm tra trong
+    view buy_post chứ không dùng UniqueConstraint có điều kiện, vì MySQL
+    không hỗ trợ partial index (chỉ SQLite/PostgreSQL mới có).
+    """
+
+    class Status(models.TextChoices):
+        PENDING = 'PENDING', 'Chờ xác nhận'
+        CONFIRMED = 'CONFIRMED', 'Đã xác nhận'
+        COMPLETED = 'COMPLETED', 'Hoàn tất'
+        REJECTED = 'REJECTED', 'Từ chối'
+        CANCELLED = 'CANCELLED', 'Đã huỷ'
+
+    post = models.ForeignKey(
+        Post, on_delete=models.CASCADE, related_name='orders',
+        verbose_name="Sản phẩm"
+    )
+    buyer = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='orders_made',
+        verbose_name="Người mua"
+    )
+    seller = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='orders_received',
+        verbose_name="Người bán"
+    )
+
+    # Giá chốt tại thời điểm đặt mua, tránh giá thay đổi sau đó
+    price_snapshot = models.DecimalField(
+        max_digits=10, decimal_places=0, default=0, verbose_name="Giá chốt (VNĐ)"
+    )
+
+    message = models.TextField(
+        max_length=500, blank=True, verbose_name="Lời nhắn cho người bán"
+    )
+    contact = models.CharField(
+        max_length=120, blank=True, verbose_name="Thông tin liên hệ"
+    )
+
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.PENDING,
+        db_index=True, verbose_name="Trạng thái"
+    )
+    seller_note = models.CharField(
+        max_length=300, blank=True, verbose_name="Ghi chú của người bán"
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Thời gian đặt")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Cập nhật")
+
+    class Meta:
+        verbose_name = "Đơn đặt mua"
+        verbose_name_plural = "Đơn đặt mua"
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['buyer', 'status'], name='idx_order_buyer_status'),
+            models.Index(fields=['seller', 'status'], name='idx_order_seller_status'),
+        ]
+
+    def __str__(self):
+        return f"#{self.pk} {self.buyer.username} → {self.post.title[:25]}"
+
+    @property
+    def is_open(self):
+        """Đơn còn chờ xử lý (chưa bị từ chối/huỷ/hoàn tất)."""
+        return self.status in (self.Status.PENDING, self.Status.CONFIRMED)
+
+    @property
+    def price_display(self):
+        if self.price_snapshot == 0:
+            return "Miễn phí"
+        return f"{int(self.price_snapshot):,}đ".replace(",", ".")

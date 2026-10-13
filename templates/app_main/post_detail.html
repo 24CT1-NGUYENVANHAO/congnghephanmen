@@ -193,16 +193,31 @@
                         </button>
 
                     {% else %}
-                        <!-- Nút liên hệ -->
+                        <!-- Đã có đơn đang mở? -->
+                        {% if my_order %}
+                            <a href="{% url 'order_detail' my_order.pk %}"
+                               class="btn btn-block btn-lg"
+                               style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;">
+                                📋 Đơn #{{ my_order.pk }} — {{ my_order.get_status_display }}
+                            </a>
+
+                        {% else %}
+                            <!-- Nút đặt mua chính -->
+                            <a href="{% url 'buy_post' post.pk %}" class="btn btn-success btn-lg btn-block">
+                                {% if post.is_free or post.price == 0 %}🎁 Đăng ký nhận ngay{% else %}🛒 Đặt mua ngay{% endif %}
+                            </a>
+                        {% endif %}
+
+                        <!-- Nút phụ -->
                         <div class="grid grid-cols-2 gap-3">
                             {% if post.seller.email %}
                                 <a href="mailto:{{ post.seller.email }}?subject={{ post.title|urlencode }}&body={{ user.profile.display_name|urlencode }} xin liên hệ về sản phẩm {{ post.title|urlencode }}"
-                                   class="btn btn-success btn-lg">
-                                    💬 Nhắn tin người bán
+                                   class="btn btn-outline btn-lg">
+                                    💬 Nhắn tin
                                 </a>
                             {% else %}
                                 <button class="btn btn-block btn-lg" disabled style="opacity:0.5;cursor:not-allowed">
-                                    💬 Người bán chưa cập nhật email
+                                    💬 Chưa có email
                                 </button>
                             {% endif %}
 
@@ -222,6 +237,11 @@
                             🔒 Hãy gặp mặt trực tiếp tại khuôn viên trường.
                             Không chuyển tiền trước khi nhận sản phẩm.
                         </p>
+
+                        <a href="{% url 'my_orders' %}"
+                           class="text-xs text-center text-indigo-600 hover:underline block">
+                            📋 Xem các đơn hàng của tôi
+                        </a>
                     {% endif %}
 
                 {% else %}

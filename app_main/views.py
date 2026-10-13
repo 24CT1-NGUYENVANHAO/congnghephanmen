@@ -22,10 +22,10 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from .forms import (
-    CommentForm, PostForm, PostImageForm, ProfileForm,
-    RegisterForm, ReportForm, ReviewForm,
+    CommentForm, OrderDecisionForm, OrderForm, PostForm, PostImageForm,
+    ProfileForm, RegisterForm, ReportForm, ReviewForm,
 )
-from .models import Category, Comment, Favorite, Post, Report, Review
+from .models import Category, Comment, Favorite, Order, Post, Report, Review
 
 
 # ===========================================================================
@@ -180,6 +180,16 @@ def post_detail(request, pk):
         and Favorite.objects.filter(user=request.user, post=post).exists()
     )
 
+    # Đơn hàng đang mở của người dùng hiện tại (để hiện nút "Đơn #...")
+    my_order = None
+    if request.user.is_authenticated and request.user != post.seller:
+        my_order = (
+            Order.objects.filter(
+                post=post, buyer=request.user,
+                status__in=[Order.Status.PENDING, Order.Status.CONFIRMED]
+            ).first()
+        )
+
     context = {
         'post': post,
         'comments': comments,
@@ -187,6 +197,7 @@ def post_detail(request, pk):
         'reply_form': CommentForm(),
         'related_posts': related_posts,
         'is_favorited': is_favorited,
+        'my_order': my_order,
         'can_report': (
             request.user.is_authenticated
             and request.user != post.seller
@@ -423,6 +434,207 @@ def delete_comment(request, pk):
     comment.delete()
     messages.success(request, "🗑️ Đã xoá bình luận.")
     return redirect(comment.post.get_absolute_url())
+
+
+# ===========================================================================
+#  ĐẶT MUA & QUẢN LÝ ĐƠN HÀNG
+# ===========================================================================
+
+@login_required
+def buy_post(request, pk):
+    """
+    Gửi yêu cầu đặt mua sản phẩm.
+
+    Chỉ hiển thị form khi người dùng duyệt web (GET). Khi gửi (POST) thì tạo
+    đơn hàng với trạng thái PENDING và chờ người bán xác nhận.
+    """
+    post = get_object_or_404(Post, pk=pk)
+
+    # Không cho mua bài của chính mình
+    if post.seller == request.user:
+        messages.error(request, "Bạn không thể đặt mua sản phẩm của chính mình.")
+        return redirect(post.get_absolute_url())
+
+    # Chỉ mua được sản phẩm còn hiển thị
+    if not post.is_available:
+        messages.error(request, "Sản phẩm này đã bán, không thể đặt mua.")
+        return redirect(post.get_absolute_url())
+
+    # Đã có đơn đang mở thì không tạo thêm
+    existing = Order.objects.filter(
+        post=post, buyer=request.user,
+        status__in=[Order.Status.PENDING, Order.Status.CONFIRMED]
+    ).first()
+
+    if existing:
+        messages.warning(
+            request,
+            f"Bạn đã gửi yêu cầu mua sản phẩm này (đơn #{existing.pk}). "
+            f"Trạng thái: {existing.get_status_display()}."
+        )
+        return redirect('my_orders')
+
+    if request.method == 'POST':
+        form = OrderForm(request.POST)
+        if form.is_valid():
+            order = form.save(commit=False)
+            order.post = post
+            order.buyer = request.user
+            order.seller = post.seller
+            # Chốt giá tại thời điểm đặt mua
+            order.price_snapshot = post.price
+            order.save()
+            messages.success(
+                request,
+                f"🎉 Đã gửi yêu cầu mua! Đơn #{order.pk}. "
+                f"Người bán '{post.seller.profile.display_name}' sẽ liên hệ lại."
+            )
+            return redirect('my_orders')
+    else:
+        form = OrderForm()
+
+    return render(request, 'app_main/buy_post.html', {
+        'post': post,
+        'form': form,
+    })
+
+
+@login_required
+def my_orders(request):
+    """Danh sách đơn hàng người dùng đã đặt (mua) và đã nhận (bán)."""
+    buying = (
+        Order.objects.filter(buyer=request.user)
+        .select_related('post', 'seller__profile')
+    )
+    selling = (
+        Order.objects.filter(seller=request.user)
+        .select_related('post', 'buyer__profile')
+    )
+
+    # Số đơn chờ xử lại mà người dùng đang là người bán
+    pending_sell_count = selling.filter(status=Order.Status.PENDING).count()
+
+    return render(request, 'app_main/my_orders.html', {
+        'buying': buying,
+        'selling': selling,
+        'pending_sell_count': pending_sell_count,
+        'status_choices': Order.Status.choices,
+    })
+
+
+@login_required
+def order_detail(request, pk):
+    """Chi tiết một đơn hàng — chỉ người mua và người bán được xem."""
+    order = get_object_or_404(
+        Order.objects.select_related('post', 'buyer__profile', 'seller__profile'),
+        pk=pk
+    )
+
+    if request.user not in (order.buyer, order.seller):
+        messages.error(request, "Bạn không có quyền xem đơn hàng này.")
+        return redirect('my_orders')
+
+    return render(request, 'app_main/order_detail.html', {'order': order})
+
+
+@require_POST
+@login_required
+def accept_order(request, pk):
+    """Người bán xác nhận đơn hàng."""
+    order = get_object_or_404(Order, pk=pk)
+
+    if order.seller != request.user:
+        messages.error(request, "Chỉ người bán mới xác nhận được đơn hàng.")
+        return redirect('my_orders')
+
+    if order.status != Order.Status.PENDING:
+        messages.error(request, "Đơn hàng này không còn ở trạng thái chờ xác nhận.")
+        return redirect('order_detail', pk=order.pk)
+
+    order.status = Order.Status.CONFIRMED
+    order.save(update_fields=['status', 'updated_at'])
+    messages.success(
+        request,
+        f"✅ Đã xác nhận đơn #{order.pk}. "
+        f"Hãy liên hệ {order.buyer.profile.display_name} để hẹn gặp."
+    )
+    return redirect('order_detail', pk=order.pk)
+
+
+@require_POST
+@login_required
+def reject_order(request, pk):
+    """Người bán từ chối đơn hàng."""
+    order = get_object_or_404(Order, pk=pk)
+
+    if order.seller != request.user:
+        messages.error(request, "Chỉ người bán mới từ chối được đơn hàng.")
+        return redirect('my_orders')
+
+    if order.status != Order.Status.PENDING:
+        messages.error(request, "Đơn hàng này không còn ở trạng thái chờ xác nhận.")
+        return redirect('order_detail', pk=order.pk)
+
+    form = OrderDecisionForm(request.POST)
+    order.status = Order.Status.REJECTED
+    order.seller_note = form.data.get('seller_note', '').strip()[:300]
+    order.save(update_fields=['status', 'seller_note', 'updated_at'])
+
+    messages.info(
+        request,
+        f"🚫 Đã từ chối đơn #{order.pk}. Sản phẩm vẫn đang hiển thị trên sàn."
+    )
+    return redirect('order_detail', pk=order.pk)
+
+
+@require_POST
+@login_required
+def complete_order(request, pk):
+    """Đánh dấu giao dịch hoàn tất — tự động chuyển sản phẩm sang ĐÃ BÁN."""
+    order = get_object_or_404(Order, pk=pk)
+
+    if request.user not in (order.buyer, order.seller):
+        messages.error(request, "Bạn không có quyền xử lý đơn hàng này.")
+        return redirect('my_orders')
+
+    if order.status not in (Order.Status.PENDING, Order.Status.CONFIRMED):
+        messages.error(request, "Đơn hàng này không thể đánh dấu hoàn tất.")
+        return redirect('order_detail', pk=order.pk)
+
+    order.status = Order.Status.COMPLETED
+    order.save(update_fields=['status', 'updated_at'])
+
+    # Tự động chuyển sản phẩm sang trạng thái đã bán
+    order.post.status = Post.Status.SOLD
+    order.post.is_sold = True
+    order.post.save(update_fields=['status', 'is_sold', 'updated_at'])
+
+    messages.success(
+        request,
+        f"🎊 Giao dịch hoàn tất! Sản phẩm đã chuyển sang 'Đã bán'. "
+        f"Hãy để lại đánh giá cho người bán."
+    )
+    return redirect('order_detail', pk=order.pk)
+
+
+@require_POST
+@login_required
+def cancel_order(request, pk):
+    """Người mua huỷ đơn hàng."""
+    order = get_object_or_404(Order, pk=pk)
+
+    if order.buyer != request.user:
+        messages.error(request, "Chỉ người mua mới huỷ được đơn hàng.")
+        return redirect('my_orders')
+
+    if order.status not in (Order.Status.PENDING, Order.Status.CONFIRMED):
+        messages.error(request, "Đơn hàng này không thể huỷ.")
+        return redirect('order_detail', pk=order.pk)
+
+    order.status = Order.Status.CANCELLED
+    order.save(update_fields=['status', 'updated_at'])
+    messages.info(request, f"Đã huỷ đơn #{order.pk}.")
+    return redirect('my_orders')
 
 
 # ===========================================================================

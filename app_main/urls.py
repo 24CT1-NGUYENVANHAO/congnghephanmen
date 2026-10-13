@@ -27,6 +27,15 @@ urlpatterns = [
     path('san-pham/<int:pk>/binh-luan/', views.add_comment, name='add_comment'),
     path('binh-luan/<int:pk>/xoa/', views.delete_comment, name='delete_comment'),
 
+    # --- Đặt mua & đơn hàng ---
+    path('san-pham/<int:pk>/dat-mua/', views.buy_post, name='buy_post'),
+    path('don-hang/', views.my_orders, name='my_orders'),
+    path('don-hang/<int:pk>/', views.order_detail, name='order_detail'),
+    path('don-hang/<int:pk>/xac-nhan/', views.accept_order, name='accept_order'),
+    path('don-hang/<int:pk>/tu-choi/', views.reject_order, name='reject_order'),
+    path('don-hang/<int:pk>/hoan-tat/', views.complete_order, name='complete_order'),
+    path('don-hang/<int:pk>/huy/', views.cancel_order, name='cancel_order'),
+
     # --- Quản lý bài đăng ---
     path('dang-tin/', views.create_post, name='create_post'),
     path('tin-cua-toi/', views.my_posts, name='my_posts'),
