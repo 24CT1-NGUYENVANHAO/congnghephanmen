@@ -183,7 +183,6 @@ class RegisterFormTests(TestCase):
     def valid_data(self, **overrides):
         data = {
             'first_name': 'Nguyễn Văn Hào',
-            'username': 'hao.nguyen',
             'email': 'hao@gmail.com',
             'faculty': 'Khoa Kiến trúc',
             'student_id': '24CT100001',
@@ -218,11 +217,10 @@ class RegisterFormTests(TestCase):
         self.assertFalse(form.is_valid())
         self.assertIn('password1', form.errors)
 
-    def test_password_cannot_contain_username(self):
+    def test_password_cannot_contain_email(self):
         form = RegisterForm(data=self.valid_data(
-            username='hao.nguyen',
-            password1='Hao.nguyen123',
-            password2='Hao.nguyen123'
+            password1='Hao123456',
+            password2='Hao123456'
         ))
         self.assertFalse(form.is_valid())
         self.assertIn('password1', form.errors)
@@ -238,11 +236,12 @@ class RegisterFormTests(TestCase):
         self.assertFalse(form.is_valid())
         self.assertIn('email', form.errors)
 
-    def test_duplicate_username_rejected(self):
-        create_user('hao.nguyen')
+    def test_duplicate_username_gets_numeric_suffix(self):
+        create_user('hao', email='nguoidungkhac@gmail.com')
         form = RegisterForm(data=self.valid_data())
-        self.assertFalse(form.is_valid())
-        self.assertIn('username', form.errors)
+        self.assertTrue(form.is_valid(), form.errors)
+        user = form.save()
+        self.assertEqual(user.username, 'hao1')
 
     def test_agree_is_required(self):
         form = RegisterForm(data=self.valid_data(agree=False))
@@ -254,7 +253,8 @@ class RegisterFormTests(TestCase):
         self.assertTrue(form.is_valid(), form.errors)
         user = form.save()
 
-        self.assertTrue(User.objects.filter(username='hao.nguyen').exists())
+        self.assertEqual(user.username, 'hao')
+        self.assertEqual(user.email, 'hao@gmail.com')
         self.assertEqual(user.profile.faculty, 'Khoa Kiến trúc')
         self.assertEqual(user.profile.student_id, '24CT100001')
         self.assertTrue(user.check_password('MatKhau123'))
@@ -368,7 +368,6 @@ class AuthViewTests(TestCase):
     def test_register_creates_account(self):
         response = self.client.post(reverse('register'), {
             'first_name': 'Nguyễn Văn Hào',
-            'username': 'hao.nguyen',
             'email': 'hao@gmail.com',
             'faculty': '',
             'student_id': '',
@@ -378,7 +377,8 @@ class AuthViewTests(TestCase):
         })
         # Đăng ký thành công sẽ tự đăng nhập và chuyển trang
         self.assertRedirects(response, reverse('home'))
-        self.assertTrue(User.objects.filter(username='hao.nguyen').exists())
+        # Tên đăng nhập được sinh từ phần trước @ của Gmail
+        self.assertTrue(User.objects.filter(username='hao').exists())
 
     def test_register_rejects_weak_password(self):
         response = self.client.post(reverse('register'), {
@@ -803,7 +803,6 @@ class UserJourneyTests(TestCase):
         # 1. Đăng ký
         client.post(reverse('register'), {
             'first_name': 'Nguyễn Văn Hào',
-            'username': 'hao.nguyen',
             'email': 'hao@gmail.com',
             'faculty': 'Khoa Kiến trúc',
             'student_id': '24CT100001',
@@ -825,7 +824,7 @@ class UserJourneyTests(TestCase):
             'category': '',
         })
         post = Post.objects.get(title='Giáo trình Đồ hoạ kỹ thuật')
-        self.assertEqual(post.seller.username, 'hao.nguyen')
+        self.assertEqual(post.seller.username, 'hao')
 
         # 3. Tìm kiếm
         response = client.get(reverse('home'), {'q': 'Đồ hoạ'})
@@ -865,7 +864,7 @@ class UserJourneyTests(TestCase):
 
         # 8. Đánh giá uy tín
         client.force_login(other)
-        client.post(reverse('add_review', args=['hao.nguyen']), {
+        client.post(reverse('add_review', args=['hao']), {
             'rating': 5,
             'content': 'Giao dịch nhanh và dễ thương!',
         })
@@ -1210,3 +1209,203 @@ class OrderJourneyTests(TestCase):
         client.force_login(create_user('nguoikhac'))
         response = client.get(reverse('home'))
         self.assertNotContains(response, 'Giải tích cao cấp')
+
+
+# ===========================================================================
+#  QUẢN TRỊ (DASHBOARD TRONG APP)
+# ===========================================================================
+
+@override_settings(PASSWORD_HASHERS=PASSWORD_HASHERS)
+class AdminDashboardTests(TestCase):
+    """Kiểm thử trang /quan-tri/ và các thao tác kiểm duyệt nhanh."""
+
+    def setUp(self):
+        self.staff = create_user('adminuser', is_staff=True)
+        self.normal = create_user('sinhvien2')
+        self.seller = create_user('nguoiban')
+
+        self.pending_post = create_post(
+            self.seller, title='Bài chờ duyệt', status=Post.Status.PENDING
+        )
+        self.active_post = create_post(
+            self.seller, title='Bài đã duyệt', status=Post.Status.ACTIVE
+        )
+        self.report = Report.objects.create(
+            post=self.active_post,
+            reporter=self.normal,
+            reason=Report.Reason.SPAM,
+        )
+
+    # --- Phân quyền -------------------------------------------------------
+    def test_guest_redirected_to_login(self):
+        response = self.client.get(reverse('admin_dashboard'))
+        self.assertRedirects(
+            response,
+            f"{reverse('login')}?next={reverse('admin_dashboard')}",
+            fetch_redirect_response=False,
+        )
+
+    def test_guest_next_keeps_query_string(self):
+        response = self.client.get(reverse('admin_dashboard') + '?trang=2')
+        self.assertIn('next=/quan-tri/%3Ftrang%3D2', response.url)
+
+    def test_non_staff_redirected_home(self):
+        self.client.force_login(self.normal)
+        response = self.client.get(reverse('admin_dashboard'))
+        self.assertRedirects(response, reverse('home'))
+
+    def test_non_staff_cannot_act(self):
+        self.client.force_login(self.normal)
+        response = self.client.post(
+            reverse('admin_approve_post', args=[self.pending_post.pk])
+        )
+        self.assertRedirects(response, reverse('home'))
+        self.pending_post.refresh_from_db()
+        self.assertEqual(self.pending_post.status, Post.Status.PENDING)
+
+    # --- Số liệu ----------------------------------------------------------
+    def test_staff_sees_stats(self):
+        self.client.force_login(self.staff)
+        response = self.client.get(reverse('admin_dashboard'))
+        self.assertEqual(response.status_code, 200)
+
+        stats = response.context['stats']
+        self.assertEqual(stats['pending_posts'], 1)
+        self.assertEqual(stats['pending_reports'], 1)
+        self.assertEqual(stats['pending_orders'], 0)
+        self.assertEqual(stats['total_users'], 3)
+        self.assertEqual(stats['total_posts'], 2)
+        self.assertEqual(stats['revenue'], 0)
+        self.assertContains(response, 'Bài chờ duyệt')
+
+    def test_revenue_counts_completed_orders(self):
+        Order.objects.create(
+            post=self.active_post,
+            buyer=self.normal,
+            seller=self.seller,
+            price_snapshot=150000,
+            status=Order.Status.COMPLETED,
+        )
+        self.client.force_login(self.staff)
+        response = self.client.get(reverse('admin_dashboard'))
+        self.assertEqual(response.context['stats']['revenue'], 150000)
+
+    # --- Duyệt / từ chối bài ---------------------------------------------
+    def test_approve_pending_post(self):
+        self.client.force_login(self.staff)
+        self.client.post(reverse('admin_approve_post', args=[self.pending_post.pk]))
+        self.pending_post.refresh_from_db()
+        self.assertEqual(self.pending_post.status, Post.Status.ACTIVE)
+
+    def test_reject_pending_post(self):
+        self.client.force_login(self.staff)
+        self.client.post(
+            reverse('admin_reject_post', args=[self.pending_post.pk]),
+            {'reason': 'Ảnh mờ, không rõ sản phẩm.'},
+        )
+        self.pending_post.refresh_from_db()
+        self.assertEqual(self.pending_post.status, Post.Status.REJECTED)
+        self.assertEqual(self.pending_post.rejection_reason, 'Ảnh mờ, không rõ sản phẩm.')
+
+    def test_reject_without_reason_uses_default(self):
+        self.client.force_login(self.staff)
+        self.client.post(reverse('admin_reject_post', args=[self.pending_post.pk]))
+        self.pending_post.refresh_from_db()
+        self.assertTrue(self.pending_post.rejection_reason)
+
+    def test_approve_non_pending_post_is_noop(self):
+        self.client.force_login(self.staff)
+        self.client.post(reverse('admin_approve_post', args=[self.active_post.pk]))
+        self.active_post.refresh_from_db()
+        self.assertEqual(self.active_post.status, Post.Status.ACTIVE)
+
+    def test_approve_sold_post_is_noop(self):
+        self.active_post.status = Post.Status.SOLD
+        self.active_post.save(update_fields=['status'])
+        self.client.force_login(self.staff)
+        self.client.post(reverse('admin_approve_post', args=[self.active_post.pk]))
+        self.active_post.refresh_from_db()
+        self.assertEqual(self.active_post.status, Post.Status.SOLD)
+
+    # --- Xử lý / bỏ qua báo cáo -------------------------------------------
+    def test_resolve_report_hides_post(self):
+        self.client.force_login(self.staff)
+        self.client.post(reverse('admin_resolve_report', args=[self.report.pk]))
+        self.report.refresh_from_db()
+        self.active_post.refresh_from_db()
+        self.assertEqual(self.report.status, Report.Status.RESOLVED)
+        self.assertEqual(self.active_post.status, Post.Status.HIDDEN)
+
+    def test_resolve_report_keeps_sold_post(self):
+        self.active_post.status = Post.Status.SOLD
+        self.active_post.save(update_fields=['status'])
+        self.client.force_login(self.staff)
+        self.client.post(reverse('admin_resolve_report', args=[self.report.pk]))
+        self.report.refresh_from_db()
+        self.active_post.refresh_from_db()
+        self.assertEqual(self.report.status, Report.Status.RESOLVED)
+        self.assertEqual(self.active_post.status, Post.Status.SOLD)
+
+    def test_resolve_report_twice_is_noop_second_time(self):
+        self.client.force_login(self.staff)
+        self.client.post(reverse('admin_resolve_report', args=[self.report.pk]))
+        self.client.post(reverse('admin_resolve_report', args=[self.report.pk]))
+        self.report.refresh_from_db()
+        self.assertEqual(self.report.status, Report.Status.RESOLVED)
+
+    def test_dismiss_report_keeps_post(self):
+        self.client.force_login(self.staff)
+        self.client.post(reverse('admin_dismiss_report', args=[self.report.pk]))
+        self.report.refresh_from_db()
+        self.active_post.refresh_from_db()
+        self.assertEqual(self.report.status, Report.Status.DISMISSED)
+        self.assertEqual(self.active_post.status, Post.Status.ACTIVE)
+
+    # --- Chống GET --------------------------------------------------------
+    def test_action_endpoints_reject_get(self):
+        self.client.force_login(self.staff)
+        urls = [
+            reverse('admin_approve_post', args=[self.pending_post.pk]),
+            reverse('admin_reject_post', args=[self.pending_post.pk]),
+            reverse('admin_resolve_report', args=[self.report.pk]),
+            reverse('admin_dismiss_report', args=[self.report.pk]),
+        ]
+        for url in urls:
+            with self.subTest(url=url):
+                self.assertEqual(self.client.get(url).status_code, 405)
+        self.pending_post.refresh_from_db()
+        self.report.refresh_from_db()
+        self.assertEqual(self.pending_post.status, Post.Status.PENDING)
+        self.assertEqual(self.report.status, Report.Status.PENDING)
+
+    # --- Giao diện --------------------------------------------------------
+    def test_dashboard_shows_action_buttons(self):
+        self.client.force_login(self.staff)
+        response = self.client.get(reverse('admin_dashboard'))
+        self.assertContains(
+            response, reverse('admin_approve_post', args=[self.pending_post.pk])
+        )
+        self.assertContains(
+            response, reverse('admin_resolve_report', args=[self.report.pk])
+        )
+        self.assertContains(response, 'Duyệt')
+        self.assertContains(response, 'Xử lý')
+        self.assertContains(response, 'Django admin')
+
+    def test_dashboard_empty_state(self):
+        Post.objects.filter(status=Post.Status.PENDING).delete()
+        Report.objects.all().delete()
+        self.client.force_login(self.staff)
+        response = self.client.get(reverse('admin_dashboard'))
+        self.assertContains(response, 'Không có bài nào chờ duyệt')
+        self.assertContains(response, 'Không có gì cần xử lý')
+
+    # --- Navbar -----------------------------------------------------------
+    def test_navbar_links_to_dashboard_for_staff(self):
+        self.client.force_login(self.staff)
+        response = self.client.get(reverse('home'))
+        self.assertContains(response, reverse('admin_dashboard'))
+
+    def test_navbar_hides_dashboard_for_guest(self):
+        response = self.client.get(reverse('home'))
+        self.assertNotContains(response, reverse('admin_dashboard'))

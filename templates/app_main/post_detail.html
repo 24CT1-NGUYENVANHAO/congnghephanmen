@@ -343,7 +343,7 @@
                         <!-- Trả lời -->
                         {% if user.is_authenticated %}
                             <button type="button" class="text-xs text-indigo-600 hover:underline mt-1.5"
-                                    onclick="toggleReply({{ comment.pk }})">↩ Trả lời</button>
+                                    onclick="toggleReply('{{ comment.pk|escapejs }}')">↩ Trả lời</button>
                         {% endif %}
 
                         <form id="reply-{{ comment.pk }}" class="hidden mt-3 space-y-2"

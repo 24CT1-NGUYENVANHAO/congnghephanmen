@@ -83,11 +83,14 @@
                                     🔐 Đổi mật khẩu
                                 </a>
                                 {% if user.is_staff %}
-                                    <a href="/django-admin/" class="flex items-center gap-3 px-4 py-2 text-sm text-purple-700 hover:bg-purple-50 transition">
+                                    <a href="{% url 'admin_dashboard' %}" class="flex items-center gap-3 px-4 py-2 text-sm text-purple-700 hover:bg-purple-50 transition">
                                         🛡️ Trang quản trị
                                         {% if pending_reports > 0 %}
                                             <span class="ml-auto badge badge-danger text-[10px]">{{ pending_reports }}</span>
                                         {% endif %}
+                                    </a>
+                                    <a href="/django-admin/" class="flex items-center gap-3 px-4 py-2 text-xs text-slate-500 hover:bg-slate-50 transition">
+                                        ⚙️ Django admin
                                     </a>
                                 {% endif %}
                             </div>

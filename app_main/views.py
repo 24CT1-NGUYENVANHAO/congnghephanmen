@@ -8,6 +8,9 @@ Nguyên tắc áp dụng:
   - Validation ủy quyền cho Form, view chỉ điều phối.
 """
 
+from functools import wraps
+from urllib.parse import quote
+
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login
@@ -16,9 +19,10 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm
 from django.contrib.auth.models import User
 from django.core.paginator import Paginator
-from django.db.models import Avg, Count, Q
+from django.db.models import Avg, Count, Q, Sum
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from .forms import (
@@ -816,37 +820,69 @@ def register(request):
     return render(request, 'registration/register.html', {'form': form})
 
 
+#: Các đuôi email được phép dùng để đăng nhập.
+#: Gmail cho sinh viên, .edu.vn cho tài khoản giảng viên / quản trị.
+ALLOWED_EMAIL_DOMAINS = ('gmail.com',)
+
+
+def _is_allowed_email(value):
+    """Kiểm tra email có thuộc miền được phép đăng nhập không.
+
+    Chấp nhận @gmail.com (sinh viên) và mọi đuối .edu.vn (email trường).
+    Trả về False với email rỗng, thiếu '@', hoặc thuộc miền khác.
+    """
+    value = (value or '').strip().lower()
+    if '@' not in value:
+        return False
+    domain = value.rsplit('@', 1)[1]
+    if not domain:
+        return False
+    return domain in ALLOWED_EMAIL_DOMAINS or domain.endswith('.edu.vn')
+
+
 def user_login(request):
-    """Đăng nhập bằng tên đăng nhập hoặc email."""
+    """Đăng nhập bằng tên đăng nhập hoặc email Gmail / email trường .edu.vn."""
     if request.user.is_authenticated:
         return redirect('home')
 
+    error = ''
     if request.method == 'POST':
         form = AuthenticationForm(request, data=request.POST)
-        # Cho phép đăng nhập bằng email thay vì username
-        username = request.POST.get('username', '').strip()
-        if '@' in username:
-            from django.contrib.auth import get_user_model
-            matched = get_user_model().objects.filter(email__iexact=username).first()
-            if matched:
-                form = AuthenticationForm(
-                    request,
-                    data={
-                        'username': matched.username,
-                        'password': request.POST.get('password', ''),
-                    }
-                )
+        identity = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '')
 
-        if form.is_valid():
-            login(request, form.get_user())
-            messages.success(request, f"Xin chào, {request.user.profile.display_name}!")
-            return redirect(request.GET.get('next') or 'home')
+        # Nếu người dùng nhập email (có dấu @) thì tra cứu tài khoản theo email.
+        # Tài khoản quản trị vẫn đăng nhập được bằng username như trước.
+        if '@' in identity:
+            if not _is_allowed_email(identity):
+                error = (
+                    'Chỉ chấp nhận email @gmail.com hoặc email trường @edu.vn. '
+                    'Vui lòng nhập lại.'
+                )
+            else:
+                from django.contrib.auth import get_user_model
+                matched = get_user_model().objects.filter(email__iexact=identity).first()
+                if not matched:
+                    error = 'Không tìm thấy tài khoản nào dùng email này.'
+                else:
+                    form = AuthenticationForm(
+                        request,
+                        data={'username': matched.username, 'password': password},
+                    )
+
+        if not error:
+            if form.is_valid():
+                login(request, form.get_user())
+                messages.success(request, f"Xin chào, {request.user.profile.display_name}!")
+                return redirect(request.GET.get('next') or request.POST.get('next') or 'home')
+            error = 'Tên đăng nhập hoặc mật khẩu không chính xác. Vui lòng thử lại.'
     else:
         form = AuthenticationForm()
 
     return render(request, 'registration/login.html', {
         'form': form,
         'next': request.GET.get('next', ''),
+        'login_error': error,
     })
 
 
@@ -912,6 +948,157 @@ def change_password(request):
         form = PasswordChangeForm(user=request.user)
 
     return render(request, 'app_main/change_password.html', {'form': form})
+
+
+# ===========================================================================
+#  QUẢN TRỊ (chỉ dành cho tài khoản is_staff)
+# ===========================================================================
+
+def staff_required(view):
+    """
+    Chặn người dùng không phải staff khỏi khu vực quản trị.
+
+    - Chưa đăng nhập  → chuyển tới trang đăng nhập kèm ?next=<đường dẫn đầy đủ>
+    - Đã đăng nhập nhưng không phải staff → về trang chủ kèm thông báo lỗi
+    """
+    @wraps(view)
+    def _wrapped(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            login_url = reverse(settings.LOGIN_URL)
+            return redirect(f"{login_url}?next={quote(request.get_full_path())}")
+        if not request.user.is_staff:
+            messages.error(request, "Bạn không có quyền truy cập trang quản trị.")
+            return redirect('home')
+        return view(request, *args, **kwargs)
+    return _wrapped
+
+
+@staff_required
+def admin_dashboard(request):
+    """
+    Bảng điều khiển quản trị: số liệu tổng quan + kiểm duyệt nhanh.
+
+    Mỗi bảng chỉ lấy 10 bản ghi mới nhất; muốn xem đầy đủ thì theo lối tắt
+    sang Django admin (đã lọc sẵn theo trạng thái).
+    """
+    pending_posts = (
+        Post.objects.filter(status=Post.Status.PENDING)
+        .select_related('seller', 'category')
+        .order_by('-created_at')[:10]
+    )
+    pending_reports = (
+        Report.objects.filter(status=Report.Status.PENDING)
+        .select_related('post', 'post__seller', 'reporter')
+        .order_by('-created_at')[:10]
+    )
+
+    # Doanh thu = tổng giá chốt của các đơn đã hoàn tất
+    revenue = (
+        Order.objects.filter(status=Order.Status.COMPLETED)
+        .aggregate(total=Sum('price_snapshot'))['total'] or 0
+    )
+
+    stats = {
+        'pending_posts': Post.objects.filter(status=Post.Status.PENDING).count(),
+        'pending_reports': Report.objects.filter(status=Report.Status.PENDING).count(),
+        'pending_orders': Order.objects.filter(status=Order.Status.PENDING).count(),
+        'total_users': User.objects.count(),
+        'active_users': User.objects.filter(is_active=True).count(),
+        'total_posts': Post.objects.count(),
+        'completed_orders': Order.objects.filter(status=Order.Status.COMPLETED).count(),
+        'revenue': revenue,
+    }
+
+    return render(request, 'app_main/admin_dashboard.html', {
+        'stats': stats,
+        'pending_posts': pending_posts,
+        'pending_reports': pending_reports,
+    })
+
+
+@staff_required
+@require_POST
+def admin_approve_post(request, pk):
+    """Duyệt một bài đang chờ: PENDING → ACTIVE."""
+    post = get_object_or_404(Post, pk=pk)
+    if post.status != Post.Status.PENDING:
+        messages.warning(
+            request,
+            f"Bài “{post.title}” không còn ở trạng thái chờ duyệt."
+        )
+    else:
+        post.status = Post.Status.ACTIVE
+        post.rejection_reason = ''
+        post.save(update_fields=['status', 'rejection_reason'])
+        messages.success(request, f"✅ Đã duyệt bài “{post.title}”.")
+    return redirect('admin_dashboard')
+
+
+@staff_required
+@require_POST
+def admin_reject_post(request, pk):
+    """Từ chối một bài đang chờ: PENDING → REJECTED, kèm lý do."""
+    post = get_object_or_404(Post, pk=pk)
+    if post.status != Post.Status.PENDING:
+        messages.warning(
+            request,
+            f"Bài “{post.title}” không còn ở trạng thái chờ duyệt."
+        )
+    else:
+        reason = request.POST.get('reason', '').strip()
+        post.status = Post.Status.REJECTED
+        post.rejection_reason = (
+            reason[:255] or "Không phù hợp với quy định đăng tin."
+        )
+        post.save(update_fields=['status', 'rejection_reason'])
+        messages.success(request, f"🚫 Đã từ chối bài “{post.title}”.")
+    return redirect('admin_dashboard')
+
+
+@staff_required
+@require_POST
+def admin_resolve_report(request, pk):
+    """
+    Xử lý báo cáo: report → RESOLVED và ẩn bài bị báo cáo.
+
+    Chỉ ẩn khi bài còn đang chờ duyệt hoặc đang hiển thị; bài đã bán / đã bị
+    từ chối / đã ẩn thì giữ nguyên trạng thái để không làm sai lịch sử.
+    """
+    report = get_object_or_404(Report.objects.select_related('post'), pk=pk)
+    if report.status != Report.Status.PENDING:
+        messages.warning(request, "Báo cáo này đã được xử lý trước đó.")
+        return redirect('admin_dashboard')
+
+    report.status = Report.Status.RESOLVED
+    report.save(update_fields=['status'])
+
+    post = report.post
+    if post.status in (Post.Status.PENDING, Post.Status.ACTIVE):
+        post.status = Post.Status.HIDDEN
+        post.save(update_fields=['status'])
+
+    messages.success(
+        request,
+        f"✅ Đã xử lý báo cáo và ẩn bài “{post.title}”."
+    )
+    return redirect('admin_dashboard')
+
+
+@staff_required
+@require_POST
+def admin_dismiss_report(request, pk):
+    """Bỏ qua báo cáo: report → DISMISSED, không đổi bài đăng."""
+    report = get_object_or_404(Report.objects.select_related('post'), pk=pk)
+    if report.status != Report.Status.PENDING:
+        messages.warning(request, "Báo cáo này đã được xử lý trước đó.")
+    else:
+        report.status = Report.Status.DISMISSED
+        report.save(update_fields=['status'])
+        messages.success(
+            request,
+            f"⚪ Đã bỏ qua báo cáo cho bài “{report.post.title}”."
+        )
+    return redirect('admin_dashboard')
 
 
 # ===========================================================================

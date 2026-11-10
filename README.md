@@ -128,7 +128,7 @@ DB_NAME=sachgocuni_db
 DB_USER=root
 DB_PASSWORD=          # XAMPP để trống; MySQL riêng thì điền mật khẩu
 DB_HOST=127.0.0.1
-DB_PORT=3306          # hoặc 3307 tuỳ cấu hình XAMPP
+DB_PORT=3307          # hoặc 3307 tuỳ cấu hình XAMPP
 ```
 
 </details>
@@ -293,9 +293,9 @@ Mỗi máy một kiểu, nên `DB_PORT` có thể khác nhau:
 
 | Tình huống | Cổng |
 |---|---|
-| XAMPP mặc định | `3306` |
+| XAMPP mặc định | `3307` |
 | XAMPP (khi máy đã có MySQL khác chiếm 3306) | `3307` |
-| MySQL cài riêng | `3306` |
+| MySQL cài riêng | `3307` |
 
 **Cách xem cổng đang dùng:** mở XAMPP Control Panel → dòng **MySQL** cột *Port(s)*.
 

@@ -1,0 +1,315 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Bảng điều khiển quản trị — SáchGóc Uni{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <!-- ================= Tiêu đề ================= -->
+    <div class="flex flex-wrap items-end justify-between gap-3 mb-7">
+        <div>
+            <p class="text-[11px] font-bold uppercase tracking-widest text-indigo-600">
+                Khu vực quản trị
+            </p>
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1">
+                Bảng điều khiển
+            </h1>
+            <p class="text-sm text-slate-500 mt-1">
+                Xin chào <span class="font-semibold text-slate-700">{{ user.get_full_name|default:user.username }}</span>
+                · cập nhật lúc {% now "H:i d/m/Y" %}
+            </p>
+        </div>
+        <div class="flex items-center gap-2">
+            <a href="{% url 'home' %}" class="btn btn-outline btn-sm">← Về trang chủ</a>
+            <a href="/django-admin/" class="btn btn-primary btn-sm">⚙️ Django admin</a>
+        </div>
+    </div>
+
+    <!-- ================= 5 thẻ số liệu ================= -->
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+
+        <!-- Bài chờ duyệt -->
+        <a href="#bai-cho-duyet" class="card p-5 card-hover block">
+            <div class="flex items-start justify-between">
+                <div class="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                {% if stats.pending_posts %}<span class="badge badge-warning">Cần xử lý</span>{% endif %}
+            </div>
+            <p class="text-3xl font-extrabold text-slate-900 mt-3">{{ stats.pending_posts|intcomma }}</p>
+            <p class="text-xs font-medium text-slate-500 mt-0.5">Bài chờ duyệt</p>
+        </a>
+
+        <!-- Báo cáo chờ -->
+        <a href="#bao-cao" class="card p-5 card-hover block">
+            <div class="flex items-start justify-between">
+                <div class="w-9 h-9 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                    </svg>
+                </div>
+                {% if stats.pending_reports %}<span class="badge badge-danger">Cần xử lý</span>{% endif %}
+            </div>
+            <p class="text-3xl font-extrabold text-slate-900 mt-3">{{ stats.pending_reports|intcomma }}</p>
+            <p class="text-xs font-medium text-slate-500 mt-0.5">Báo cáo chờ xử lý</p>
+        </a>
+
+        <!-- Đơn chờ xác nhận -->
+        <div class="card p-5">
+            <div class="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                </svg>
+            </div>
+            <p class="text-3xl font-extrabold text-slate-900 mt-3">{{ stats.pending_orders|intcomma }}</p>
+            <p class="text-xs font-medium text-slate-500 mt-0.5">Đơn chờ xác nhận</p>
+        </div>
+
+        <!-- Người dùng -->
+        <div class="card p-5">
+            <div class="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 10-4-4 4 4 0 004 4zm6-4a3 3 0 11-3-3"/>
+                </svg>
+            </div>
+            <p class="text-3xl font-extrabold text-slate-900 mt-3">{{ stats.total_users|intcomma }}</p>
+            <p class="text-xs font-medium text-slate-500 mt-0.5">
+                Người dùng · {{ stats.active_users|intcomma }} đang hoạt động
+            </p>
+        </div>
+
+        <!-- Doanh thu -->
+        <div class="card p-5">
+            <div class="w-9 h-9 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 9v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </div>
+            <p class="text-2xl font-extrabold text-slate-900 mt-3 truncate">
+                {{ stats.revenue|intcomma }}<span class="text-base font-bold text-slate-400">đ</span>
+            </p>
+            <p class="text-xs font-medium text-slate-500 mt-0.5">
+                Doanh thu · {{ stats.completed_orders|intcomma }} đơn hoàn tất
+            </p>
+        </div>
+    </div>
+
+    <!-- ================= Bài đăng chờ duyệt ================= -->
+    <section id="bai-cho-duyet" class="mb-8 scroll-mt-24">
+        <div class="flex items-end justify-between gap-3 mb-3">
+            <div>
+                <h2 class="text-lg font-bold text-slate-900">Bài đăng chờ duyệt</h2>
+                <p class="text-xs text-slate-500">{{ stats.pending_posts|intcomma }} bài đang chờ · hiển thị 10 bài mới nhất</p>
+            </div>
+            <a href="/django-admin/app_main/post/?status__exact=PENDING"
+               class="text-sm font-semibold text-indigo-600 hover:text-indigo-800 transition whitespace-nowrap">
+                Xem tất cả →
+            </a>
+        </div>
+
+        {% if pending_posts %}
+            <div class="card overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left" style="min-width:760px;">
+                        <thead style="background:var(--slate-50);border-bottom:1px solid var(--slate-200);">
+                            <tr>
+                                <th class="px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Bài đăng</th>
+                                <th class="px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Giá</th>
+                                <th class="px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Ngày đăng</th>
+                                <th class="px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for post in pending_posts %}
+                            <tr class="border-b border-slate-100 last:border-0 hover:bg-slate-50 transition">
+                                <td class="px-5 py-3.5">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-12 h-12 rounded-lg overflow-hidden bg-slate-100 shrink-0">
+                                            {% if post.get_absolute_image_url %}
+                                                <img src="{{ post.get_absolute_image_url }}" alt=""
+                                                     class="w-full h-full object-cover">
+                                            {% else %}
+                                                <div class="w-full h-full flex items-center justify-center text-slate-300">
+                                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                              d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-5l-2 3h-3l-2-3H4"/>
+                                                    </svg>
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                        <div class="min-w-0">
+                                            <a href="{{ post.get_absolute_url }}"
+                                               class="font-semibold text-sm text-slate-800 hover:text-indigo-600 transition line-clamp-1">
+                                                {{ post.title }}
+                                            </a>
+                                            <p class="text-xs text-slate-400 mt-0.5 truncate">
+                                                {{ post.seller.profile.display_name|default:post.seller.username }}
+                                                · {{ post.category.name|default:"Chưa phân loại" }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-5 py-3.5">
+                                    <span class="font-bold text-sm {% if post.is_free %}text-emerald-600{% else %}text-indigo-600{% endif %}">
+                                        {{ post.price_display }}
+                                    </span>
+                                </td>
+                                <td class="px-5 py-3.5">
+                                    <span class="text-sm text-slate-600">{{ post.created_at|date:"d/m/Y" }}</span>
+                                    <span class="block text-xs text-slate-400">{{ post.created_at|date:"H:i" }}</span>
+                                </td>
+                                <td class="px-5 py-3.5">
+                                    <div class="flex items-center justify-end gap-2">
+                                        <form method="post" action="{% url 'admin_approve_post' post.pk %}">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-success btn-sm"
+                                                    onclick="return confirm('Duyệt và cho hiển thị bài “{{ post.title|escapejs }}”?')">
+                                                ✅ Duyệt
+                                            </button>
+                                        </form>
+                                        <form method="post" action="{% url 'admin_reject_post' post.pk %}">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-danger btn-sm"
+                                                    onclick="return confirm('Từ chối bài “{{ post.title|escapejs }}”?')">
+                                                🚫 Từ chối
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% else %}
+            <div class="card p-8 text-center">
+                <p class="text-2xl">🎉</p>
+                <p class="font-semibold text-slate-700 mt-2">Không có bài nào chờ duyệt</p>
+                <p class="text-sm text-slate-500 mt-1">Mọi bài đăng mới đã được xử lý.</p>
+            </div>
+        {% endif %}
+    </section>
+
+    <!-- ================= Báo cáo vi phạm ================= -->
+    <section id="bao-cao" class="mb-8 scroll-mt-24">
+        <div class="flex items-end justify-between gap-3 mb-3">
+            <div>
+                <h2 class="text-lg font-bold text-slate-900">Báo cáo vi phạm</h2>
+                <p class="text-xs text-slate-500">{{ stats.pending_reports|intcomma }} báo cáo đang chờ · hiển thị 10 báo cáo mới nhất</p>
+            </div>
+            <a href="/django-admin/app_main/report/?status__exact=PENDING"
+               class="text-sm font-semibold text-indigo-600 hover:text-indigo-800 transition whitespace-nowrap">
+                Xem tất cả →
+            </a>
+        </div>
+
+        {% if pending_reports %}
+            <div class="card overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left" style="min-width:760px;">
+                        <thead style="background:var(--slate-50);border-bottom:1px solid var(--slate-200);">
+                            <tr>
+                                <th class="px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Bài bị báo cáo</th>
+                                <th class="px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Lý do</th>
+                                <th class="px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Người báo cáo</th>
+                                <th class="px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Thời gian</th>
+                                <th class="px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for report in pending_reports %}
+                            <tr class="border-b border-slate-100 last:border-0 hover:bg-slate-50 transition">
+                                <td class="px-5 py-3.5">
+                                    <a href="{{ report.post.get_absolute_url }}"
+                                       class="font-semibold text-sm text-slate-800 hover:text-indigo-600 transition line-clamp-1">
+                                        {{ report.post.title }}
+                                    </a>
+                                    <p class="text-xs text-slate-400 mt-0.5 truncate">
+                                        {{ report.post.seller.profile.display_name|default:report.post.seller.username }}
+                                        · {{ report.post.price_display }}
+                                    </p>
+                                </td>
+                                <td class="px-5 py-3.5">
+                                    <span class="badge badge-danger">{{ report.get_reason_display }}</span>
+                                    {% if report.detail %}
+                                        <p class="text-xs text-slate-500 mt-1 max-w-[220px] line-clamp-2" title="{{ report.detail }}">
+                                            “{{ report.detail }}”
+                                        </p>
+                                    {% endif %}
+                                </td>
+                                <td class="px-5 py-3.5">
+                                    <a href="{% url 'user_profile' report.reporter.username %}"
+                                       class="text-sm text-slate-700 hover:text-indigo-600 transition">
+                                        {{ report.reporter.username }}
+                                    </a>
+                                </td>
+                                <td class="px-5 py-3.5">
+                                    <span class="text-sm text-slate-600">{{ report.created_at|date:"d/m/Y" }}</span>
+                                    <span class="block text-xs text-slate-400">{{ report.created_at|date:"H:i" }}</span>
+                                </td>
+                                <td class="px-5 py-3.5">
+                                    <div class="flex items-center justify-end gap-2">
+                                        <form method="post" action="{% url 'admin_resolve_report' report.pk %}">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-success btn-sm"
+                                                    onclick="return confirm('Xử lý báo cáo và ẩn bài “{{ report.post.title|escapejs }}”?')">
+                                                ✅ Xử lý &amp; ẩn bài
+                                            </button>
+                                        </form>
+                                        <form method="post" action="{% url 'admin_dismiss_report' report.pk %}">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-outline btn-sm"
+                                                    onclick="return confirm('Bỏ qua báo cáo này và giữ nguyên bài đăng?')">
+                                                ⚪ Bỏ qua
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% else %}
+            <div class="card p-8 text-center">
+                <p class="text-2xl">🎉</p>
+                <p class="font-semibold text-slate-700 mt-2">Không có gì cần xử lý</p>
+                <p class="text-sm text-slate-500 mt-1">Chưa có báo cáo vi phạm nào đang chờ.</p>
+            </div>
+        {% endif %}
+    </section>
+
+    <!-- ================= Lối tắt ================= -->
+    <section>
+        <h2 class="text-lg font-bold text-slate-900 mb-3">Lối tắt quản lý</h2>
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <a href="/django-admin/app_main/post/" class="card p-4 card-hover">
+                <p class="text-xl">📚</p>
+                <p class="font-semibold text-sm text-slate-800 mt-2">Quản lý bài đăng</p>
+                <p class="text-xs text-slate-500 mt-0.5">{{ stats.total_posts|intcomma }} bài trong hệ thống</p>
+            </a>
+            <a href="/django-admin/app_main/report/" class="card p-4 card-hover">
+                <p class="text-xl">🚩</p>
+                <p class="font-semibold text-sm text-slate-800 mt-2">Báo cáo vi phạm</p>
+                <p class="text-xs text-slate-500 mt-0.5">Xem toàn bộ lịch sử báo cáo</p>
+            </a>
+            <a href="/django-admin/app_main/order/" class="card p-4 card-hover">
+                <p class="text-xl">🧾</p>
+                <p class="font-semibold text-sm text-slate-800 mt-2">Đơn đặt mua</p>
+                <p class="text-xs text-slate-500 mt-0.5">{{ stats.pending_orders|intcomma }} đơn chờ xác nhận</p>
+            </a>
+            <a href="/django-admin/auth/user/" class="card p-4 card-hover">
+                <p class="text-xl">👥</p>
+                <p class="font-semibold text-sm text-slate-800 mt-2">Người dùng</p>
+                <p class="text-xs text-slate-500 mt-0.5">Khoá / mở khoá tài khoản</p>
+            </a>
+        </div>
+    </section>
+
+</div>
+{% endblock %}

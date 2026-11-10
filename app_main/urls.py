@@ -56,4 +56,11 @@ urlpatterns = [
     path('dang-ky/', views.register, name='register'),
     path('dang-nhap/', views.user_login, name='login'),
     path('dang-xuat/', views.logout_view, name='logout'),
+
+    # --- Quản trị (chỉ is_staff) ---
+    path('quan-tri/', views.admin_dashboard, name='admin_dashboard'),
+    path('quan-tri/bai-dang/<int:pk>/duyet/', views.admin_approve_post, name='admin_approve_post'),
+    path('quan-tri/bai-dang/<int:pk>/tu-choi/', views.admin_reject_post, name='admin_reject_post'),
+    path('quan-tri/bao-cao/<int:pk>/xu-ly/', views.admin_resolve_report, name='admin_resolve_report'),
+    path('quan-tri/bao-cao/<int:pk>/bo-qua/', views.admin_dismiss_report, name='admin_dismiss_report'),
 ]

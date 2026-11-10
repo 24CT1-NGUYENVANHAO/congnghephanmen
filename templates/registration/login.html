@@ -16,9 +16,9 @@
         </div>
 
         <div class="card p-6 md:p-8">
-            {% if form.errors %}
+            {% if login_error %}
                 <div class="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
-                    Tên đăng nhập hoặc mật khẩu không chính xác. Vui lòng thử lại.
+                    {{ login_error }}
                 </div>
             {% endif %}
 
@@ -28,11 +28,15 @@
 
                 <div>
                     <label for="id_username" class="form-label">
-                        Tên đăng nhập hoặc Email <span class="text-red-500">*</span>
+                        Email Gmail hoặc tên đăng nhập <span class="text-red-500">*</span>
                     </label>
                     <input type="text" name="username" id="id_username" required autofocus autocomplete="username"
-                           placeholder="hao.nguyen24 hoặc email@gmail.com"
+                           placeholder="hao.nguyen24@gmail.com"
                            class="form-input" value="{{ form.username.value|default:'' }}">
+                    <p class="text-xs text-slate-400 mt-1">
+                        Chỉ nhận email <strong>@gmail.com</strong> hoặc email trường
+                        <strong>@edu.vn</strong>.
+                    </p>
                 </div>
 
                 <div>
@@ -60,13 +64,23 @@
         <!-- Tài khoản demo -->
         <div class="mt-5 p-4 rounded-xl bg-white/70 border border-indigo-100 backdrop-blur-sm">
             <p class="text-xs font-semibold text-slate-600 mb-2">🔑 Tài khoản demo để thử nhanh:</p>
-            <div class="flex items-center justify-between text-xs font-mono text-slate-500">
-                <span>sinhvien_demo / 123456</span>
-                <button type="button" class="text-indigo-600 hover:underline font-sans"
-                        onclick="document.getElementById('id_username').value='sinhvien_demo';
-                                 document.getElementById('id_password').value='123456';">
-                    Điền nhanh
-                </button>
+            <div class="space-y-2 text-xs text-slate-500">
+                <div class="flex items-center justify-between gap-2">
+                    <span class="font-mono">hao.nguyen24@gmail.com / 123456</span>
+                    <button type="button" class="text-indigo-600 hover:underline font-sans shrink-0"
+                            onclick="document.getElementById('id_username').value='hao.nguyen24@gmail.com';
+                                     document.getElementById('id_password').value='123456';">
+                        Điền nhanh
+                    </button>
+                </div>
+                <div class="flex items-center justify-between gap-2">
+                    <span class="font-mono">admin / admin123</span>
+                    <button type="button" class="text-indigo-600 hover:underline font-sans shrink-0"
+                            onclick="document.getElementById('id_username').value='admin';
+                                     document.getElementById('id_password').value='admin123';">
+                        Điền nhanh
+                    </button>
+                </div>
             </div>
         </div>
     </div>

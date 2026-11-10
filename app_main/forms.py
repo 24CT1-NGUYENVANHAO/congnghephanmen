@@ -6,11 +6,34 @@ Mọi validation tập trung ở đây (thay vì trong view) để:
   - Không bao giờ xảy ra lỗi IndexError như bản cũ
 """
 
+import re
+
 from django import forms
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 
 from .models import Category, Comment, Order, Post, PostImage, Report, Review
+
+
+def build_username_from_email(email):
+    """Sinh tên đăng nhập duy nhất từ phần trước dấu @ của email.
+
+    Người dùng không còn phải tự nhập tên đăng nhập khi đăng ký; hệ thống lấy
+    luôn phần local-part của Gmail (``hao@gmail.com`` → ``hao``). Nếu tên đó đã
+    có người dùng thì tự thêm hậu tố số (``hao1``, ``hao2``…) cho tới khi trống.
+    """
+    base = (email or '').split('@', 1)[0].strip().lower()
+    # Django chỉ cho phép chữ, số và @ . + - _ trong username
+    base = re.sub(r'[^\w.@+-]', '_', base).strip('._-') or 'sinhvien'
+    base = base[:140]
+
+    username = base
+    counter = 1
+    while User.objects.filter(username__iexact=username).exists():
+        suffix = str(counter)
+        username = f"{base[:140 - len(suffix)]}{suffix}"
+        counter += 1
+    return username
 
 
 # Class CSS dùng chung cho ô nhập — giúp giao diện đồng nhất
@@ -41,20 +64,13 @@ class RegisterForm(forms.Form):
             'autocomplete': 'name',
         })
     )
-    username = forms.CharField(
-        label="Tên đăng nhập", max_length=150,
-        widget=forms.TextInput(attrs={
-            'class': INPUT_CLASS, 'placeholder': 'hao.nguyen24',
-            'autocomplete': 'username',
-        })
-    )
     email = forms.EmailField(
         label="Email sinh viên", max_length=254,
         widget=forms.EmailInput(attrs={
             'class': INPUT_CLASS, 'placeholder': 'hao123@gmail.com',
             'autocomplete': 'email',
         }),
-        help_text="Bắt buộc dùng email @gmail.com để xác minh sinh viên.",
+        help_text="Bắt buộc dùng email @gmail.com. Tên đăng nhập sẽ được tạo tự động từ email.",
     )
     faculty = forms.CharField(
         label="Khoa / Ngành", max_length=100, required=False,
@@ -87,13 +103,6 @@ class RegisterForm(forms.Form):
         widget=forms.CheckboxInput(attrs={'class': CHECKBOX_CLASS})
     )
 
-    def clean_username(self):
-        """Chuẩn hoá và kiểm tra trùng tên đăng nhập."""
-        username = self.cleaned_data['username'].strip()
-        if User.objects.filter(username__iexact=username).exists():
-            raise ValidationError("Tên đăng nhập này đã tồn tại. Vui lòng chọn tên khác.")
-        return username
-
     def clean_email(self):
         """Chỉ chấp nhận Gmail và không trùng lặp."""
         email = self.cleaned_data['email'].strip().lower()
@@ -117,13 +126,11 @@ class RegisterForm(forms.Form):
         p1 = cleaned.get('password1')
 
         if p1:
-            username = cleaned.get('username', '')
             email = cleaned.get('email', '')
             full_name = cleaned.get('first_name', '')
 
             # Mật khẩu không được chứa thông tin cá nhân
-            for value, label in ((username, 'tên đăng nhập'),
-                                 (email.split('@')[0], 'email'),
+            for value, label in ((email.split('@')[0], 'email'),
                                  (full_name, 'họ tên')):
                 if value and value.lower() in p1.lower():
                     self.add_error(
@@ -143,7 +150,7 @@ class RegisterForm(forms.Form):
         """Tạo tài khoản mới và trả về User."""
         data = self.cleaned_data
         user = User.objects.create_user(
-            username=data['username'],
+            username=build_username_from_email(data['email']),
             email=data['email'],
             password=data['password1'],
             first_name=data['first_name'],

@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Figma Artboard — SáchGóc Uni (3 Bước: Flow - Wireframe - Mockup)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --primary-gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+      --dau-red: #c21a1a;
+      --dau-blue: #0b3b7a;
+      --bg-page: #eef2f6;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      background: var(--bg-page);
+      color: #1e293b;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    /* THANH ĐIỀU KHIỂN & CHUYỂN CHỨC NĂNG */
+    .toolbar {
+      width: 100%;
+      max-width: 1540px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #ffffff;
+      padding: 12px 20px;
+      border-radius: 14px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+      border: 1px solid #e2e8f0;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .tab-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .tab-btn {
+      padding: 8px 16px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+      border: 1px solid #e2e8f0;
+      background: #f8fafc;
+      color: #475569;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .tab-btn:hover {
+      background: #f1f5f9;
+      color: #0f172a;
+    }
+    .tab-btn.active {
+      background: #0f172a;
+      color: #ffffff;
+      border-color: #0f172a;
+    }
+
+    .export-btns {
+      display: flex;
+      gap: 10px;
+    }
+    .btn-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 700;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-copy {
+      background: #10b981;
+      color: white;
+    }
+    .btn-copy:hover { background: #059669; }
+    .btn-png {
+      background: #2563eb;
+      color: white;
+    }
+    .btn-png:hover { background: #1d4ed8; }
+
+    /* ═════════════════════════════════════════════════════════════════════════
+       KHUNG FIGMA ARTBOARD CHÍNH (ĐÚNG THEO ẢNH MẪU CỦA BẠN)
+       ═════════════════════════════════════════════════════════════════════════ */
+    .figma-artboard {
+      width: 1540px;
+      min-height: 866px;
+      background: #fbfbfc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
+      padding: 32px 36px 28px 36px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+    }
+
+    /* HEADER FIGMA */
+    .artboard-header {
+      margin-bottom: 20px;
+    }
+    .brand-title {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand-title .logo-brand {
+      color: #1e293b;
+    }
+    .brand-title .dot {
+      color: #c21a1a;
+      font-weight: 900;
+    }
+    .brand-title .feature-name {
+      color: #c21a1a;
+    }
+    .sub-meta {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      color: #94a3b8;
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+
+    /* 3 CỘT TIÊU ĐỀ BƯỚC */
+    .step-labels {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 12px;
+    }
+    .step-label {
+      font-size: 11.5px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+    .step-label.s1 { color: #d97706; }
+    .step-label.s2 { color: #475569; }
+    .step-label.s3 { color: #c21a1a; }
+
+    /* KHUNG NỘI DUNG 3 CỘT */
+    .three-columns {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 24px;
+      align-items: stretch;
+      margin-bottom: 24px;
+    }
+
+    .column-card {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 24px 22px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
+
+    .card-head {
+      margin-bottom: 20px;
+    }
+    .card-head h3 {
+      font-size: 16px;
+      font-weight: 800;
+      color: #0f172a;
+    }
+    .card-head p {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 3px;
+    }
+
+    /* ── CỘT 1: USER FLOW (DỌC THEO ẢNH MẪU) ── */
+    .flow-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+      justify-content: center;
+    }
+
+    .flow-node {
+      width: 100%;
+      border-radius: 10px;
+      padding: 10px 14px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.35;
+      position: relative;
+    }
+
+    .flow-node.start {
+      background: #fef9c3;
+      border: 1.5px solid #fde047;
+      color: #713f12;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .flow-node.start::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #16a34a;
+      display: inline-block;
+    }
+
+    .flow-node.step {
+      background: #fef9c3;
+      border: 1.5px solid #fef08a;
+      color: #854d0e;
+    }
+    .flow-node.step .sub-desc {
+      font-size: 10px;
+      font-weight: 500;
+      color: #a16207;
+      margin-top: 2px;
+    }
+
+    .flow-node.sys-check {
+      background: #e0f2fe;
+      border: 1.5px solid #bae6fd;
+      color: #0369a1;
+      padding: 12px 14px;
+    }
+
+    /* Mũi tên dọc */
+    .arrow-down {
+      width: 2px;
+      height: 14px;
+      background: #94a3b8;
+      position: relative;
+    }
+    .arrow-down::after {
+      content: '';
+      position: absolute;
+      bottom: -3px;
+      left: -3px;
+      width: 0;
+      height: 0;
+      border-left: 4px solid transparent;
+      border-right: 4px solid transparent;
+      border-top: 5px solid #94a3b8;
+    }
+
+    /* Diamond quyết định */
+    .decision-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 4px 0;
+      position: relative;
+    }
+    .diamond-box {
+      width: 120px;
+      height: 60px;
+      background: #fef08a;
+      border: 1.5px solid #facc15;
+      transform: perspective(1px);
+      clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 4px 14px;
+    }
+    .diamond-text {
+      font-size: 11px;
+      font-weight: 800;
+      color: #713f12;
+      line-height: 1.2;
+    }
+
+    /* Nhánh Có / Không */
+    .branch-row {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+      gap: 16px;
+      margin-top: 8px;
+      position: relative;
+    }
+    .branch-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .branch-label {
+      font-size: 10px;
+      font-weight: 700;
+    }
+    .branch-label.yes { color: #16a34a; }
+    .branch-label.no { color: #dc2626; }
+
+    .node-success {
+      background: #dcfce7;
+      border: 1.5px solid #86efac;
+      color: #14532d;
+      border-radius: 10px;
+      padding: 10px 8px;
+      font-size: 11px;
+      font-weight: 800;
+      text-align: center;
+      width: 100%;
+    }
+    .node-success .sub {
+      font-size: 9.5px;
+      font-weight: 600;
+      color: #16a34a;
+      margin-top: 2px;
+    }
+
+    .node-fail {
+      background: #fee2e2;
+      border: 1.5px solid #fca5a5;
+      color: #991b1b;
+      border-radius: 10px;
+      padding: 10px 8px;
+      font-size: 11px;
+      font-weight: 800;
+      text-align: center;
+      width: 100%;
+    }
+    .node-fail .sub {
+      font-size: 9.5px;
+      font-weight: 600;
+      color: #dc2626;
+      margin-top: 2px;
+    }
+
+    .flow-footer-note {
+      font-size: 10.5px;
+      color: #94a3b8;
+      text-align: center;
+      margin-top: 14px;
+    }
+
+    /* ── CỘT 2: WIREFRAME (PHÁC THẢO BỐ CỤC GRAYSCALE) ── */
+    .wireframe-window {
+      border: 1.5px solid #cbd5e1;
+      border-radius: 12px;
+      background: #ffffff;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .window-bar {
+      background: #f1f5f9;
+      border-bottom: 1px solid #cbd5e1;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #64748b;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .window-dots {
+      display: flex;
+      gap: 5px;
+    }
+    .window-dots span {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #cbd5e1;
+    }
+    .wireframe-body {
+      padding: 16px 18px;
+    }
+    .wf-title {
+      font-size: 15px;
+      font-weight: 800;
+      color: #1e293b;
+    }
+    .wf-sub {
+      font-size: 10.5px;
+      color: #64748b;
+      margin-top: 2px;
+      margin-bottom: 12px;
+    }
+
+    .wf-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border-radius: 8px;
+      background: #f1f5f9;
+      padding: 3px;
+      margin-bottom: 14px;
+    }
+    .wf-tab {
+      text-align: center;
+      padding: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      border-radius: 6px;
+      color: #64748b;
+    }
+    .wf-tab.active {
+      background: #1e293b;
+      color: #ffffff;
+    }
+
+    .wf-field {
+      margin-bottom: 10px;
+    }
+    .wf-label {
+      font-size: 10.5px;
+      font-weight: 600;
+      color: #475569;
+      margin-bottom: 3px;
+      display: block;
+    }
+    .wf-input {
+      width: 100%;
+      height: 32px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      background: #ffffff;
+      padding: 0 10px;
+      font-size: 11px;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+    }
+
+    .wf-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .wf-check {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      font-size: 9.5px;
+      color: #64748b;
+      margin: 10px 0 12px 0;
+    }
+    .wf-check input { margin-top: 2px; }
+
+    .wf-btn {
+      width: 100%;
+      height: 36px;
+      background: #1e293b;
+      color: #ffffff;
+      font-size: 11.5px;
+      font-weight: 800;
+      border: none;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      letter-spacing: 0.5px;
+    }
+    .wf-alt-link {
+      font-size: 10px;
+      color: #64748b;
+      text-align: center;
+      margin-top: 10px;
+    }
+
+    /* ── CỘT 3: MOCKUP CHI TIẾT (MÀU SẮC THƯƠNG HIỆU HOÀN THIỆN) ── */
+    .mockup-card {
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      background: #ffffff;
+      padding: 18px 20px;
+      box-shadow: 0 8px 24px rgba(79, 70, 229, 0.06);
+      display: flex;
+      flex-direction: column;
+    }
+    .mk-brand-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .mk-logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .mk-logo-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      box-shadow: 0 2px 6px rgba(79,70,229,0.3);
+    }
+    .mk-logo-text {
+      font-size: 13px;
+      font-weight: 800;
+      color: #0f172a;
+    }
+    .mk-logo-sub {
+      font-size: 9px;
+      color: #4f46e5;
+      font-weight: 700;
+    }
+    .mk-badge {
+      font-size: 9px;
+      font-weight: 800;
+      background: #eef2ff;
+      color: #4f46e5;
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid #c7d2fe;
+    }
+
+    .mk-header-box {
+      margin-bottom: 12px;
+    }
+    .mk-header-box h4 {
+      font-size: 15px;
+      font-weight: 800;
+      color: #0f172a;
+    }
+    .mk-header-box p {
+      font-size: 10px;
+      color: #64748b;
+      margin-top: 1px;
+    }
+    .mk-header-box p span {
+      color: #c21a1a;
+      font-weight: 700;
+    }
+
+    .mk-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border-radius: 8px;
+      background: #f1f5f9;
+      padding: 3px;
+      margin-bottom: 12px;
+    }
+    .mk-tab {
+      text-align: center;
+      padding: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      border-radius: 6px;
+      color: #64748b;
+    }
+    .mk-tab.active {
+      background: #c21a1a;
+      color: #ffffff;
+      box-shadow: 0 2px 6px rgba(194, 26, 26, 0.25);
+    }
+
+    .mk-field {
+      margin-bottom: 9px;
+    }
+    .mk-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: #334155;
+      margin-bottom: 2px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .mk-label .req { color: #dc2626; }
+    .mk-input {
+      width: 100%;
+      height: 31px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 7px;
+      background: #ffffff;
+      padding: 0 10px;
+      font-size: 11px;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all 0.2s;
+    }
+    .mk-input.has-val {
+      font-weight: 600;
+      border-color: #cbd5e1;
+    }
+    .mk-input .check-icon {
+      color: #10b981;
+      font-size: 12px;
+    }
+
+    .mk-btn {
+      width: 100%;
+      height: 36px;
+      background: #c21a1a;
+      color: #ffffff;
+      font-size: 11.5px;
+      font-weight: 800;
+      border: none;
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      letter-spacing: 0.3px;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(194, 26, 26, 0.28);
+      margin-top: 10px;
+    }
+
+    .mk-trust-badge {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 6px;
+      padding: 6px;
+      margin-top: 12px;
+      font-size: 9px;
+      font-weight: 700;
+      color: #15803d;
+    }
+
+    /* ═════════════════════════════════════════════════════════════════════════
+       FOOTER THÔNG TIN THIẾT KẾ & ĐẠI HỌC KIẾN TRÚC ĐÀ NẴNG (Y HỆT ẢNH MẪU)
+       ═════════════════════════════════════════════════════════════════════════ */
+    .artboard-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 18px;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .brand-palette-info {
+      font-size: 11.5px;
+      color: #475569;
+    }
+    .brand-palette-info strong {
+      color: #0f172a;
+      letter-spacing: 0.3px;
+    }
+
+    .dau-signature-box {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #ffffff;
+      border: 1.5px solid #fee2e2;
+      border-radius: 10px;
+      padding: 8px 16px;
+      box-shadow: 0 2px 8px rgba(194, 26, 26, 0.05);
+    }
+    .dau-logo-symbol {
+      width: 38px;
+      height: 38px;
+      object-fit: contain;
+      filter: drop-shadow(0 1px 3px rgba(194, 26, 26, 0.2));
+    }
+    .dau-info {
+      line-height: 1.3;
+    }
+    .dau-info .uni-name {
+      font-size: 11px;
+      font-weight: 800;
+      color: #c21a1a;
+      letter-spacing: 0.5px;
+    }
+    .dau-info .faculty-course {
+      font-size: 9.5px;
+      font-weight: 600;
+      color: #334155;
+    }
+    .dau-info .student-name {
+      font-size: 9.5px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    @media print {
+      body { background: white; padding: 0; margin: 0; }
+      .toolbar, .export-btns, .tab-group { display: none !important; }
+      .figma-artboard {
+        box-shadow: none !important;
+        border: none !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 10px !important;
+      }
+      @page {
+        size: A3 landscape;
+        margin: 8mm;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- THANH ĐIỀU KHIỂN & CHỌN CHỨC NĂNG CỦA ĐỒ ÁN SÁCHGÓC UNI -->
+  <div class="toolbar">
+    <div class="tab-group">
+      <a href="figma-board-dang-ky.html" class="tab-btn active" style="text-decoration:none;">1. Đăng Ký Tài Khoản</a>
+      <a href="figma-board-dang-nhap.html" class="tab-btn" style="text-decoration:none;">2. Đăng Nhập</a>
+      <a href="figma-board-dang-tin.html" class="tab-btn" style="text-decoration:none;">3. Đăng Tin Sản Phẩm</a>
+      <a href="figma-board-dat-mua.html" class="tab-btn" style="text-decoration:none;">4. Đặt Mua &amp; Xác Nhận</a>
+    </div>
+    <div class="export-btns">
+      <button class="btn-action btn-copy" onclick="quickSnapGuide()">📸 Copy ảnh (Ctrl+V vào Figma)</button>
+      <button class="btn-action" style="background:#7c3aed;color:white;" onclick="window.print()">🖨️ Xuất PDF (Cực nét)</button>
+      <button class="btn-action btn-png" onclick="exportArtboardPNG()">🖼️ Tải ảnh PNG</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       ARTBOARD CONTAINER CHÍNH
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <div class="figma-artboard" id="figmaArtboard">
+
+    <!-- HEADER: TÊN ĐỀ TÀI & CHỨC NĂNG -->
+    <div class="artboard-header">
+      <div class="brand-title">
+        <span class="logo-brand">SáchGóc Uni</span>
+        <span class="dot">•</span>
+        <span class="feature-name" id="artboardTitle">Đăng Ký Tài Khoản</span>
+      </div>
+      <div class="sub-meta">UI/UX DESIGN • USER FLOW • WIREFRAME • MOCKUP</div>
+    </div>
+
+    <!-- 3 NHÃN TIÊU ĐỀ BƯỚC -->
+    <div class="step-labels">
+      <div class="step-label s1">BƯỚC 1 • USER FLOW DIAGRAM</div>
+      <div class="step-label s2">BƯỚC 2 • WIREFRAME</div>
+      <div class="step-label s3">BƯỚC 3 • MOCKUP CHI TIẾT</div>
+    </div>
+
+    <!-- 3 CỘT NỘI DUNG -->
+    <div class="three-columns" id="columnsContainer">
+
+      <!-- ── CỘT 1: USER FLOW ── -->
+      <div class="column-card">
+        <div class="card-head">
+          <h3>Bước 1 • USER FLOW</h3>
+          <p>Thao tác — kiểm tra — kết quả</p>
+        </div>
+
+        <div class="flow-container" id="flowContainer">
+          <!-- Node 1: Start -->
+          <div class="flow-node start">Sinh viên chưa có tài khoản</div>
+          <div class="arrow-down"></div>
+
+          <!-- Node 2: Open page -->
+          <div class="flow-node step">Mở mục Đăng ký từ Trang chủ / Menu</div>
+          <div class="arrow-down"></div>
+
+          <!-- Node 3: Input -->
+          <div class="flow-node step">
+            Nhập Họ tên, Gmail, Khoa, MSSV &amp; Mật khẩu (&times;2)
+            <div class="sub-desc">Ràng buộc @gmail.com &amp; 2 mật khẩu trùng khớp</div>
+          </div>
+          <div class="arrow-down"></div>
+
+          <!-- Node 4: Validation -->
+          <div class="flow-node sys-check">
+            Kiểm tra trùng lặp, định dạng &amp; so khớp mật khẩu
+          </div>
+          <div class="arrow-down"></div>
+
+          <!-- Node 5: Decision Diamond -->
+          <div class="decision-wrap">
+            <div class="diamond-box">
+              <span class="diamond-text">Thông tin<br>hợp lệ?</span>
+            </div>
+          </div>
+
+          <!-- Branching -->
+          <div class="branch-row">
+            <div class="branch-col">
+              <span class="branch-label yes">Có (Đúng)</span>
+              <div class="node-success">
+                Đăng ký thành công
+                <div class="sub">— Tự động đăng nhập</div>
+              </div>
+            </div>
+            <div class="branch-col">
+              <span class="branch-label no">Không (Lỗi)</span>
+              <div class="node-fail">
+                Trùng dữ liệu / Lỗi
+                <div class="sub">— Báo lỗi, yêu cầu sửa</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-footer-note" id="flowFooterNote">
+          Hỗ trợ đăng ký nhanh cho sinh viên Kiến Trúc và chuyển đổi sang màn hình Đăng nhập.
+        </div>
+      </div>
+
+      <!-- ── CỘT 2: WIREFRAME ── -->
+      <div class="column-card">
+        <div class="card-head">
+          <h3>Bố cục phác thảo</h3>
+          <p>Thành phần và thứ tự nội dung</p>
+        </div>
+
+        <div class="wireframe-window">
+          <div class="window-bar">
+            <div class="window-dots">
+              <span></span><span></span><span></span>
+            </div>
+            <div>sachgocuni.vn/dang-ky/</div>
+            <div style="font-size:10px;">✕</div>
+          </div>
+
+          <div class="wireframe-body" id="wireframeBody">
+            <div class="wf-title">Đăng ký tài khoản mới</div>
+            <div class="wf-sub">Tham gia cộng đồng trao đổi sách &amp; đồ dùng ĐH Kiến trúc</div>
+
+            <div class="wf-tabs">
+              <div class="wf-tab active">Đăng ký</div>
+              <div class="wf-tab">Đăng nhập</div>
+            </div>
+
+            <div class="wf-field">
+              <label class="wf-label">Họ và tên</label>
+              <div class="wf-input">Nguyễn Văn Hào</div>
+            </div>
+
+            <div class="wf-field">
+              <label class="wf-label">Email sinh viên (@gmail.com)</label>
+              <div class="wf-input">haonguyen.dau@gmail.com</div>
+            </div>
+
+            <div class="wf-grid-2">
+              <div class="wf-field">
+                <label class="wf-label">Khoa / Ngành</label>
+                <div class="wf-input">CNTT - 24CT1</div>
+              </div>
+              <div class="wf-field">
+                <label class="wf-label">Mã sinh viên</label>
+                <div class="wf-input">24CT1001</div>
+              </div>
+            </div>
+
+            <div class="wf-grid-2">
+              <div class="wf-field">
+                <label class="wf-label">Mật khẩu</label>
+                <div class="wf-input">••••••••••••</div>
+              </div>
+              <div class="wf-field">
+                <label class="wf-label">Nhập lại mật khẩu</label>
+                <div class="wf-input">••••••••••••</div>
+              </div>
+            </div>
+
+            <div class="wf-check">
+              <input type="checkbox" checked disabled>
+              <span>Tôi đồng ý với Điều khoản sinh viên &amp; Quy chế giao dịch</span>
+            </div>
+
+            <div class="wf-btn">ĐĂNG KÝ TÀI KHOẢN</div>
+            <div class="wf-alt-link">Đã có tài khoản? <u>Đăng nhập</u></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── CỘT 3: MOCKUP CHI TIẾT ── -->
+      <div class="column-card">
+        <div class="card-head">
+          <h3>Giao diện hoàn thiện</h3>
+          <p>Màu sắc / chữ / CTA SáchGóc Uni</p>
+        </div>
+
+        <div class="mockup-card" id="mockupCard">
+          <div class="mk-brand-row">
+            <div class="mk-logo">
+              <div class="mk-logo-icon">📚</div>
+              <div>
+                <div class="mk-logo-text">SáchGóc Uni</div>
+                <div class="mk-logo-sub">ĐỒ DÙNG SINH VIÊN DAU</div>
+              </div>
+            </div>
+            <div class="mk-badge">DAU MEMBER</div>
+          </div>
+
+          <div class="mk-header-box">
+            <h4>Đăng ký thành viên</h4>
+            <p>Tặng ngay huy hiệu <span>Sinh viên Uy tín</span> khi đăng ký bằng Gmail!</p>
+          </div>
+
+          <div class="mk-tabs">
+            <div class="mk-tab active">Đăng ký</div>
+            <div class="mk-tab">Đăng nhập</div>
+          </div>
+
+          <div class="mk-field">
+            <div class="mk-label"><span>Họ và tên</span><span class="req">*</span></div>
+            <div class="mk-input has-val">
+              <span>Nguyễn Văn Hào</span>
+              <span class="check-icon">✓</span>
+            </div>
+          </div>
+
+          <div class="mk-field">
+            <div class="mk-label"><span>Email sinh viên</span><span class="req">*</span></div>
+            <div class="mk-input has-val">
+              <span>haonguyen.dau@gmail.com</span>
+              <span class="check-icon">✓</span>
+            </div>
+          </div>
+
+          <div class="wf-grid-2">
+            <div class="mk-field">
+              <div class="mk-label"><span>Khoa đào tạo</span></div>
+              <div class="mk-input has-val"><span>Công Nghệ Thông Tin</span></div>
+            </div>
+            <div class="mk-field">
+              <div class="mk-label"><span>Mã sinh viên</span></div>
+              <div class="mk-input has-val"><span>24CT1-DAU</span></div>
+            </div>
+          </div>
+
+          <div class="wf-grid-2">
+            <div class="mk-field">
+              <div class="mk-label"><span>Mật khẩu</span><span class="req">*</span></div>
+              <div class="mk-input has-val">
+                <span>••••••••••••</span>
+                <span style="width:7px;height:7px;border-radius:50%;background:#10b981;"></span>
+              </div>
+            </div>
+            <div class="mk-field">
+              <div class="mk-label"><span>Nhập lại MK</span><span class="req">*</span></div>
+              <div class="mk-input has-val">
+                <span>••••••••••••</span>
+                <span class="check-icon">✓</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="wf-check" style="color:#334155;">
+            <input type="checkbox" checked style="accent-color:#c21a1a;">
+            <span>Tôi đồng ý với Quy chế chia sẻ đồ dùng &amp; Bảo vệ dữ liệu cá nhân</span>
+          </div>
+
+          <button class="mk-btn">ĐĂNG KÝ THÀNH VIÊN NGAY</button>
+          <div class="wf-alt-link" style="color:#64748b;margin-top:8px;">
+            Đã có tài khoản? <span style="color:#c21a1a;font-weight:700;">Đăng nhập ngay</span>
+          </div>
+
+          <div class="mk-trust-badge">
+            <span>🛡️ Xác thực sinh viên Kiến Trúc • Miễn phí 100% • Hỗ trợ: 24CT1</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- FOOTER FIGMA: MÀU THƯƠNG HIỆU & THÔNG TIN SINH VIÊN TRƯỜNG ĐH KIẾN TRÚC ĐÀ NẴNG -->
+    <div class="artboard-footer">
+      <div class="brand-palette-info">
+        <strong>MÀU THƯƠNG HIỆU:</strong> Đỏ biểu trưng Kiến Trúc Đà Nẵng • Xanh Navy tri thức • Trắng tinh khiết • Nền kem xám hiện đại
+      </div>
+
+      <div class="dau-signature-box">
+        <img src="logo-dau.png" alt="Logo Trường ĐH Kiến Trúc Đà Nẵng" class="dau-logo-symbol">
+        <div class="dau-info">
+          <div class="uni-name">TRƯỜNG ĐẠI HỌC KIẾN TRÚC ĐÀ NẴNG</div>
+          <div class="faculty-course">KHOA CÔNG NGHỆ THÔNG TIN • ĐỒ ÁN THIẾT KẾ PHẦN MỀM</div>
+          <div class="student-name">SV: Nguyễn Văn Hào • Lớp: 24CT1</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Dữ liệu 4 chức năng của đề tài SáchGóc Uni
+    const featureData = {
+      register: {
+        title: "Đăng Ký Tài Khoản",
+        flow: [
+          { type: 'start', text: 'Sinh viên chưa có tài khoản' },
+          { type: 'step', text: 'Mở mục Đăng ký từ Trang chủ / Menu' },
+          { type: 'step', text: 'Nhập Họ tên, Gmail, Khoa, MSSV & Mật khẩu (×2)', sub: 'Ràng buộc @gmail.com & 2 mật khẩu trùng khớp' },
+          { type: 'sys-check', text: 'Kiểm tra trùng lặp, định dạng & so khớp mật khẩu' },
+          { type: 'decision', text: 'Thông tin<br>hợp lệ?', yesText: 'Đăng ký thành công', yesSub: '— Tự động đăng nhập', noText: 'Trùng dữ liệu / Lỗi', noSub: '— Báo lỗi, yêu cầu sửa' }
+        ],
+        footerNote: 'Hỗ trợ đăng ký nhanh cho sinh viên Kiến Trúc và chuyển đổi sang màn hình Đăng nhập.',
+        wfTitle: 'Đăng ký tài khoản mới',
+        wfSub: 'Tham gia cộng đồng trao đổi sách & đồ dùng ĐH Kiến trúc',
+        btnText: 'ĐĂNG KÝ TÀI KHOẢN',
+        mkBtnText: 'ĐĂNG KÝ THÀNH VIÊN NGAY'
+      },
+      login: {
+        title: "Đăng Nhập Hệ Thống",
+        flow: [
+          { type: 'start', text: 'Sinh viên đã có tài khoản' },
+          { type: 'step', text: 'Mở trang Đăng nhập từ thanh điều hướng' },
+          { type: 'step', text: 'Nhập Tên đăng nhập (hoặc Gmail) & Mật khẩu', sub: 'Hệ thống tự nhận dạng địa chỉ email' },
+          { type: 'sys-check', text: 'Xác thực credentials qua Django Auth & hash PBKDF2' },
+          { type: 'decision', text: 'Mật khẩu<br>chính xác?', yesText: 'Đăng nhập thành công', yesSub: '— Tạo Session & Cookie', noText: 'Sai thông tin', noSub: '— Báo lỗi tên/mật khẩu' }
+        ],
+        footerNote: 'Hỗ trợ nhớ phiên đăng nhập và phân quyền sinh viên / cán bộ quản trị.',
+        wfTitle: 'Đăng nhập hệ thống',
+        wfSub: 'Truy cập tài khoản trao đổi sách & đồ dùng học tập',
+        btnText: 'ĐĂNG NHẬP',
+        mkBtnText: 'ĐĂNG NHẬP VÀO SÁCHGÓC'
+      },
+      create_post: {
+        title: "Đăng Tin Sản Phẩm",
+        flow: [
+          { type: 'start', text: 'Sinh viên cần nhượng sách / đồ cũ' },
+          { type: 'step', text: 'Bấm nút "Đăng tin mới" trên Header' },
+          { type: 'step', text: 'Tải ảnh bìa, điền Tiêu đề, Giá, Danh mục & Mô tả', sub: 'Tùy chọn: Chọn 0đ nếu là đồ tặng tân sinh viên' },
+          { type: 'sys-check', text: 'Kiểm tra dung lượng ảnh (<5MB), tiêu đề >= 5 ký tự' },
+          { type: 'decision', text: 'Bài đăng<br>hợp lệ?', yesText: 'Đăng tin thành công', yesSub: '— Trạng thái: ACTIVE', noText: 'Lỗi định dạng', noSub: '— Báo lỗi ô nhập sai' }
+        ],
+        footerNote: 'Sản phẩm sau khi đăng sẽ tự sinh URL slug thân thiện và xuất hiện trên Sàn.',
+        wfTitle: 'Đăng tin nhượng đồ dùng',
+        wfSub: 'Giáo trình, dụng cụ vẽ kiến trúc, đồ án cũ',
+        btnText: 'ĐĂNG TIN NGAY',
+        mkBtnText: 'ĐĂNG BÀI LÊN SÀN NGAY'
+      },
+      buy_post: {
+        title: "Đặt Mua & Xác Nhận",
+        flow: [
+          { type: 'start', text: 'Người mua xem chi tiết sản phẩm' },
+          { type: 'step', text: 'Bấm nút "Đặt mua ngay" (Không phải chủ tin)' },
+          { type: 'step', text: 'Nhập thông tin liên hệ (SĐT / Zalo / Lời nhắn hẹn gặp)', sub: 'Hệ thống chốt giá (price_snapshot) tại lúc đặt' },
+          { type: 'sys-check', text: 'Kiểm tra hàng còn trống & chưa có đơn PENDING trùng' },
+          { type: 'decision', text: 'Gửi đơn<br>thành công?', yesText: 'Tạo đơn #ID PENDING', yesSub: '— Chờ người bán bấm duyệt', noText: 'Sản phẩm đã bán', noSub: '— Không thể đặt mua' }
+        ],
+        footerNote: 'Người bán nhận thông báo, xác nhận gặp mặt và kết thúc giao dịch an toàn.',
+        wfTitle: 'Xác nhận đặt mua',
+        wfSub: 'Giao dịch trực tiếp tại khuôn viên ĐH Kiến trúc Đà Nẵng',
+        btnText: 'GỬI YÊU CẦU ĐẶT MUA',
+        mkBtnText: 'XÁC NHẬN GỬI ĐƠN MUA'
+      }
+    };
+
+    function switchFeature(key) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      event.target.classList.add('active');
+
+      const data = featureData[key];
+      document.getElementById('artboardTitle').innerText = data.title;
+      document.getElementById('flowFooterNote').innerText = data.footerNote;
+
+      // Cập nhật flow
+      const flowBox = document.getElementById('flowContainer');
+      let html = '';
+      data.flow.forEach((node, idx) => {
+        if (node.type === 'start') {
+          html += `<div class="flow-node start">${node.text}</div><div class="arrow-down"></div>`;
+        } else if (node.type === 'step') {
+          html += `<div class="flow-node step">${node.text}${node.sub ? `<div class="sub-desc">${node.sub}</div>` : ''}</div><div class="arrow-down"></div>`;
+        } else if (node.type === 'sys-check') {
+          html += `<div class="flow-node sys-check">${node.text}</div><div class="arrow-down"></div>`;
+        } else if (node.type === 'decision') {
+          html += `
+            <div class="decision-wrap">
+              <div class="diamond-box"><span class="diamond-text">${node.text}</span></div>
+            </div>
+            <div class="branch-row">
+              <div class="branch-col">
+                <span class="branch-label yes">Có (Đúng)</span>
+                <div class="node-success">${node.yesText}<div class="sub">${node.yesSub}</div></div>
+              </div>
+              <div class="branch-col">
+                <span class="branch-label no">Không (Lỗi)</span>
+                <div class="node-fail">${node.noText}<div class="sub">${node.noSub}</div></div>
+              </div>
+            </div>
+          `;
+        }
+      });
+      flowBox.innerHTML = html;
+    }
+
+    // Tải ảnh PNG độ nét cao (2x) cho Figma
+    function exportArtboardPNG() {
+      if (typeof html2canvas === 'undefined') {
+        const usePrint = confirm(
+          "⚠️ Trình duyệt chưa nạp được thư viện html2canvas (do mở file offline hoặc bị chặn).\n\n" +
+          "👉 BẠN CÓ 2 CÁCH NHANH VÀ NÉT HƠN NHIỀU:\n" +
+          "1. [NHANH NHẤT] Nhấn tổ hợp phím 'Windows + Shift + S' -> Quét chọn bảng này -> Sang Figma nhấn Ctrl+V là xong ngay!\n" +
+          "2. [NÉT NHẤT] Bấm OK để mở hộp thoại In/Lưu PDF -> Lưu PDF rồi kéo vào Figma (vector 100% không vỡ hạt).\n\n" +
+          "Bấm OK để mở hộp thoại In / Lưu PDF ngay?"
+        );
+        if (usePrint) window.print();
+        return;
+      }
+      const artboard = document.getElementById('figmaArtboard');
+      const title = document.getElementById('artboardTitle').innerText.replace(/\s+/g, '_');
+      html2canvas(artboard, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff'
+      }).then(canvas => {
+        const link = document.createElement('a');
+        link.download = `SachGocUni_${title}_Figma.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      }).catch(err => {
+        alert("Lỗi xuất ảnh: " + err.message + "\nHãy dùng phím tắt 'Windows + Shift + S' để chụp và dán vào Figma!");
+      });
+    }
+
+    function quickSnapGuide() {
+      alert(
+        "🚀 MẸO DÁN VÀO FIGMA TRONG 3 GIÂY (Không cần tải file):\n\n" +
+        "1. Trên bàn phím, nhấn cùng lúc 3 phím: Windows + Shift + S\n" +
+        "2. Kéo chuột quét chọn toàn bộ khung Artboard màu trắng.\n" +
+        "3. Mở tab Figma của bạn -> Nhấn Ctrl + V là ảnh xuất hiện ngay lập tức!\n\n" +
+        "👉 Đây là cách các Designer dùng nhiều nhất vì cực nhanh và giữ nguyên độ nét màn hình!"
+      );
+    }
+  </script>
+</body>
+</html>
