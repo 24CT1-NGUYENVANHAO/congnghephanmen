@@ -154,9 +154,14 @@ BOX_LINE = "#334155"
 DB_FILL = "#eef2f7"
 
 
-def _wrap_text(text: str, max_width: float, font_size: float) -> list[str]:
-    """Ngắt dòng tham lam theo bề rộng ước lượng (không cần font metrics)."""
-    max_chars = max(6, int(max_width / (font_size * 0.52)))
+def _wrap_text(text: str, max_width: float, font_size: float,
+               char_factor: float = 0.52) -> list[str]:
+    """Ngắt dòng tham lam theo bề rộng ước lượng (không cần font metrics).
+
+    ``char_factor`` là bề rộng trung bình của một ký tự tính theo đơn vị em.
+    Nhãn thông điệp dùng chữ nhỏ nên hệ số thực tế thấp hơn phần đầu mục.
+    """
+    max_chars = max(6, int(max_width / (font_size * char_factor)))
     lines: list[str] = []
     current = ""
     for word in text.split():
@@ -169,7 +174,19 @@ def _wrap_text(text: str, max_width: float, font_size: float) -> list[str]:
             current = word
     if current:
         lines.append(current)
-    return lines or [""]
+    lines = lines or [""]
+    # Số thứ tự ("7.") không bao giờ đứng một mình trên dòng: gộp vào dòng sau.
+    merged: list[str] = []
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        if re.fullmatch(r"\d+\.", line) and index + 1 < len(lines):
+            merged.append(f"{line} {lines[index + 1]}")
+            index += 2
+            continue
+        merged.append(line)
+        index += 1
+    return merged
 
 
 def _esc(text: str) -> str:
@@ -280,6 +297,7 @@ class SequenceDiagram:
         self.blocks = self._header_blocks()
         self.header_h = max(block["height"] for block in self.blocks)
         self.header_bottom = self.HEAD_TOP + self.header_h + 4
+        x_bounds = self._fragment_x_bounds()
         start_marks = {frag["first"]: frag for frag in self.fragments}
         split_marks = {
             frag["split"] + 1 for frag in self.fragments
@@ -296,36 +314,49 @@ class SequenceDiagram:
             ys.append(y)
             src_x = self.xs[message["src"]]
             dst_x = self.xs[message["dst"]]
+            # Khung hẹp nhất chứa thông điệp (nếu có) quyết định vùng được viết:
+            # nhãn phải nằm gọn trong khung thay vì tràn sang cột tác nhân bên
+            # phải. Thông điệp ngoài khung vẫn dùng hết bề rộng hình.
+            holders = [rect for rect in x_bounds
+                       if rect["first"] <= index <= rect["last"]]
+            holder = (min(holders, key=lambda r: r["right"] - r["left"])
+                      if holders else None)
+            inner_left = holder["left"] + 4 if holder else 4.0
+            inner_right = holder["right"] - 4 if holder else self.width - 8
             if message["src"] == message["dst"]:
                 # Đoạn tự xử lý: vòng gấp khúc quay lại chính đường sống. Nếu
-                # đường sống sát mép phải thì vẽ vòng sang trái cho khỏi bị cắt,
-                # còn nhãn đặt ở phía còn đủ chỗ.
-                if src_x + 34 <= self.width - 8:
+                # còn ít chỗ bên phải thì vẽ vòng sang trái và đặt nhãn bên trái.
+                if src_x + 34 <= inner_right:
                     message["loop_dir"] = 1
                 else:
                     message["loop_dir"] = -1
-                room_right = self.width - 14 - src_x
-                if room_right >= 120:
+                if inner_right - src_x >= 120:
                     message["anchor"] = "start"
                     x_text = src_x + 8
-                    max_w = min(170.0, room_right)
+                    max_w = min(170.0, inner_right - x_text)
                 else:
                     message["anchor"] = "end"
                     x_text = src_x - 8
-                    max_w = min(170.0, src_x - 14)
+                    max_w = min(170.0, max(x_text - inner_left, 70.0))
             elif dst_x > src_x:
-                # Lời gọi đi sang phải: nhãn bắt đầu ngay sau đường sống nguồn.
+                # Lời gọi đi sang phải: nhãn bắt đầu ngay sau đường sống nguồn
+                # và kết thúc trước cạnh phải của khung bao.
                 message["anchor"] = "start"
                 x_text = src_x + 6
-                max_w = self.width - x_text - 6
+                max_w = max(inner_right - x_text - 4, 70.0)
             else:
                 # Giá trị trả về đi sang trái: nhãn canh phải, kết thúc ngay
-                # dưới đường sống nguồn như mẫu tham chiếu.
+                # dưới đường sống nguồn như mẫu tham chiếu. Nhãn trả về được
+                # phép vượt cạnh trái của khung để chạm tới cột giao diện,
+                # nhưng phải dừng hẳn bên ngoài khung, không đè lên đường bao.
                 message["anchor"] = "end"
                 x_text = src_x - 6
+                if holder is not None and x_text <= inner_left + 8:
+                    x_text = holder["left"] - 6
                 max_w = max(x_text - 8, 60.0)
             message["x_text"] = x_text
-            lines = _wrap_text(f"{index + 1}. {message['label']}", max_w, self.font)
+            lines = _wrap_text(f"{index + 1}. {message['label']}", max_w, self.font,
+                                char_factor=0.46)
             message["lines"] = lines
             if message["kind"] == "self":
                 height = len(lines) * self.line_h + 36
@@ -333,12 +364,12 @@ class SequenceDiagram:
                 height = len(lines) * self.line_h + 22
             heights.append(height)
             y += height
-        self.frag_rects = self._fragment_bounds(ys, heights)
+        self.frag_rects = self._fragment_bounds(ys, heights, x_bounds)
         self._keep_loops_inside()
         return ys, heights, y + 10
 
-    def _fragment_bounds(self, ys: list[float], heights: list[float]) -> list[dict]:
-        """Tính hộp bao của từng khung alt/opt từ các đường sống liên quan.
+    def _fragment_x_bounds(self) -> list[dict]:
+        """Tính cạnh trái/phải của từng khung alt/opt từ các đường sống liên quan.
 
         Khung chỉ ôm các đường sống phía backend: khách (người dùng, giao diện)
         nằm ngoài khung, nhờ vậy khung rẽ nhánh trùng đúng vùng xử lý phía máy
@@ -368,12 +399,21 @@ class SequenceDiagram:
             if nested:
                 left += 4
                 right -= 4
-            rects.append({
-                **frag, "left": left, "right": right,
-                "top": ys[frag["first"]] - 22,
-                "bottom": ys[frag["last"]] + heights[frag["last"]] - 2,
-            })
+            rects.append({**frag, "left": left, "right": right})
         return rects
+
+    def _fragment_bounds(self, ys: list[float], heights: list[float],
+                         x_bounds: list[dict] | None = None) -> list[dict]:
+        """Bổ sung cạnh trên/dưới cho các hộp bao đã có cạnh trái/phải."""
+        rects = x_bounds if x_bounds is not None else self._fragment_x_bounds()
+        return [
+            {
+                **rect,
+                "top": ys[rect["first"]] - 22,
+                "bottom": ys[rect["last"]] + heights[rect["last"]] - 2,
+            }
+            for rect in rects
+        ]
 
     def _keep_loops_inside(self) -> None:
         """Quay vòng tự xử lý vào trong nếu nó định vẽ ra ngoài khung bao."""
@@ -537,13 +577,12 @@ class SequenceDiagram:
                 f'<text x="{left + tab_w + 7:.1f}" y="{top + 9.4:.1f}" font-family="{DIAGRAM_FONT}" '
                 f'font-size="7.2" font-style="italic" fill="#1f2937">{_esc(frag["guard"])}</text>'
             )
+            parts.append(
+                f'<line x1="{left:.1f}" y1="{top + 13:.1f}" x2="{right:.1f}" y2="{top + 13:.1f}" '
+                f'stroke="{FRAG_COLOR}" stroke-width="0.9"/>'
+            )
             split = frag["split"]
-            if split is None:
-                parts.append(
-                    f'<line x1="{left:.1f}" y1="{top + 13:.1f}" x2="{right:.1f}" y2="{top + 13:.1f}" '
-                    f'stroke="#94a3b8" stroke-width="0.7" stroke-dasharray="3 2.4"/>'
-                )
-            else:
+            if split is not None:
                 # Đường kẻ đứt chia hai toán hạng, kèm nhãn [else] của nhánh sau.
                 div_y = ys[split + 1] - 18
                 parts.append(
@@ -663,7 +702,7 @@ SEQUENCES: dict[str, dict] = {
             (0, 1, "Truy cập /dang-nhap/ (GET)", "call"),
             (1, 2, "Chuyển yêu cầu cho view user_login()", "call"),
             (2, 0, "Render registration/login.html + form trống", "return"),
-            (0, 2, "POST: username hoặc email + mật khẩu", "call"),
+            (0, 2, "POST: email + mật khẩu", "call"),
             (2, 2, "_is_allowed_email(): chỉ @gmail.com và *.edu.vn", "self"),
             (2, 3, "AuthenticationForm(username, password)", "call"),
             (3, 4, "authenticate(): đối chiếu mật khẩu đã băm", "call"),
@@ -737,7 +776,7 @@ SEQUENCES: dict[str, dict] = {
             (2, 2, "Kiểm tra: không phải chủ bài, sản phẩm còn, chưa có đơn mở", "self"),
             (2, 0, "Render buy_post.html + OrderForm", "return"),
             (0, 2, "POST: lời nhắn, số điện thoại, địa điểm hẹn", "call"),
-            (2, 3, "OrderForm(request.POST), commit=False", "call"),
+            (2, 3, "Tạo form = OrderForm(POST)", "call"),
             (2, 3, "Gán post, buyer, seller, price_snapshot = post.price", "call"),
             (3, 3, "INSERT đơn mới, status = PENDING", "self"),
             (2, 0, "redirect('my_orders') + thông báo đã gửi", "return"),
