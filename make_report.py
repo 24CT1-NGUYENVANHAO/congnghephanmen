@@ -1040,7 +1040,7 @@ def build_ch2_head(doc: Doc) -> None:
     )
     doc.p(
         "Toàn bộ số liệu trong chương được lấy từ chính dự án đang chạy trên máy phát "
-        "triển, không phải số liệu giả định: cơ sở dữ liệu MariaDB `sachgocuni_db`, "
+        "triển, không phải số liệu giả định: cơ sở dữ liệu MariaDB `sachgocuni.db`, "
         "ảnh chụp màn hình chụp trực tiếp từ Chrome ở kích thước 1440 điểm ảnh, còn "
         "các hình vẽ được sinh từ mã nguồn của chính báo cáo để bảo đảm sơ đồ và bảng "
         "số liệu luôn khớp nhau."
@@ -1069,6 +1069,9 @@ def _message_table(doc: Doc, key: str, caption: str) -> None:
         caption,
         widths=[1.35, 4.6, 7.0, 2.05],
         font_pt=11,
+        # Bảng luôn nằm trọn một trang: cắt đôi bảng mười hai dòng chỉ để lại
+        # một trang gần trống, trong khi bảng vừa đúng một trang giấy.
+        keep_together=True,
     )
 
 
@@ -1089,8 +1092,23 @@ def build_ch2_1(doc: Doc) -> None:
         "SáchGóc Uni đều đi qua: đăng ký, đăng nhập, đăng tin sản phẩm và đặt mua. "
         "Trong sơ đồ, mũi tên nét liền là lời gọi hàm, mũi tên nét đứt là giá trị trả "
         "về, đường gấp khúc quay lại chính đường sống là đoạn xử lý nội bộ của một đối "
-        "tượng. Khung nền vàng có nhãn *opt* đánh dấu phần chỉ chạy khi điều kiện đi "
-        "kèm đúng — ví dụ khi người đăng tin có tải thêm ảnh."
+        "tượng. Mỗi sơ đồ mở đầu bằng băng tiêu đề xanh nhạt ghi tên chức năng; bên "
+        "dưới là hộp tiêu đề của từng tác nhân, ghi đúng đường dẫn tệp giao diện và tệp "
+        "xử lý trong dự án, riêng cơ sở dữ liệu được vẽ thành hình trụ kèm tên CSDL và "
+        "các bảng liên quan. Mỗi sơ đồ có đúng một khung *alt* — khung rẽ nhánh lớn "
+        "nhất — chia luồng thành hai toán hạng: điều kiện thành công ở trên và điều "
+        "kiện thất bại ở dưới, ngăn cách bởi đường kẻ đứt ghi nhãn `[else]`. Nhãn điều "
+        "kiện được đặt trong ngoặc vuông ngay sau chữ *alt*, theo đúng quy ước của UML. "
+        "Riêng sơ đồ đăng tin còn có thêm một khung *opt* lồng bên trong khung *alt*, "
+        "đánh dấu phần chỉ chạy khi người đăng có tải thêm ảnh phụ."
+    )
+    doc.p(
+        "Mỗi hình đi kèm một bảng thông điệp đánh số đúng như số thứ tự trên hình, nhờ "
+        "vậy người đọc tra được tên hàm và tên bảng mà không phải phóng to hình. Cột "
+        "“Loại” trong bảng lặp lại đúng ba kiểu nét vẽ: *Gọi hàm* cho mũi tên nét liền, "
+        "*Trả về* cho mũi tên nét đứt và *Tự xử lý* cho đoạn xử lý nội bộ vẽ bằng đường "
+        "gấp khúc. Hình giữ vai trò tổng quan, bảng giữ vai trò tra cứu chi tiết — cách "
+        "trình bày này cũng là quy ước của tài liệu thiết kế phần mềm."
     )
 
     # ------------------------------------------------------------ 2.1.1
@@ -1107,10 +1125,16 @@ def build_ch2_1(doc: Doc) -> None:
         "tại hay không. Cuối cùng view gọi `login()` để tạo phiên làm việc và chuyển "
         "hướng về trang chủ kèm lời chào."
     )
-    _message_table(doc, "dang-ky",
-                   "Các thông điệp của luồng đăng ký tài khoản")
+    doc.p(
+        "Nhánh `[else]` của khung *alt* mô tả trường hợp ngược lại: nếu `is_valid()` "
+        "trả về `False`, view bỏ qua toàn bộ phần tạo người dùng — không có bản ghi "
+        "`auth_user` nào được ghi, không có `Profile` nào được tạo — mà render lại "
+        "`register.html` kèm thông báo lỗi ngay dưới từng trường sai."
+    )
     doc.figure(ASSETS / "seq-dang-ky.png",
                "Sơ đồ tuần tự chức năng đăng ký tài khoản")
+    _message_table(doc, "dang-ky",
+                   "Các thông điệp của luồng đăng ký tài khoản")
 
     # ------------------------------------------------------------ 2.1.2
     doc.h3("2.1.2. Đăng nhập")
@@ -1122,12 +1146,15 @@ def build_ch2_1(doc: Doc) -> None:
         "`AuthenticationForm` gọi `authenticate()`, hàm này băm mật khẩu vừa nhập rồi "
         "so sánh với giá trị đã lưu; kết quả là đối tượng người dùng hoặc `None`. Nếu "
         "xác thực thành công, `login()` ghi mã định danh phiên vào cookie và view "
-        "chuyển hướng về tham số `next` nếu có, ngược lại về trang chủ."
+        "chuyển hướng về tham số `next` nếu có, ngược lại về trang chủ. Nhánh `[else]` "
+        "của sơ đồ là đường thất bại: khi `authenticate()` trả về `None`, view không "
+        "gọi `login()` mà render lại `login.html` kèm biến `login_error` để hiện thông "
+        "báo, nhờ vậy người dùng biết sai ở đâu và thử lại được ngay trên biểu mẫu."
     )
-    _message_table(doc, "dang-nhap",
-                   "Các thông điệp của luồng đăng nhập")
     doc.figure(ASSETS / "seq-dang-nhap.png",
                "Sơ đồ tuần tự chức năng đăng nhập")
+    _message_table(doc, "dang-nhap",
+                   "Các thông điệp của luồng đăng nhập")
 
     # ------------------------------------------------------------ 2.1.3
     doc.h3("2.1.3. Đăng tin sản phẩm")
@@ -1139,13 +1166,16 @@ def build_ch2_1(doc: Doc) -> None:
         "ảnh. Hàm `Post.save()` được viết đè để tự sinh `slug` duy nhất từ tiêu đề và "
         "tự đặt `is_free = True` khi giá nhập vào bằng 0 — nhờ vậy một tin “tặng lại” "
         "không cần thêm thao tác riêng. Nếu người dùng chọn thêm ảnh phụ, mỗi ảnh sinh "
-        "một bản ghi `PostImage` trỏ tới bài vừa tạo (phần nằm trong khung *opt*). "
-        "Cuối cùng view chuyển hướng tới trang chi tiết của bài mới."
+        "một bản ghi `PostImage` trỏ tới bài vừa tạo (khung *opt* lồng bên trong khung "
+        "*alt*). Cuối cùng view chuyển hướng tới trang chi tiết của bài mới. Nếu "
+        "`PostForm` báo lỗi thì nhánh `[else]` được chạy: view không ghi gì vào cơ sở "
+        "dữ liệu mà render lại `post_form.html` kèm lỗi từng trường, và ảnh phụ đã "
+        "chọn cũng không được lưu."
     )
-    _message_table(doc, "dang-tin",
-                   "Các thông điệp của luồng đăng tin sản phẩm")
     doc.figure(ASSETS / "seq-dang-tin.png",
                "Sơ đồ tuần tự chức năng đăng tin sản phẩm")
+    _message_table(doc, "dang-tin",
+                   "Các thông điệp của luồng đăng tin sản phẩm")
 
     # ------------------------------------------------------------ 2.1.4
     doc.h3("2.1.4. Đặt mua và xác nhận đơn")
@@ -1158,13 +1188,16 @@ def build_ch2_1(doc: Doc) -> None:
         "nhau. Khi biểu mẫu hợp lệ, view gán `post`, `buyer`, `seller` và chép giá hiện "
         "tại vào `price_snapshot` rồi mới ghi đơn với `status = PENDING`; chép giá là "
         "cần thiết vì người bán có thể sửa giá sau đó mà đơn đã chốt phải giữ nguyên "
-        "con số hai bên đã thoả thuận. Ở nửa dưới của sơ đồ, người bán gọi "
+        "con số hai bên đã thoả thuận. Nhánh `[else]` của khung *alt* là đường từ chối: "
+        "khi vi phạm một trong ba điều kiện, view ghi thông báo lỗi rồi chuyển hướng "
+        "về trang sản phẩm — hoặc về `my_orders` nếu lỗi là đơn đã tồn tại — thay vì "
+        "tạo đơn mới. Ở nửa dưới của sơ đồ, người bán gọi "
         "`accept_order()` để chuyển đơn sang `CONFIRMED`, hoàn tất giao dịch."
     )
-    _message_table(doc, "dat-mua",
-                   "Các thông điệp của luồng đặt mua và xác nhận đơn")
     doc.figure(ASSETS / "seq-dat-mua.png",
                "Sơ đồ tuần tự chức năng đặt mua và xác nhận đơn")
+    _message_table(doc, "dat-mua",
+                   "Các thông điệp của luồng đặt mua và xác nhận đơn")
 
 
 def build_ch2_2(doc: Doc) -> None:

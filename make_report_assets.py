@@ -143,7 +143,15 @@ DIAGRAM_FONT = "Segoe UI, Arial, Helvetica, sans-serif"
 INK = "#111827"
 CALL_COLOR = "#1f2937"
 RETURN_COLOR = "#64748b"
-FRAG_COLOR = "#b45309"
+FRAG_COLOR = "#1e3a8a"
+
+#: Bảng màu bám mẫu tham chiếu: băng tiêu đề xanh nhạt, hộp tác nhân viền
+#: mảnh nền trắng, cơ sở dữ liệu vẽ thành hình trụ.
+BANNER_FILL = "#dbeafe"
+BANNER_LINE = "#93c5fd"
+BANNER_INK = "#0b2c52"
+BOX_LINE = "#334155"
+DB_FILL = "#eef2f7"
 
 
 def _wrap_text(text: str, max_width: float, font_size: float) -> list[str]:
@@ -174,69 +182,273 @@ def _esc(text: str) -> str:
 
 
 class SequenceDiagram:
-    """Dựng sơ đồ tuần tự UML bằng SVG thuần.
+    """Dựng sơ đồ tuần tự bám mẫu tham chiếu bằng SVG thuần.
 
-    Toạ độ tính theo "đơn vị điểm" (1 đơn vị ≈ 1 pt khi in rộng 15.5 cm),
-    nhờ vậy cỡ chữ 8.4 đơn vị tương đương 8.4 pt trên giấy.
+    Mỗi tác nhân có một hộp tiêu đề riêng ghi đường dẫn tệp thật của dự án
+    (riêng cơ sở dữ liệu vẽ thành hình trụ), phía trên là băng tiêu đề xanh
+    nhạt và hộp "Tên chức năng" ở góc phải. Toạ độ tính theo "đơn vị điểm":
+    480 đơn vị in ra 15 cm, nên cỡ chữ 10 đơn vị tương đương 8,9 pt trên giấy.
     """
 
-    def __init__(self, actors: list[str], width: float = 480, margin: float = 8):
-        self.actors = actors
-        self.width = width
-        self.margin = margin
+    WIDTH = 480.0
+    MESSAGE_FONT = 10.0
+    LINE_H = 14.0
+    HEAD_FONT = 7.0
+    CAPTION_FONT = 6.6
+    HEAD_LINE_H = 9.2
+    HEAD_TOP = 58.0
+    BANNER_TOP = 6.0
+    BANNER_H = 40.0
+    LEGEND_W = 136.0
+
+    def __init__(self, headers: list[dict], banner: str, legend: str,
+                 width: float | None = None):
+        self.headers = headers
+        self.banner = banner
+        self.legend = legend
+        self.width = width or self.WIDTH
         self.messages: list[dict] = []
         self.fragments: list[dict] = []
-        count = max(1, len(actors) - 1)
-        # Hộp actor chia đều bề rộng, luôn chừa khe 8 đơn vị giữa các hộp.
-        self.box_w = (width - 16) / len(actors) - 6
+        self.frag_rects: list[dict] = []
+        # Hộp tác nhân chia đều bề rộng, luôn chừa khe 8 đơn vị giữa các hộp.
+        self.box_w = (self.width - 16) / len(headers) - 6
         edge = self.box_w / 2 + 4
-        step = (width - 2 * edge) / count
-        self.xs = [edge + index * step for index in range(len(actors))]
-        self.font = 10.0
-        self.line_h = 14.0
+        step = (self.width - 2 * edge) / max(1, len(headers) - 1)
+        self.xs = [edge + index * step for index in range(len(headers))]
+        self.font = self.MESSAGE_FONT
+        self.line_h = self.LINE_H
+        self.blocks: list[dict] = []
+        self.header_h = 0.0
+        self.header_bottom = 0.0
 
     def msg(self, src: int, dst: int, label: str, kind: str = "call") -> int:
         self.messages.append({"src": src, "dst": dst, "label": label, "kind": kind})
         return len(self.messages) - 1
 
-    def fragment(self, kind: str, label: str, first: int, last: int) -> None:
-        self.fragments.append({"kind": kind, "label": label, "first": first, "last": last})
+    def fragment(self, kind: str, guard: str, first: int, last: int,
+                 split: int | None = None, else_guard: str = "") -> None:
+        """Thêm một khung alt/opt.
+
+        ``split`` là chỉ số thông điệp cuối cùng của toán hạng thứ nhất; khi có
+        ``split`` khung được vẽ thành ``alt`` hai nhánh, nhánh thứ hai mở đầu
+        bằng đường kẻ đứt và nhãn ``[else ...]``. Không truyền ``split`` thì
+        khung chỉ có một nhánh (``opt``).
+        """
+        self.fragments.append({
+            "kind": kind, "guard": guard, "first": first, "last": last,
+            "split": split, "else_guard": else_guard,
+        })
+
+    # -- phần đầu sơ đồ ----------------------------------------------
+    def _header_blocks(self) -> list[dict]:
+        """Chia chữ trong từng hộp tiêu đề và đo chiều cao cần thiết."""
+        blocks = []
+        for header in self.headers:
+            kind = header.get("kind", "box")
+            body: list[str] = []
+            for line in header.get("lines", []):
+                body.extend(item for item in _wrap_text(line, self.box_w - 10, self.HEAD_FONT) if item)
+            caption = header.get("caption", "")
+            if isinstance(caption, str):
+                caption = [
+                    item for item in
+                    _wrap_text(caption, self.box_w - 12, self.CAPTION_FONT) if item
+                ]
+            name: list[str] = []
+            if kind == "actor":
+                name = [
+                    item for item in
+                    _wrap_text(header.get("label", ""), self.box_w - 6, self.HEAD_FONT + 0.6)
+                    if item
+                ]
+                height = 27 + 5 + len(name) * self.HEAD_LINE_H
+            elif kind == "db":
+                height = 11 + (len(caption) + len(body)) * self.HEAD_LINE_H + 8
+            else:
+                height = 7 + (len(caption) + len(body)) * self.HEAD_LINE_H + 6
+            blocks.append({
+                "kind": kind,
+                "caption": caption,
+                "body": body,
+                "name": name,
+                "height": height,
+            })
+        return blocks
 
     # -- bố cục ------------------------------------------------------
     def _layout(self) -> tuple[list[float], list[float], float]:
+        self.blocks = self._header_blocks()
+        self.header_h = max(block["height"] for block in self.blocks)
+        self.header_bottom = self.HEAD_TOP + self.header_h + 4
         start_marks = {frag["first"]: frag for frag in self.fragments}
+        split_marks = {
+            frag["split"] + 1 for frag in self.fragments
+            if frag["split"] is not None and frag["split"] + 1 < len(self.messages)
+        }
         ys: list[float] = []
         heights: list[float] = []
-        y = 4 + 30 + 24  # top + header + khoảng đệm
+        y = self.header_bottom + 16
         for index, message in enumerate(self.messages):
             if index in start_marks:
-                y += 22  # chừa chỗ cho tab của khung fragment
+                y += 24  # chừa chỗ cho tab và nhãn điều kiện của khung
+            if index in split_marks:
+                y += 20  # chừa chỗ cho đường kẻ đứt và nhãn [else]
             ys.append(y)
             src_x = self.xs[message["src"]]
             dst_x = self.xs[message["dst"]]
-            span = abs(dst_x - src_x)
             if message["src"] == message["dst"]:
-                direction = 44 if src_x + 84 <= self.width - 6 else -44
-                center = src_x + direction / 2
-                max_w = min(170.0, 2 * max(60.0, min(center - 4, self.width - center - 4)))
+                # Đoạn tự xử lý: vòng gấp khúc quay lại chính đường sống. Nếu
+                # đường sống sát mép phải thì vẽ vòng sang trái cho khỏi bị cắt,
+                # còn nhãn đặt ở phía còn đủ chỗ.
+                if src_x + 34 <= self.width - 8:
+                    message["loop_dir"] = 1
+                else:
+                    message["loop_dir"] = -1
+                room_right = self.width - 14 - src_x
+                if room_right >= 120:
+                    message["anchor"] = "start"
+                    x_text = src_x + 8
+                    max_w = min(170.0, room_right)
+                else:
+                    message["anchor"] = "end"
+                    x_text = src_x - 8
+                    max_w = min(170.0, src_x - 14)
+            elif dst_x > src_x:
+                # Lời gọi đi sang phải: nhãn bắt đầu ngay sau đường sống nguồn.
+                message["anchor"] = "start"
+                x_text = src_x + 6
+                max_w = self.width - x_text - 6
             else:
-                mid = (src_x + dst_x) / 2
-                half_room = min(mid - 4, self.width - mid - 4)
-                max_w = min(max(span + 24, 140.0), max(90.0, half_room * 2))
-            lines = _wrap_text(message["label"], max_w, self.font)
+                # Giá trị trả về đi sang trái: nhãn canh phải, kết thúc ngay
+                # dưới đường sống nguồn như mẫu tham chiếu.
+                message["anchor"] = "end"
+                x_text = src_x - 6
+                max_w = max(x_text - 8, 60.0)
+            message["x_text"] = x_text
+            lines = _wrap_text(f"{index + 1}. {message['label']}", max_w, self.font)
             message["lines"] = lines
             if message["kind"] == "self":
                 height = len(lines) * self.line_h + 36
             else:
-                height = len(lines) * self.line_h + 24
+                height = len(lines) * self.line_h + 22
             heights.append(height)
             y += height
+        self.frag_rects = self._fragment_bounds(ys, heights)
+        self._keep_loops_inside()
         return ys, heights, y + 10
+
+    def _fragment_bounds(self, ys: list[float], heights: list[float]) -> list[dict]:
+        """Tính hộp bao của từng khung alt/opt từ các đường sống liên quan.
+
+        Khung chỉ ôm các đường sống phía backend: khách (người dùng, giao diện)
+        nằm ngoài khung, nhờ vậy khung rẽ nhánh trùng đúng vùng xử lý phía máy
+        chủ. Các thông điệp trả kết quả về trình duyệt vẫn vẽ bình thường và đi
+        ra ngoài cạnh trái của khung.
+        """
+        rects: list[dict] = []
+        for frag in self.fragments:
+            involved = set()
+            for message in self.messages[frag["first"]:frag["last"] + 1]:
+                involved.update((message["src"], message["dst"]))
+            backend = {
+                index for index in involved
+                if self.headers[index].get("layer", "backend") == "backend"
+            }
+            if backend:
+                involved = backend
+            left = max(4.0, min(self.xs[i] for i in involved) - 12)
+            right = min(self.width - 4, max(self.xs[i] for i in involved) + 12)
+            # Khung lồng trong một khung khác phải thụt vào, nếu không hai
+            # đường bao sẽ trùng nhau và không đọc được khung nào là khung nào.
+            nested = any(
+                other is not frag
+                and other["first"] <= frag["first"] and other["last"] >= frag["last"]
+                for other in self.fragments
+            )
+            if nested:
+                left += 4
+                right -= 4
+            rects.append({
+                **frag, "left": left, "right": right,
+                "top": ys[frag["first"]] - 22,
+                "bottom": ys[frag["last"]] + heights[frag["last"]] - 2,
+            })
+        return rects
+
+    def _keep_loops_inside(self) -> None:
+        """Quay vòng tự xử lý vào trong nếu nó định vẽ ra ngoài khung bao."""
+        for index, message in enumerate(self.messages):
+            if message["src"] != message["dst"]:
+                continue
+            holders = [r for r in self.frag_rects if r["first"] <= index <= r["last"]]
+            if not holders:
+                continue
+            rect = min(holders, key=lambda r: r["right"] - r["left"])
+            src_x = self.xs[message["src"]]
+            span = 44.0
+            if (message["loop_dir"] > 0
+                    and src_x + span + 4 > rect["right"]
+                    and src_x - span - 4 >= rect["left"]):
+                message["loop_dir"] = -1
+
+    # -- các mảnh vẽ -------------------------------------------------
+    def _actor(self, parts: list[str], cx: float, top: float, name_lines: list[str]) -> None:
+        """Tác nhân là người: hình nhân que và tên bên dưới."""
+        parts.append(
+            f'<circle cx="{cx:.1f}" cy="{top + 5:.1f}" r="4.6" fill="#ffffff" '
+            f'stroke="{BOX_LINE}" stroke-width="1"/>'
+            f'<line x1="{cx:.1f}" y1="{top + 9.6:.1f}" x2="{cx:.1f}" y2="{top + 19:.1f}" '
+            f'stroke="{BOX_LINE}" stroke-width="1"/>'
+            f'<line x1="{cx - 7:.1f}" y1="{top + 12.5:.1f}" x2="{cx + 7:.1f}" y2="{top + 12.5:.1f}" '
+            f'stroke="{BOX_LINE}" stroke-width="1"/>'
+            f'<line x1="{cx:.1f}" y1="{top + 19:.1f}" x2="{cx - 6:.1f}" y2="{top + 26:.1f}" '
+            f'stroke="{BOX_LINE}" stroke-width="1"/>'
+            f'<line x1="{cx:.1f}" y1="{top + 19:.1f}" x2="{cx + 6:.1f}" y2="{top + 26:.1f}" '
+            f'stroke="{BOX_LINE}" stroke-width="1"/>'
+        )
+        baseline = top + 32 + 5.6
+        for index, line in enumerate(name_lines):
+            parts.append(
+                f'<text x="{cx:.1f}" y="{baseline + index * self.HEAD_LINE_H:.1f}" '
+                f'font-family="{DIAGRAM_FONT}" font-size="{self.HEAD_FONT + 0.6:.1f}" '
+                f'font-weight="bold" fill="{INK}" text-anchor="middle">{_esc(line)}</text>'
+            )
+
+    def _cylinder(self, parts: list[str], left: float, top: float,
+                  width: float, height: float) -> None:
+        """Cơ sở dữ liệu vẽ thành hình trụ như mẫu tham chiếu."""
+        radius = width / 2
+        ry = 5.0
+        bottom = top + height
+        parts.append(
+            f'<path d="M {left:.1f} {top + ry:.1f} L {left:.1f} {bottom - ry:.1f} '
+            f'A {radius:.1f} {ry:.1f} 0 0 0 {left + width:.1f} {bottom - ry:.1f} '
+            f'L {left + width:.1f} {top + ry:.1f} Z" fill="{DB_FILL}" '
+            f'stroke="{BOX_LINE}" stroke-width="0.9"/>'
+            f'<ellipse cx="{left + radius:.1f}" cy="{top + ry:.1f}" rx="{radius:.1f}" '
+            f'ry="{ry:.1f}" fill="{DB_FILL}" stroke="{BOX_LINE}" stroke-width="0.9"/>'
+        )
+
+    def _header_text(self, parts: list[str], cx: float, top: float, block: dict) -> None:
+        baseline = top + 5.2
+        for line in block["caption"]:
+            parts.append(
+                f'<text x="{cx:.1f}" y="{baseline:.1f}" font-family="{DIAGRAM_FONT}" '
+                f'font-size="{self.CAPTION_FONT:.1f}" font-weight="bold" fill="#475569" '
+                f'text-anchor="middle">{_esc(line)}</text>'
+            )
+            baseline += self.HEAD_LINE_H
+        for line in block["body"]:
+            parts.append(
+                f'<text x="{cx:.1f}" y="{baseline:.1f}" font-family="{DIAGRAM_FONT}" '
+                f'font-size="{self.HEAD_FONT:.1f}" fill="{INK}" text-anchor="middle">'
+                f'{_esc(line)}</text>'
+            )
+            baseline += self.HEAD_LINE_H
 
     # -- vẽ ----------------------------------------------------------
     def svg(self) -> str:
         ys, heights, height = self._layout()
-        header_bottom = 34
         parts = [
             f'<svg xmlns="http://www.w3.org/2000/svg" width="{self.width:.0f}" height="{height:.0f}" '
             f'viewBox="0 0 {self.width:.0f} {height:.0f}">',
@@ -249,63 +461,131 @@ class SequenceDiagram:
             f'<rect width="{self.width:.0f}" height="{height:.0f}" fill="#ffffff"/>',
         ]
 
+        # băng tiêu đề + hộp "Tên chức năng"
+        banner_w = self.width - self.LEGEND_W - 12
+        parts.append(
+            f'<rect x="4" y="{self.BANNER_TOP}" width="{banner_w:.1f}" height="{self.BANNER_H}" rx="9" '
+            f'fill="{BANNER_FILL}" stroke="{BANNER_LINE}" stroke-width="1"/>'
+        )
+        banner_lines = _wrap_text(self.banner, banner_w - 16, 10.4)
+        banner_font = 10.4
+        if len(banner_lines) > 1:
+            banner_lines = _wrap_text(self.banner, banner_w - 16, 9.2)
+            banner_font = 9.2
+        first_baseline = (
+            self.BANNER_TOP + self.BANNER_H / 2 + banner_font * 0.36
+            - (len(banner_lines) - 1) * banner_font * 0.62
+        )
+        for index, line in enumerate(banner_lines):
+            parts.append(
+                f'<text x="{4 + banner_w / 2:.1f}" y="{first_baseline + index * banner_font * 1.24:.1f}" '
+                f'font-family="{DIAGRAM_FONT}" font-size="{banner_font:.1f}" font-weight="bold" '
+                f'fill="{BANNER_INK}" text-anchor="middle">{_esc(line)}</text>'
+            )
+        legend_x = self.width - self.LEGEND_W - 4
+        parts.append(
+            f'<rect x="{legend_x:.1f}" y="{self.BANNER_TOP}" width="{self.LEGEND_W:.1f}" '
+            f'height="{self.BANNER_H}" fill="#ffffff" stroke="{BOX_LINE}" stroke-width="0.9"/>'
+            f'<text x="{legend_x + self.LEGEND_W / 2:.1f}" y="{self.BANNER_TOP + 15.5:.1f}" '
+            f'font-family="{DIAGRAM_FONT}" font-size="7.6" font-weight="bold" fill="{INK}" '
+            f'text-anchor="middle">Tên chức năng:</text>'
+            f'<text x="{legend_x + self.LEGEND_W / 2:.1f}" y="{self.BANNER_TOP + 28.5:.1f}" '
+            f'font-family="{DIAGRAM_FONT}" font-size="7.6" fill="{INK}" '
+            f'text-anchor="middle">{_esc(self.legend)}</text>'
+        )
+
         # lifeline
         for x in self.xs:
             parts.append(
-                f'<line x1="{x:.1f}" y1="{header_bottom}" x2="{x:.1f}" y2="{height - 8:.1f}" '
+                f'<line x1="{x:.1f}" y1="{self.header_bottom:.1f}" x2="{x:.1f}" y2="{height - 8:.1f}" '
                 f'stroke="#94a3b8" stroke-width="0.9" stroke-dasharray="3 3"/>'
             )
 
-        # khung fragment (vẽ dưới mũi tên)
-        for frag in self.fragments:
-            involved = set()
-            for message in self.messages[frag["first"]:frag["last"] + 1]:
-                involved.update((message["src"], message["dst"]))
-            left = min(self.xs[i] for i in involved) - 8
-            right = max(self.xs[i] for i in involved) + 8
-            top = ys[frag["first"]] - 20
-            bottom = ys[frag["last"]] + heights[frag["last"]] - 4
+        # hộp tiêu đề của từng tác nhân
+        for index, block in enumerate(self.blocks):
+            cx = self.xs[index]
+            left = cx - self.box_w / 2
+            top = self.HEAD_TOP
+            if block["kind"] == "actor":
+                self._actor(parts, cx, top, block["name"])
+                continue
+            block_h = block["height"]
+            if block["kind"] == "db":
+                self._cylinder(parts, left, top, self.box_w, block_h)
+                # Nhãn phải nằm dưới vành trên của hình trụ (đỉnh + 2*ry).
+                self._header_text(parts, cx, top + 13.8, block)
+                continue
             parts.append(
-                f'<rect x="{left:.1f}" y="{top:.1f}" width="{right - left:.1f}" height="{bottom - top:.1f}" '
-                f'fill="#fffbeb" stroke="{FRAG_COLOR}" stroke-width="0.9"/>'
+                f'<rect x="{left:.1f}" y="{top:.1f}" width="{self.box_w:.1f}" '
+                f'height="{block_h:.1f}" fill="#ffffff" stroke="{BOX_LINE}" stroke-width="0.9"/>'
             )
-            tab_w = len(frag["label"]) * self.font * 0.52 + 12
+            self._header_text(parts, cx, top + 6.4, block)
+
+        # khung alt/opt (hộp bao đã tính sẵn trong _layout)
+        for frag in self.frag_rects:
+            left, right = frag["left"], frag["right"]
+            top, bottom = frag["top"], frag["bottom"]
+            tab_w = 24.0
             parts.append(
-                f'<rect x="{left:.1f}" y="{top:.1f}" width="{tab_w:.1f}" height="14" '
-                f'fill="#fde68a" stroke="{FRAG_COLOR}" stroke-width="0.9"/>'
+                f'<rect x="{left:.1f}" y="{top:.1f}" width="{right - left:.1f}" '
+                f'height="{bottom - top:.1f}" fill="none" stroke="{FRAG_COLOR}" stroke-width="1"/>'
+                f'<rect x="{left:.1f}" y="{top:.1f}" width="{tab_w}" height="13" '
+                f'fill="#ffffff" stroke="{FRAG_COLOR}" stroke-width="1"/>'
+                f'<text x="{left + tab_w / 2:.1f}" y="{top + 9.4:.1f}" font-family="{DIAGRAM_FONT}" '
+                f'font-size="7.6" font-style="italic" font-weight="bold" fill="{FRAG_COLOR}" '
+                f'text-anchor="middle">{_esc(frag["kind"])}</text>'
+                f'<text x="{left + tab_w + 7:.1f}" y="{top + 9.4:.1f}" font-family="{DIAGRAM_FONT}" '
+                f'font-size="7.2" font-style="italic" fill="#1f2937">{_esc(frag["guard"])}</text>'
             )
-            parts.append(
-                f'<text x="{left + tab_w / 2:.1f}" y="{top + 10.4:.1f}" font-family="{DIAGRAM_FONT}" '
-                f'font-size="{self.font - 0.8:.1f}" font-weight="bold" fill="#7c2d12" text-anchor="middle">'
-                f'{_esc(frag["label"])}</text>'
-            )
+            split = frag["split"]
+            if split is None:
+                parts.append(
+                    f'<line x1="{left:.1f}" y1="{top + 13:.1f}" x2="{right:.1f}" y2="{top + 13:.1f}" '
+                    f'stroke="#94a3b8" stroke-width="0.7" stroke-dasharray="3 2.4"/>'
+                )
+            else:
+                # Đường kẻ đứt chia hai toán hạng, kèm nhãn [else] của nhánh sau.
+                div_y = ys[split + 1] - 18
+                parts.append(
+                    f'<line x1="{left:.1f}" y1="{div_y:.1f}" x2="{right:.1f}" y2="{div_y:.1f}" '
+                    f'stroke="{FRAG_COLOR}" stroke-width="0.9" stroke-dasharray="4 3"/>'
+                    f'<text x="{left + 7:.1f}" y="{div_y + 9:.1f}" font-family="{DIAGRAM_FONT}" '
+                    f'font-size="7.2" font-style="italic" fill="#1f2937">'
+                    f'[else] {_esc(frag["else_guard"])}</text>'
+                )
 
         # mũi tên + nhãn
         for index, message in enumerate(self.messages):
             y = ys[index]
             src_x, dst_x = self.xs[message["src"]], self.xs[message["dst"]]
             lines = message["lines"]
+            x_text = message["x_text"]
+            anchor = message["anchor"]
+            for line_index, line in enumerate(lines):
+                parts.append(
+                    f'<text x="{x_text:.1f}" y="{y + 10 + line_index * self.line_h:.1f}" '
+                    f'font-family="{DIAGRAM_FONT}" font-size="{self.font:.1f}" fill="{INK}" '
+                    f'stroke="#ffffff" stroke-width="2.4" stroke-linejoin="round" '
+                    f'paint-order="stroke" text-anchor="{anchor}">{_esc(line)}</text>'
+                )
+            text_bottom = y + len(lines) * self.line_h
             if message["kind"] == "self":
-                loop_top = y + len(lines) * self.line_h + 2
-                direction = 44 if src_x + 84 <= self.width - 6 else -44
-                end_x = src_x + direction
+                if message["loop_dir"] > 0:
+                    loop_w = min(44.0, self.width - 8 - src_x)
+                else:
+                    loop_w = min(44.0, src_x - 8)
+                end_x = src_x + message["loop_dir"] * loop_w
+                loop_top = text_bottom + 3
                 path = (
-                    f'M {src_x:.1f} {loop_top:.1f} H {end_x:.1f} V {loop_top + 18:.1f} '
-                    f'H {src_x + (2 if direction > 0 else -2):.1f}'
+                    f'M {src_x:.1f} {loop_top:.1f} H {end_x:.1f} V {loop_top + 16:.1f} '
+                    f'H {src_x + (2 if message["loop_dir"] > 0 else -2):.1f}'
                 )
                 parts.append(
-                    f'<path d="{path}" fill="none" stroke="{CALL_COLOR}" stroke-width="1.05" marker-end="url(#ah)"/>'
+                    f'<path d="{path}" fill="none" stroke="{CALL_COLOR}" stroke-width="1.05" '
+                    f'marker-end="url(#ah)"/>'
                 )
-                text_x = src_x + direction / 2
-                for line_index, line in enumerate(lines):
-                    parts.append(
-                        f'<text x="{text_x:.1f}" y="{y + 10 + line_index * self.line_h:.1f}" '
-                        f'font-family="{DIAGRAM_FONT}" font-size="{self.font:.1f}" fill="{INK}" '
-                        f'text-anchor="middle">{_esc(line)}</text>'
-                    )
                 continue
-
-            arrow_y = y + len(lines) * self.line_h + 4
+            arrow_y = text_bottom + 4
             dashed = message["kind"] == "return"
             color = RETURN_COLOR if dashed else CALL_COLOR
             marker = "ah-open" if dashed else "ah"
@@ -314,40 +594,14 @@ class SequenceDiagram:
                 f'<line x1="{src_x:.1f}" y1="{arrow_y:.1f}" x2="{dst_x:.1f}" y2="{arrow_y:.1f}" '
                 f'stroke="{color}" stroke-width="1.05" marker-end="url(#{marker})"{dash_attr}/>'
             )
-            mid = (src_x + dst_x) / 2
-            for line_index, line in enumerate(lines):
-                baseline = y + 10 + line_index * self.line_h
-                parts.append(
-                    f'<text x="{mid:.1f}" y="{baseline:.1f}" font-family="{DIAGRAM_FONT}" '
-                    f'font-size="{self.font:.1f}" fill="{INK}" text-anchor="middle">{_esc(line)}</text>'
-                )
-
-        # hộp actor (vẽ sau cùng để nằm trên lifeline)
-        for index, name in enumerate(self.actors):
-            x = self.xs[index]
-            parts.append(
-                f'<rect x="{x - self.box_w / 2:.1f}" y="4" width="{self.box_w:.1f}" height="30" rx="3" '
-                f'fill="#0f6ecd" stroke="#0b58a6" stroke-width="0.9"/>'
-            )
-            header_font = self.font - 0.2
-            if name:
-                fit = (self.box_w - 10) / (len(name) * 0.52)
-                header_font = max(7.2, min(header_font, fit))
-            name_lines = _wrap_text(name, self.box_w - 8, header_font)[:2]
-            first_baseline = 4 + 15 - (len(name_lines) - 1) * 6.2
-            for line_index, line in enumerate(name_lines):
-                parts.append(
-                    f'<text x="{x:.1f}" y="{first_baseline + line_index * 11:.1f}" font-family="{DIAGRAM_FONT}" '
-                    f'font-size="{header_font:.1f}" font-weight="bold" fill="#ffffff" '
-                    f'text-anchor="middle">{_esc(line)}</text>'
-                )
 
         parts.append("</svg>")
         return "\n".join(parts)
 
 
 #: Bốn sơ đồ tuần tự của báo cáo. Mỗi mục gồm: tiêu đề, danh sách tác nhân,
-#: danh sách thông điệp ``(nguồn, đích, nội dung, loại)``, tệp PNG và khung opt.
+#: danh sách thông điệp ``(nguồn, đích, nội dung, loại)``, tệp PNG và danh sách
+#: khung ``alt``/``opt`` (đánh số thông điệp từ 1 như trên hình).
 #: ``make_report.py`` đọc lại đúng dữ liệu này để sinh bảng thông điệp, nhờ vậy
 #: hình và bảng không bao giờ lệch nhau.
 SEQUENCES: dict[str, dict] = {
@@ -355,26 +609,56 @@ SEQUENCES: dict[str, dict] = {
         "title": "Đăng ký tài khoản",
         "actors": ["Người dùng", "Giao diện đăng ký", "View register()",
                    "RegisterForm", "CSDL (User)"],
+        "banner": "SƠ ĐỒ TUẦN TỰ - CHỨC NĂNG ĐĂNG KÝ TÀI KHOẢN (REGISTER)",
+        "legend": "Đăng ký tài khoản",
+        "headers": [
+            {"kind": "actor", "label": "Người dùng", "layer": "client"},
+            {"kind": "box", "layer": "client", "caption": ["Đường dẫn vào", "frontend:"],
+             "lines": ["templates/", "registration/", "register.html"]},
+            {"kind": "box", "caption": ["Đường dẫn vào", "file backend:"],
+             "lines": ["app_main/views.py", "register()"]},
+            {"kind": "box", "caption": "Biểu mẫu xử lý:",
+             "lines": ["app_main/forms.py", "RegisterForm"]},
+            {"kind": "db", "caption": ["Tên CSDL /", "bảng hỗ trợ:"],
+             "lines": ["sachgocuni.db", "auth_user,", "app_main_profile"]},
+        ],
         "messages": [
             (0, 1, "Truy cập /dang-ky/ (GET)", "call"),
             (1, 2, "Chuyển yêu cầu cho view register()", "call"),
             (2, 0, "Render registration/register.html + form trống", "return"),
             (0, 2, "POST: họ tên, username, email, mật khẩu", "call"),
             (2, 3, "RegisterForm(request.POST)", "call"),
-            (3, 2, "is_valid() = True", "return"),
+            (3, 2, "is_valid(): kiểm tra các trường", "return"),
             (2, 4, "User.objects.create_user(username, email, password)", "call"),
             (4, 4, "signal post_save tạo Profile", "self"),
             (4, 2, "user (đã lưu, pk mới)", "return"),
             (2, 4, "login(request, user): ghi session", "call"),
             (2, 0, "redirect('home') + thông báo chào mừng", "return"),
+            (2, 0, "Render lại register.html kèm lỗi từng trường", "return"),
         ],
         "file": "seq-dang-ky.png",
-        "fragment": None,
+        "fragments": [
+            {"kind": "alt", "first": 7, "split": 11, "last": 12,
+             "guard": "[Biểu mẫu hợp lệ]", "else_guard": "Biểu mẫu không hợp lệ"},
+        ],
     },
     "dang-nhap": {
         "title": "Đăng nhập",
         "actors": ["Người dùng", "Giao diện đăng nhập", "View user_login()",
                    "AuthenticationForm", "CSDL (User)"],
+        "banner": "SƠ ĐỒ TUẦN TỰ - CHỨC NĂNG ĐĂNG NHẬP (LOGIN)",
+        "legend": "Đăng nhập",
+        "headers": [
+            {"kind": "actor", "label": "Người dùng", "layer": "client"},
+            {"kind": "box", "layer": "client", "caption": ["Đường dẫn vào", "frontend:"],
+             "lines": ["templates/", "registration/", "login.html"]},
+            {"kind": "box", "caption": ["Đường dẫn vào", "file backend:"],
+             "lines": ["app_main/views.py", "user_login()"]},
+            {"kind": "box", "caption": "Lớp xử lý:",
+             "lines": ["django.contrib.auth", "AuthenticationForm"]},
+            {"kind": "db", "caption": ["Tên CSDL /", "bảng hỗ trợ:"],
+             "lines": ["sachgocuni.db", "auth_user,", "django_session"]},
+        ],
         "messages": [
             (0, 1, "Truy cập /dang-nhap/ (GET)", "call"),
             (1, 2, "Chuyển yêu cầu cho view user_login()", "call"),
@@ -387,32 +671,67 @@ SEQUENCES: dict[str, dict] = {
             (3, 2, "form.is_valid()", "return"),
             (2, 4, "login(): tạo phiên làm việc (session)", "call"),
             (2, 0, "redirect(next hoặc 'home')", "return"),
+            (2, 0, "Render lại login.html + thông báo lỗi đăng nhập", "return"),
         ],
         "file": "seq-dang-nhap.png",
-        "fragment": None,
+        "fragments": [
+            {"kind": "alt", "first": 10, "split": 11, "last": 12,
+             "guard": "[Xác thực thành công]", "else_guard": "Xác thực thất bại"},
+        ],
     },
     "dang-tin": {
         "title": "Đăng tin sản phẩm",
         "actors": ["Người dùng", "Giao diện đăng tin", "View create_post()",
                    "PostForm", "CSDL (Post)"],
+        "banner": "SƠ ĐỒ TUẦN TỰ - CHỨC NĂNG ĐĂNG TIN (CREATE POST)",
+        "legend": "Đăng tin sản phẩm",
+        "headers": [
+            {"kind": "actor", "label": "Người dùng", "layer": "client"},
+            {"kind": "box", "layer": "client", "caption": ["Đường dẫn vào", "frontend:"],
+             "lines": ["templates/app_main/", "post_form.html"]},
+            {"kind": "box", "caption": ["Đường dẫn vào", "file backend:"],
+             "lines": ["app_main/views.py", "create_post()"]},
+            {"kind": "box", "caption": "Biểu mẫu xử lý:",
+             "lines": ["app_main/forms.py", "PostForm"]},
+            {"kind": "db", "caption": ["Tên CSDL /", "bảng hỗ trợ:"],
+             "lines": ["sachgocuni.db", "app_main_post,", "app_main_postimage"]},
+        ],
         "messages": [
             (0, 2, "Truy cập /dang-tin/ (GET, đã đăng nhập)", "call"),
             (2, 0, "Render post_form.html + PostForm trống", "return"),
             (0, 2, "POST: tiêu đề, danh mục, giá, mô tả, ảnh", "call"),
             (2, 3, "PostForm(request.POST, request.FILES)", "call"),
-            (3, 2, "is_valid() = True", "return"),
+            (3, 2, "is_valid(): kiểm tra các trường", "return"),
             (2, 4, "Post.save(): sinh slug, giá 0 thì is_free = True", "call"),
             (4, 2, "post.pk", "return"),
             (2, 4, "PostImage.objects.create(post, image) cho từng ảnh", "call"),
             (2, 0, "redirect(post_detail) — hiển thị bài vừa đăng", "return"),
+            (2, 0, "Render lại post_form.html kèm lỗi từng trường", "return"),
         ],
         "file": "seq-dang-tin.png",
-        "fragment": {"first": 7, "last": 7, "label": "opt  [có ảnh bổ sung]"},
+        "fragments": [
+            {"kind": "alt", "first": 6, "split": 9, "last": 10,
+             "guard": "[Dữ liệu hợp lệ]", "else_guard": "Dữ liệu không hợp lệ"},
+            {"kind": "opt", "first": 8, "last": 8,
+             "guard": "[Có tải thêm ảnh phụ]"},
+        ],
     },
     "dat-mua": {
         "title": "Đặt mua và xác nhận đơn",
         "actors": ["Người mua", "Trang sản phẩm", "View buy_post()",
                    "OrderForm / Order", "Người bán"],
+        "banner": "SƠ ĐỒ TUẦN TỰ - CHỨC NĂNG ĐẶT MUA (BUY & CONFIRM)",
+        "legend": "Đặt mua và xác nhận đơn",
+        "headers": [
+            {"kind": "actor", "label": "Người mua", "layer": "client"},
+            {"kind": "box", "layer": "client", "caption": ["Đường dẫn vào", "frontend:"],
+             "lines": ["templates/app_main/", "buy_post.html"]},
+            {"kind": "box", "caption": ["Đường dẫn vào", "file backend:"],
+             "lines": ["app_main/views.py", "buy_post()"]},
+            {"kind": "box", "caption": ["Biểu mẫu /", "mô hình:"],
+             "lines": ["app_main/forms.py", "OrderForm", "app_main_order"]},
+            {"kind": "actor", "label": "Người bán", "layer": "client"},
+        ],
         "messages": [
             (0, 2, "Truy cập /san-pham/<pk>/dat-mua/", "call"),
             (2, 2, "Kiểm tra: không phải chủ bài, sản phẩm còn, chưa có đơn mở", "self"),
@@ -422,12 +741,16 @@ SEQUENCES: dict[str, dict] = {
             (2, 3, "Gán post, buyer, seller, price_snapshot = post.price", "call"),
             (3, 3, "INSERT đơn mới, status = PENDING", "self"),
             (2, 0, "redirect('my_orders') + thông báo đã gửi", "return"),
+            (2, 0, "redirect(post_detail hoặc 'my_orders') + thông báo lỗi", "return"),
             (4, 2, "POST accept_order(pk)", "call"),
             (2, 3, "order.status = CONFIRMED; save()", "call"),
             (2, 4, "redirect(order_detail) + thông báo xác nhận", "return"),
         ],
         "file": "seq-dat-mua.png",
-        "fragment": None,
+        "fragments": [
+            {"kind": "alt", "first": 3, "split": 8, "last": 9,
+             "guard": "[Ba điều kiện đều đạt]", "else_guard": "Vi phạm một trong ba điều kiện"},
+        ],
     },
 }
 
@@ -442,13 +765,17 @@ MESSAGE_KINDS = {
 def _render_sequence(key: str) -> Path:
     """Vẽ một sơ đồ tuần tự từ dữ liệu trong ``SEQUENCES``."""
     spec = SEQUENCES[key]
-    d = SequenceDiagram(spec["actors"])
-    handles = {}
-    for index, (src, dst, text, kind) in enumerate(spec["messages"]):
-        handles[index] = d.msg(src, dst, text, kind if kind != "call" else "call")
-    if spec["fragment"]:
-        frag = spec["fragment"]
-        d.fragment("opt", frag["label"], handles[frag["first"]], handles[frag["last"]])
+    d = SequenceDiagram(spec["headers"], spec["banner"], spec["legend"])
+    for src, dst, text, kind in spec["messages"]:
+        d.msg(src, dst, text, kind)
+    for frag in spec["fragments"]:
+        split = frag.get("split")
+        d.fragment(
+            frag.get("kind", "opt"), frag["guard"],
+            frag["first"] - 1, frag["last"] - 1,
+            None if split is None else split - 1,
+            frag.get("else_guard", ""),
+        )
     out = ASSETS / spec["file"]
     render_svg(d.svg(), out, width=1560)
     return out
