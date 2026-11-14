@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Biểu đồ tuần tự Đăng ký — Sửa khung alt chuẩn Backend</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #11141a;
+      color: #e2e8f0;
+      font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+      padding: 30px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .top-bar {
+      width: 100%;
+      max-width: 1320px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #1a1f2c;
+      padding: 14px 24px;
+      border-radius: 12px;
+      border: 1px solid #2d3748;
+    }
+    .top-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: #60a5fa;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .badge-fix {
+      background: #065f46;
+      color: #34d399;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 999px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+    }
+    .btn {
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 700;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+    }
+    .btn-print { background: #3b82f6; color: white; }
+    .btn-copy { background: #10b981; color: white; }
+
+    /* KHUNG SƠ ĐỒ CHÍNH (THEO ĐÚNG GIAO DIỆN DARK THEME TRONG ẢNH) */
+    .diagram-wrapper {
+      width: 100%;
+      max-width: 1320px;
+      background: #161922;
+      border: 1.5px solid #2d3748;
+      border-radius: 14px;
+      padding: 40px 30px 40px 30px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+      position: relative;
+      overflow-x: auto;
+    }
+
+    svg {
+      display: block;
+      margin: 0 auto;
+    }
+
+    /* GHI CHÚ SO SÁNH */
+    .note-box {
+      width: 100%;
+      max-width: 1320px;
+      background: #1e2433;
+      border: 1px solid #3b82f6;
+      border-radius: 12px;
+      padding: 18px 24px;
+      font-size: 13.5px;
+      line-height: 1.6;
+    }
+    .note-box h4 {
+      color: #60a5fa;
+      font-size: 15px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .note-box ul { padding-left: 20px; color: #cbd5e1; }
+    .note-box li { margin-bottom: 4px; }
+    .note-box code {
+      background: #0f172a;
+      color: #38bdf8;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+    }
+
+    @media print {
+      body { background: white; color: black; padding: 0; }
+      .top-bar, .note-box { display: none; }
+      .diagram-wrapper { border: none; box-shadow: none; background: white; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TOP BAR -->
+  <div class="top-bar">
+    <div class="top-title">
+      <span>🔄 Biểu đồ tuần tự: Đăng ký tài khoản (SáchGóc Uni)</span>
+      <span class="badge-fix">✓ ĐÃ SỬA: Khung alt chỉ nằm trong Backend</span>
+    </div>
+    <div class="actions">
+      <button class="btn btn-copy" onclick="copyMermaidCode()">📋 Chép mã Mermaid / Draw.io</button>
+      <button class="btn btn-print" onclick="window.print()">🖨️ In / Lưu PDF nét 100%</button>
+    </div>
+  </div>
+
+  <!-- DIAGRAM WRAPPER: SVG CHUẨN ĐÚNG THEO ẢNH BẠN GỬI -->
+  <div class="diagram-wrapper">
+    <svg width="1240" height="980" viewBox="0 0 1240 980" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <!-- Mũi tên nhọn -->
+        <marker id="arrowSolid" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0, 10 3.5, 0 7" fill="#e2e8f0" />
+        </marker>
+        <marker id="arrowDashed" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0, 10 3.5, 0 7" fill="#94a3b8" />
+        </marker>
+        <marker id="arrowAltSuccess" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0, 10 3.5, 0 7" fill="#cbd5e1" />
+        </marker>
+      </defs>
+
+      <!-- ═══════════════════════════ LIFELINE (TRỤC ĐỨNG) ═══════════════════════════ -->
+      <!-- Lifeline 1: Người dùng (x = 80) -->
+      <line x1="80" y1="110" x2="80" y2="920" stroke="#a855f7" stroke-width="1.8" stroke-dasharray="6,4" />
+      <!-- Lifeline 2: Frontend (x = 380) -->
+      <line x1="380" y1="110" x2="380" y2="920" stroke="#0d9488" stroke-width="1.8" stroke-dasharray="6,4" />
+      <!-- Lifeline 3: Backend (x = 680) -->
+      <line x1="680" y1="110" x2="680" y2="920" stroke="#d97706" stroke-width="1.8" stroke-dasharray="6,4" />
+      <!-- Lifeline 4: CSDL (x = 1040) -->
+      <line x1="1040" y1="110" x2="1040" y2="920" stroke="#ea580c" stroke-width="1.8" stroke-dasharray="6,4" />
+
+      <!-- Thanh kích hoạt (Activation bars) -->
+      <rect x="75" y="145" width="10" height="740" fill="#a855f7" rx="2" opacity="0.9" />
+      <rect x="375" y="150" width="10" height="735" fill="#14b8a6" rx="2" opacity="0.9" />
+      <rect x="675" y="240" width="10" height="635" fill="#f59e0b" rx="2" opacity="0.9" />
+      <rect x="1035" y="440" width="10" height="180" fill="#f97316" rx="2" opacity="0.9" />
+
+
+      <!-- ═══════════════════════════ PARTICIPANTS (HỘP HEADER TRÊN CÙNG) ═══════════════════════════ -->
+      <!-- 1. Người dùng -->
+      <g transform="translate(40, 20)">
+        <circle cx="40" cy="22" r="12" fill="none" stroke="#c084fc" stroke-width="2.2" />
+        <line x1="40" y1="34" x2="40" y2="52" stroke="#c084fc" stroke-width="2.2" />
+        <line x1="26" y1="42" x2="54" y2="42" stroke="#c084fc" stroke-width="2.2" />
+        <line x1="40" y1="52" x2="28" y2="70" stroke="#c084fc" stroke-width="2.2" />
+        <line x1="40" y1="52" x2="52" y2="70" stroke="#c084fc" stroke-width="2.2" />
+        <text x="40" y="86" text-anchor="middle" fill="#e9d5ff" font-size="12" font-weight="700">👤 Người dùng</text>
+      </g>
+
+      <!-- 2. Frontend -->
+      <g transform="translate(265, 30)">
+        <rect width="230" height="66" rx="10" fill="#042f2e" stroke="#14b8a6" stroke-width="1.8" />
+        <text x="115" y="24" text-anchor="middle" fill="#5eead4" font-size="11.5" font-weight="700">🖥️ Đường dẫn vào frontend</text>
+        <text x="115" y="42" text-anchor="middle" fill="#ccfbf1" font-size="10.5" font-family="'JetBrains Mono', monospace">D:\24CT1-NGUYEN_VAN</text>
+        <text x="115" y="56" text-anchor="middle" fill="#ccfbf1" font-size="10.5" font-family="'JetBrains Mono', monospace">HAO\templates\registration</text>
+      </g>
+
+      <!-- 3. Backend -->
+      <g transform="translate(565, 30)">
+        <rect width="230" height="66" rx="10" fill="#451a03" stroke="#f59e0b" stroke-width="1.8" />
+        <text x="115" y="22" text-anchor="middle" fill="#fcd34d" font-size="11.5" font-weight="700">⚙️ Bộ xử lý hệ thống (Backend)</text>
+        <text x="115" y="40" text-anchor="middle" fill="#fef3c7" font-size="10.5" font-family="'JetBrains Mono', monospace">D:\24CT1-NGUYEN_VAN</text>
+        <text x="115" y="55" text-anchor="middle" fill="#fef3c7" font-size="10.5" font-family="'JetBrains Mono', monospace">HAO\app_main\views.py</text>
+      </g>
+
+      <!-- 4. CSDL (Database Cylinder) -->
+      <g transform="translate(930, 32)">
+        <path d="M 0,16 A 110,16 0 0,0 220,16 A 110,16 0 0,0 0,16 Z" fill="#78350f" stroke="#f97316" stroke-width="1.8" />
+        <path d="M 0,16 L 0,60 A 110,16 0 0,0 220,60 L 220,16 Z" fill="#9a3412" stroke="#f97316" stroke-width="1.8" />
+        <path d="M 0,60 A 110,16 0 0,0 220,60" fill="none" stroke="#f97316" stroke-width="1.8" />
+        <text x="110" y="38" text-anchor="middle" fill="#ffedd5" font-size="11.5" font-weight="700">🗄️ Tên CSDL / bảng hỗ trợ</text>
+        <text x="110" y="54" text-anchor="middle" fill="#fdba74" font-size="10.5" font-family="'JetBrains Mono', monospace" font-weight="600">auth_user, app_main_profile</text>
+      </g>
+
+      <!-- 5. Nhãn Chức năng góc phải -->
+      <g transform="translate(1140, 42)">
+        <rect width="90" height="42" rx="8" fill="#064e3b" stroke="#10b981" stroke-width="1.5" />
+        <text x="45" y="18" text-anchor="middle" fill="#6ee7b7" font-size="10" font-weight="800">📌 Chức năng</text>
+        <text x="45" y="32" text-anchor="middle" fill="#a7f3d0" font-size="9" font-weight="700">Đăng ký tài khoản</text>
+      </g>
+
+
+      <!-- ═══════════════════════════ LUỒNG 1 -> 5 (TRƯỚC KHI VÀO ALT) ═══════════════════════════ -->
+      <!-- Bước 1: Người dùng nhập đầy đủ thông tin -->
+      <g>
+        <line x1="85" y1="150" x2="375" y2="150" stroke="#e2e8f0" stroke-width="1.5" marker-end="url(#arrowSolid)" />
+        <circle cx="230" cy="138" r="9" fill="#1e293b" stroke="#cbd5e1" stroke-width="1.2" />
+        <text x="230" y="141" text-anchor="middle" fill="#cbd5e1" font-size="10" font-weight="700">1</text>
+        <text x="230" y="130" text-anchor="middle" fill="#f1f5f9" font-size="11.5" font-weight="600">Nhập đầy đủ thông tin (Họ tên, tài khoản, Gmail, khoa, MSSV, mật khẩu)</text>
+      </g>
+
+      <!-- Bước 2: Bấm nút "Đăng ký" -->
+      <g>
+        <line x1="85" y1="195" x2="375" y2="195" stroke="#e2e8f0" stroke-width="1.5" marker-end="url(#arrowSolid)" />
+        <circle cx="230" cy="183" r="9" fill="#1e293b" stroke="#cbd5e1" stroke-width="1.2" />
+        <text x="230" y="186" text-anchor="middle" fill="#cbd5e1" font-size="10" font-weight="700">2</text>
+        <text x="230" y="176" text-anchor="middle" fill="#f1f5f9" font-size="11.5" font-weight="600">Bấm nút «Đăng ký»</text>
+      </g>
+
+      <!-- Bước 3: Gửi dữ liệu đăng ký kèm mã bảo mật -->
+      <g>
+        <line x1="385" y1="240" x2="675" y2="240" stroke="#e2e8f0" stroke-width="1.5" marker-end="url(#arrowSolid)" />
+        <circle cx="530" cy="228" r="9" fill="#1e293b" stroke="#cbd5e1" stroke-width="1.2" />
+        <text x="530" y="231" text-anchor="middle" fill="#cbd5e1" font-size="10" font-weight="700">3</text>
+        <text x="530" y="220" text-anchor="middle" fill="#f1f5f9" font-size="11.5" font-weight="600">Gửi dữ liệu đăng ký kèm mã bảo mật CSRF</text>
+      </g>
+
+      <!-- Bước 4: Backend tự kiểm tra (Self-call 1) -->
+      <g>
+        <path d="M 685,265 L 725,265 L 725,290 L 685,290" fill="none" stroke="#e2e8f0" stroke-width="1.5" marker-end="url(#arrowSolid)" />
+        <circle cx="715" cy="254" r="9" fill="#1e293b" stroke="#cbd5e1" stroke-width="1.2" />
+        <text x="715" y="257" text-anchor="middle" fill="#cbd5e1" font-size="10" font-weight="700">4</text>
+        <text x="735" y="280" fill="#fcd34d" font-size="11" font-weight="600">Kiểm tra xem tên đăng nhập hoặc email đã có người dùng khác sử dụng chưa</text>
+      </g>
+
+      <!-- Bước 5: Backend tự kiểm tra (Self-call 2) -->
+      <g>
+        <path d="M 685,315 L 725,315 L 725,340 L 685,340" fill="none" stroke="#e2e8f0" stroke-width="1.5" marker-end="url(#arrowSolid)" />
+        <circle cx="715" cy="304" r="9" fill="#1e293b" stroke="#cbd5e1" stroke-width="1.2" />
+        <text x="715" y="307" text-anchor="middle" fill="#cbd5e1" font-size="10" font-weight="700">5</text>
+        <text x="735" y="332" fill="#fcd34d" font-size="11" font-weight="600">Kiểm tra quy định: Email phải đúng đuôi @gmail.com, hai mật khẩu phải khớp nhau và đủ độ dài</text>
+      </g>
+
+
+      <!-- ══════════════════════════════════════════════════════════════════════════════════════════════
+           KHỐI ALT ĐÃ ĐƯỢC SỬA: CHỈ BẮT ĐẦU TỪ TRỤC BACKEND (x=530 HOẶC x=650) ĐẾN CSDL (x=1110)
+           KHÔNG CÒN KÉO SANG NGƯỜI DÙNG VÀ FRONTEND!
+           ══════════════════════════════════════════════════════════════════════════════════════════════ -->
+      <g id="altGroup">
+        <!-- Khung ngoài nét đứt bao quanh BACKEND và CSDL (x từ 640 đến 1120) -->
+        <rect x="635" y="375" width="485" height="495" fill="#1e293b" fill-opacity="0.35" stroke="#94a3b8" stroke-width="1.8" stroke-dasharray="6,4" rx="8" />
+
+        <!-- Tab nhãn "alt" góc trên bên trái của khung Backend -->
+        <polygon points="635 375, 685 375, 695 397, 635 397" fill="#334155" stroke="#94a3b8" stroke-width="1.5" />
+        <text x="657" y="391" fill="#f8fafc" font-size="12" font-weight="900">alt</text>
+
+        <!-- Nhãn nhánh 1: [Dữ liệu hợp lệ (Thành công)] -->
+        <text x="705" y="392" fill="#4ade80" font-size="12" font-weight="800">[Dữ liệu hợp lệ (Thành công)]</text>
+
+        <!-- Đường phân cách giữa 2 nhánh (else line) -->
+        <line x1="635" y1="675" x2="1120" y2="675" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="6,4" />
+
+        <!-- Nhãn nhánh 2: [Dữ liệu không hợp lệ (Thất bại)] -->
+        <text x="645" y="695" fill="#f87171" font-size="12" font-weight="800">[Dữ liệu không hợp lệ (Thất bại)]</text>
+      </g>
+
+
+      <!-- ── BÊN TRONG NHÁNH 1: THÀNH CÔNG ── -->
+      <!-- Bước 6: Backend -> CSDL (Lưu thông tin) -->
+      <g>
+        <line x1="685" y1="420" x2="1035" y2="420" stroke="#e2e8f0" stroke-width="1.5" marker-end="url(#arrowSolid)" />
+        <circle cx="860" cy="408" r="9" fill="#1e293b" stroke="#cbd5e1" stroke-width="1.2" />
+        <text x="860" y="411" text-anchor="middle" fill="#cbd5e1" font-size="10" font-weight="700">6</text>
+        <text x="860" y="402" text-anchor="middle" fill="#f1f5f9" font-size="11.5" font-weight="600">Lưu thông tin tài khoản mới (mật khẩu đã được mã hóa an toàn PBKDF2)</text>
+      </g>
+
+      <!-- Bước 7: CSDL -> Backend (Xác nhận lưu) -->
+      <g>
+        <line x1="1035" y1="465" x2="685" y2="465" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowDashed)" />
+        <circle cx="860" cy="453" r="9" fill="#1e293b" stroke="#cbd5e1" stroke-width="1.2" />
+        <text x="860" y="456" text-anchor="middle" fill="#cbd5e1" font-size="10" font-weight="700">7</text>
+        <text x="860" y="447" text-anchor="middle" fill="#cbd5e1" font-size="11.5" font-weight="600">Xác nhận lưu thành công (user_id)</text>
+      </g>
+
+      <!-- Bước 8: Backend -> CSDL (Lưu Profile) -->
+      <g>
+        <line x1="685" y1="510" x2="1035" y2="510" stroke="#e2e8f0" stroke-width="1.5" marker-end="url(#arrowSolid)" />
+        <circle cx="860" cy="498" r="9" fill="#1e293b" stroke="#cbd5e1" stroke-width="1.2" />
+        <text x="860" y="501" text-anchor="middle" fill="#cbd5e1" font-size="10" font-weight="700">8</text>
+        <text x="860" y="492" text-anchor="middle" fill="#f1f5f9" font-size="11.5" font-weight="600">Lưu thông tin hồ sơ bổ sung (Khoa, MSSV)</text>
+      </g>
+
+      <!-- Bước 9: CSDL -> Backend (Xác nhận Profile) -->
+      <g>
+        <line x1="1035" y1="555" x2="685" y2="555" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowDashed)" />
+        <circle cx="860" cy="543" r="9" fill="#1e293b" stroke="#cbd5e1" stroke-width="1.2" />
+        <text x="860" y="546" text-anchor="middle" fill="#cbd5e1" font-size="10" font-weight="700">9</text>
+        <text x="860" y="537" text-anchor="middle" fill="#cbd5e1" font-size="11.5" font-weight="600">Xác nhận lưu thành công</text>
+      </g>
+
+      <!-- Bước 10: Backend tự ghi nhận Session -->
+      <g>
+        <path d="M 685,580 L 725,580 L 725,605 L 685,605" fill="none" stroke="#e2e8f0" stroke-width="1.5" marker-end="url(#arrowSolid)" />
+        <circle cx="715" cy="569" r="9" fill="#1e293b" stroke="#cbd5e1" stroke-width="1.2" />
+        <text x="715" y="572" text-anchor="middle" fill="#cbd5e1" font-size="10" font-weight="700">10</text>
+        <text x="735" y="597" fill="#4ade80" font-size="11" font-weight="700">Tự động ghi nhận phiên đăng nhập cho tài khoản mới tạo (login)</text>
+      </g>
+
+      <!-- Bước 11: Backend phản hồi về Frontend (Đi ra khỏi mép khung alt) -->
+      <g>
+        <line x1="675" y1="630" x2="385" y2="630" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowDashed)" />
+        <circle cx="530" cy="618" r="9" fill="#1e293b" stroke="#cbd5e1" stroke-width="1.2" />
+        <text x="530" y="621" text-anchor="middle" fill="#cbd5e1" font-size="10" font-weight="700">11</text>
+        <text x="530" y="612" text-anchor="middle" fill="#e2e8f0" font-size="11.5" font-weight="600">Chuyển hướng thành công về trang chủ (HTTP 302)</text>
+      </g>
+
+      <!-- Bước 12: Frontend chuyển hướng người dùng -->
+      <g>
+        <line x1="375" y1="655" x2="85" y2="655" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowDashed)" />
+        <circle cx="230" cy="643" r="9" fill="#1e293b" stroke="#cbd5e1" stroke-width="1.2" />
+        <text x="230" y="646" text-anchor="middle" fill="#cbd5e1" font-size="10" font-weight="700">12</text>
+        <text x="230" y="637" text-anchor="middle" fill="#4ade80" font-size="11.5" font-weight="700">Vào thẳng hệ thống, không cần phải đăng nhập lại</text>
+      </g>
+
+
+      <!-- ── BÊN TRONG NHÁNH 2: THẤT BẠI ── -->
+      <!-- Bước 13: Backend tổng hợp lỗi -->
+      <g>
+        <path d="M 685,715 L 725,715 L 725,740 L 685,740" fill="none" stroke="#f87171" stroke-width="1.5" marker-end="url(#arrowSolid)" />
+        <circle cx="715" cy="704" r="9" fill="#1e293b" stroke="#cbd5e1" stroke-width="1.2" />
+        <text x="715" y="707" text-anchor="middle" fill="#cbd5e1" font-size="10" font-weight="700">13</text>
+        <text x="735" y="732" fill="#fca5a5" font-size="11" font-weight="600">Tổng hợp và trả về danh sách lỗi cụ thể</text>
+      </g>
+
+      <!-- Bước 14: Backend gửi thông báo lỗi về Frontend -->
+      <g>
+        <line x1="675" y1="775" x2="385" y2="775" stroke="#f87171" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowDashed)" />
+        <circle cx="530" cy="763" r="9" fill="#1e293b" stroke="#cbd5e1" stroke-width="1.2" />
+        <text x="530" y="766" text-anchor="middle" fill="#cbd5e1" font-size="10" font-weight="700">14</text>
+        <text x="530" y="757" text-anchor="middle" fill="#fca5a5" font-size="11.5" font-weight="600">Gửi thông báo lỗi về giao diện</text>
+      </g>
+
+      <!-- Bước 15: Frontend hiển thị cảnh báo cho Người dùng -->
+      <g>
+        <line x1="375" y1="835" x2="85" y2="835" stroke="#f87171" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowDashed)" />
+        <circle cx="230" cy="823" r="9" fill="#1e293b" stroke="#cbd5e1" stroke-width="1.2" />
+        <text x="230" y="826" text-anchor="middle" fill="#cbd5e1" font-size="10" font-weight="700">15</text>
+        <text x="230" y="805" text-anchor="middle" fill="#f87171" font-size="11.5" font-weight="700">Cảnh báo lỗi và tô đỏ các ô nhập sai:</text>
+        <text x="230" y="822" text-anchor="middle" fill="#fca5a5" font-size="10.5">(Ví dụ: Tên đăng nhập bị trùng, sai đuôi Gmail, hai mật khẩu không khớp)</text>
+      </g>
+
+      <!-- FOOTER ĐỒ ÁN TRÊN SƠ ĐỒ -->
+      <g transform="translate(40, 930)">
+        <text x="0" y="15" fill="#64748b" font-size="11">Đề tài: SáchGóc Uni • Trường Đại học Kiến trúc Đà Nẵng • SV: Nguyễn Văn Hào - Lớp 24CT1</text>
+      </g>
+    </svg>
+  </div>
+
+  <!-- NOTE BOX -->
+  <div class="note-box">
+    <h4>💡 Điểm khác biệt quan trọng vừa sửa:</h4>
+    <ul>
+      <li><b>Trước khi sửa:</b> Khung nét đứt <code>alt</code> bị kéo dài từ ngoài cùng bên trái (cột <i>Người dùng</i>) sang tận cột <i>CSDL</i>. Điều này sai chuẩn UML vì Người dùng và Frontend chỉ gửi yêu cầu &amp; hiển thị, không tham gia vào khối rẽ nhánh điều kiện.</li>
+      <li><b>Sau khi sửa (Chuẩn 100%):</b> Khung <code>alt</code> được <b>thu gọn lại, chỉ bắt đầu từ cột Bộ xử lý hệ thống (Backend)</b> bao quanh tương tác với CSDL. Các mũi tên số <code>(11, 12)</code> và <code>(14, 15)</code> sau khi Backend xử lý xong sẽ gửi response xuyên qua mép khung <code>alt</code> trả về cho Frontend và Người dùng.</li>
+    </ul>
+  </div>
+
+  <script>
+    function copyMermaidCode() {
+      const code = `sequenceDiagram
+    autonumber
+    actor ND as 👤 Người dùng
+    participant FE as 🖥️ Frontend (templates/registration)
+    participant BE as ⚙️ Backend (views.py)
+    participant DB as 🗄️ CSDL (auth_user, app_main_profile)
+
+    ND->>FE: 1. Nhập đầy đủ thông tin (Họ tên, tài khoản, Gmail, khoa, MSSV, mật khẩu)
+    ND->>FE: 2. Bấm nút "Đăng ký"
+    FE->>BE: 3. Gửi dữ liệu đăng ký kèm mã bảo mật (CSRF)
+    BE->>BE: 4. Kiểm tra tên đăng nhập hoặc email đã tồn tại chưa
+    BE->>BE: 5. Kiểm tra quy định: đuôi @gmail.com, 2 mật khẩu khớp và đủ độ dài
+
+    %% KHỐI ALT CHỈ XỬ LÝ Ở PHÍA BACKEND VÀ CSDL
+    alt [Dữ liệu hợp lệ (Thành công)]
+        BE->>DB: 6. Lưu thông tin tài khoản mới (mật khẩu đã mã hóa an toàn PBKDF2)
+        DB-->>BE: 7. Xác nhận lưu thành công (user_id)
+        BE->>DB: 8. Lưu thông tin hồ sơ bổ sung (Khoa, MSSV)
+        DB-->>BE: 9. Xác nhận lưu thành công
+        BE->>BE: 10. Tự động ghi nhận phiên đăng nhập cho tài khoản mới (login)
+        BE-->>FE: 11. Chuyển hướng thành công về trang chủ (HTTP 302)
+        FE-->>ND: 12. Vào thẳng hệ thống, không cần phải đăng nhập lại
+    else [Dữ liệu không hợp lệ (Thất bại)]
+        BE->>BE: 13. Tổng hợp và trả về danh sách lỗi cụ thể
+        BE-->>FE: 14. Gửi thông báo lỗi về giao diện
+        FE-->>ND: 15. Cảnh báo lỗi và tô đỏ các ô nhập sai
+    end`;
+
+      navigator.clipboard.writeText(code).then(() => {
+        alert("✅ Đã chép mã Mermaid vào bộ nhớ tạm! Bạn có thể dán vào Draw.io hoặc Mermaid.live!");
+      }).catch(() => {
+        prompt("Copy mã nguồn Mermaid bên dưới:", code);
+      });
+    }
+  </script>
+</body>
+</html>

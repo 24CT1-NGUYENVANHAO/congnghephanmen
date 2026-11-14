@@ -1,0 +1,46 @@
+{
+  "base_url": "http://127.0.0.1:8011",
+  "credentials": {
+    "student": {
+      "username": "hao.nguyen24@gmail.com",
+      "password": "123456"
+    },
+    "admin": {
+      "username": "admin",
+      "password": "admin123"
+    }
+  },
+  "users": {
+    "admin": 1,
+    "hao": 2,
+    "lan": 3,
+    "minh": 4
+  },
+  "categories": {
+    "giao-trinh": 1,
+    "dung-cu": 2,
+    "do-dien-tu": 3
+  },
+  "posts": {
+    "csdl": 1,
+    "python": 2,
+    "de-thi": 3,
+    "ban-phim": 4,
+    "balo": 5,
+    "but-highlight": 6,
+    "pending": 7,
+    "casio": 8
+  },
+  "orders": {
+    "pending": 1,
+    "completed": 2
+  },
+  "reports": {
+    "pending": 1
+  },
+  "screens": {
+    "detail_pk": 2,
+    "buy_pk": 2,
+    "order_pk": 1
+  }
+}
