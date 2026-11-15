@@ -841,48 +841,53 @@ def _is_allowed_email(value):
 
 
 def user_login(request):
-    """Đăng nhập bằng tên đăng nhập hoặc email Gmail / email trường .edu.vn."""
+    """Đăng nhập bằng email Gmail / email trường .edu.vn.
+
+    Tên đăng nhập được sinh tự động từ email lúc đăng ký nên người dùng không
+    phải nhớ: biểu mẫu chỉ nhận email, tra bản ghi ``User`` theo email rồi để
+    ``AuthenticationForm`` kiểm tra mật khẩu như bình thường.
+    """
     if request.user.is_authenticated:
         return redirect('home')
 
     error = ''
+    email = ''
+    form = AuthenticationForm()
     if request.method == 'POST':
-        form = AuthenticationForm(request, data=request.POST)
-        identity = request.POST.get('username', '').strip()
+        email = request.POST.get('username', '').strip()
         password = request.POST.get('password', '')
 
-        # Nếu người dùng nhập email (có dấu @) thì tra cứu tài khoản theo email.
-        # Tài khoản quản trị vẫn đăng nhập được bằng username như trước.
-        if '@' in identity:
-            if not _is_allowed_email(identity):
-                error = (
-                    'Chỉ chấp nhận email @gmail.com hoặc email trường @edu.vn. '
-                    'Vui lòng nhập lại.'
-                )
+        if '@' not in email:
+            error = (
+                'Vui lòng đăng nhập bằng địa chỉ email '
+                '(@gmail.com hoặc email trường @edu.vn).'
+            )
+        elif not _is_allowed_email(email):
+            error = (
+                'Chỉ chấp nhận email @gmail.com hoặc email trường @edu.vn. '
+                'Vui lòng nhập lại.'
+            )
+        else:
+            from django.contrib.auth import get_user_model
+            matched = get_user_model().objects.filter(email__iexact=email).first()
+            if not matched:
+                error = 'Không tìm thấy tài khoản nào dùng email này.'
             else:
-                from django.contrib.auth import get_user_model
-                matched = get_user_model().objects.filter(email__iexact=identity).first()
-                if not matched:
-                    error = 'Không tìm thấy tài khoản nào dùng email này.'
-                else:
-                    form = AuthenticationForm(
-                        request,
-                        data={'username': matched.username, 'password': password},
-                    )
-
-        if not error:
-            if form.is_valid():
-                login(request, form.get_user())
-                messages.success(request, f"Xin chào, {request.user.profile.display_name}!")
-                return redirect(request.GET.get('next') or request.POST.get('next') or 'home')
-            error = 'Tên đăng nhập hoặc mật khẩu không chính xác. Vui lòng thử lại.'
-    else:
-        form = AuthenticationForm()
+                form = AuthenticationForm(
+                    request,
+                    data={'username': matched.username, 'password': password},
+                )
+                if form.is_valid():
+                    login(request, form.get_user())
+                    messages.success(request, f"Xin chào, {request.user.profile.display_name}!")
+                    return redirect(request.GET.get('next') or request.POST.get('next') or 'home')
+                error = 'Email hoặc mật khẩu không chính xác. Vui lòng thử lại.'
 
     return render(request, 'registration/login.html', {
         'form': form,
         'next': request.GET.get('next', ''),
         'login_error': error,
+        'login_email': email,
     })
 
 

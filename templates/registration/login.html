@@ -28,14 +28,14 @@
 
                 <div>
                     <label for="id_username" class="form-label">
-                        Email Gmail hoặc tên đăng nhập <span class="text-red-500">*</span>
+                        Email đăng nhập <span class="text-red-500">*</span>
                     </label>
-                    <input type="text" name="username" id="id_username" required autofocus autocomplete="username"
+                    <input type="email" name="username" id="id_username" required autofocus autocomplete="email"
                            placeholder="hao.nguyen24@gmail.com"
-                           class="form-input" value="{{ form.username.value|default:'' }}">
+                           class="form-input" value="{{ login_email|default:'' }}">
                     <p class="text-xs text-slate-400 mt-1">
-                        Chỉ nhận email <strong>@gmail.com</strong> hoặc email trường
-                        <strong>@edu.vn</strong>.
+                        Dùng email <strong>@gmail.com</strong> hoặc email trường
+                        <strong>@edu.vn</strong> đã đăng ký tài khoản.
                     </p>
                 </div>
 
@@ -74,9 +74,9 @@
                     </button>
                 </div>
                 <div class="flex items-center justify-between gap-2">
-                    <span class="font-mono">admin / admin123</span>
+                    <span class="font-mono">admin@sachgocuni.edu.vn / admin123</span>
                     <button type="button" class="text-indigo-600 hover:underline font-sans shrink-0"
-                            onclick="document.getElementById('id_username').value='admin';
+                            onclick="document.getElementById('id_username').value='admin@sachgocuni.edu.vn';
                                      document.getElementById('id_password').value='admin123';">
                         Điền nhanh
                     </button>

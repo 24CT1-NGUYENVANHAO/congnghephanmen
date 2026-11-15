@@ -408,13 +408,53 @@ class AuthViewTests(TestCase):
         })
         self.assertEqual(response.status_code, 200)
 
-    def test_login_with_username(self):
+    def test_login_rejects_username(self):
         create_user('sinhvien', 'MatKhau123')
         response = self.client.post(reverse('login'), {
             'username': 'sinhvien',
             'password': 'MatKhau123',
         })
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('_auth_user_id', self.client.session)
+        self.assertContains(response, 'Vui lòng đăng nhập bằng địa chỉ email')
+
+    def test_login_email_is_case_insensitive(self):
+        user = create_user('sinhvien', 'MatKhau123')
+        user.email = 'sv@gmail.com'
+        user.save()
+
+        response = self.client.post(reverse('login'), {
+            'username': 'SV@GMAIL.COM',
+            'password': 'MatKhau123',
+        })
         self.assertRedirects(response, reverse('home'))
+
+    def test_login_rejects_email_outside_allowed_domains(self):
+        user = create_user('sinhvien', 'MatKhau123')
+        user.email = 'sv@yahoo.com'
+        user.save()
+
+        response = self.client.post(reverse('login'), {
+            'username': 'sv@yahoo.com',
+            'password': 'MatKhau123',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('_auth_user_id', self.client.session)
+        self.assertContains(response, 'Chỉ chấp nhận email')
+
+    def test_login_with_unknown_email(self):
+        response = self.client.post(reverse('login'), {
+            'username': 'khongco@gmail.com',
+            'password': 'MatKhau123',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('_auth_user_id', self.client.session)
+        self.assertContains(response, 'Không tìm thấy tài khoản nào dùng email này')
+
+    def test_login_form_asks_for_email_only(self):
+        response = self.client.get(reverse('login'))
+        self.assertNotContains(response, 'tên đăng nhập')
+        self.assertContains(response, 'admin@sachgocuni.edu.vn')
 
     def test_login_with_email(self):
         user = create_user('sinhvien', 'MatKhau123')

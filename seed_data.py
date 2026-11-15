@@ -498,12 +498,12 @@ def run():
   🔑 TÀI KHOẢN ĐĂNG NHẬP:
 
      Quản trị viên:
-        username: admin
+        email: admin@sachgocuni.edu.vn
         password: admin123
         URL: http://127.0.0.1:8000/django-admin/
 
      Sinh viên demo:
-        username: sinhvien_demo
+        email: hao.nguyen24@gmail.com
         password: 123456
         (Các tài khoản: thanhhoa, minhthu, quynhanh — cùng mật khẩu 123456)
 
