@@ -1156,8 +1156,8 @@ def build_ch2_1(doc: Doc) -> None:
     doc.p(
         "Luồng đăng nhập có thêm một bước kiểm tra trước khi xác thực: ngay sau khi "
         "nhận `POST`, view `user_login()` gọi `_is_allowed_email()` (bước 6) để chặn "
-        "các tên đăng nhập không thuộc miền email được phép — quy ước của phạm vi đề "
-        "tài, sàn chỉ phục vụ sinh viên trong trường. Tiếp theo "
+        "các định danh không phải email hoặc ngoài miền được phép — quy ước của phạm "
+        "vi đề tài, sàn chỉ phục vụ sinh viên trong trường. Tiếp theo "
         "`AuthenticationForm` (7) gọi `authenticate()`; hàm này băm mật khẩu vừa nhập "
         "rồi so sánh với giá trị đã lưu trong bảng `auth_user` (8), kết quả là đối "
         "tượng người dùng hoặc `None`."
@@ -1506,25 +1506,25 @@ def build_ch2_3(doc: Doc) -> None:
     # ------------------------------------------------------------ 2.3.2
     doc.h3("2.3.2. Chức năng đăng nhập")
     doc.p(
-        "Đăng nhập dùng `AuthenticationForm` có sẵn của Django nhưng mở rộng thêm một "
-        "đường vào: người dùng có thể nhập **email** thay vì tên đăng nhập. Đây là "
-        "thay đổi cần thiết vì tên đăng nhập được sinh tự động từ email lúc đăng ký, "
-        "người dùng không nhất thiết nhớ nó. Luồng gồm năm bước:"
+        "Đăng nhập dùng `AuthenticationForm` có sẵn của Django nhưng biểu mẫu chỉ nhận "
+        "**email**: tên đăng nhập được sinh tự động lúc đăng ký nên người dùng không "
+        "phải nhớ. Hệ thống tra bản ghi `User` theo email rồi mới để Django kiểm tra "
+        "mật khẩu. Luồng gồm năm bước:"
     )
     _demo_steps(doc, [
         "Người dùng mở `/dang-nhap/`, hoặc bị chuyển tới đây kèm tham số `next` khi "
         "cố vào một trang cần đăng nhập.",
-        "Người dùng nhập một trong hai dạng định danh — email Gmail, email trường "
-        "`@edu.vn`, hoặc tên đăng nhập — rồi nhập mật khẩu.",
-        "Nếu chuỗi định danh có dấu `@`, hệ thống kiểm tra miền trước: chỉ `gmail.com` "
-        "và các đuôi `.edu.vn` được chấp nhận, email ngoài danh sách bị từ chối ngay "
-        "mà không cần truy vấn cơ sở dữ liệu.",
+        "Người dùng nhập email đã đăng ký — Gmail hoặc email trường `@edu.vn` — rồi "
+        "nhập mật khẩu.",
+        "Hệ thống kiểm tra định danh trước: chuỗi không có dấu `@` bị từ chối kèm "
+        "lời nhắc, email ngoài `gmail.com` và `.edu.vn` bị chặn ngay mà chưa cần "
+        "truy vấn cơ sở dữ liệu.",
         "Với email hợp lệ, hệ thống tra bản ghi `User` theo email (không phân biệt "
         "chữ hoa thường) rồi dựng lại `AuthenticationForm` bằng tên đăng nhập tìm "
         "được; mật khẩu vẫn do Django kiểm tra như bình thường.",
         "Đăng nhập thành công thì chuyển tới `next` nếu có, không thì về trang chủ; "
-        "thất bại thì hiện thông báo chung “Tên đăng nhập hoặc mật khẩu không chính "
-        "xác” để không tiết lộ tài khoản nào có thật.",
+        "thất bại thì hiện thông báo chung “Email hoặc mật khẩu không chính xác” để "
+        "không tiết lộ tài khoản nào có thật.",
     ])
     doc.figure(
         ASSETS / "figma-dang-nhap-pair.png",
@@ -1534,8 +1534,8 @@ def build_ch2_3(doc: Doc) -> None:
         "Bản phác thảo đặt hai trường nhập trong cùng một thẻ với cặp nút chuyển Đăng "
         "ký — Đăng nhập ở trên, hai liên kết phụ “Ghi nhớ đăng nhập” và “Quên mật "
         "khẩu?” ở hai mép dưới. Bản hoàn thiện giữ nguyên vị trí các thành phần, chỉ "
-        "đổi nhãn trường thành “Email Gmail hoặc Tên đăng nhập” cho đúng nghiệp vụ, "
-        "thêm dấu kiểm tra hợp lệ và thêm dải bảo mật ở chân thẻ."
+        "đổi nhãn trường thành “Email đăng nhập” cho đúng nghiệp vụ, thêm dấu kiểm "
+        "tra hợp lệ và thêm dải bảo mật ở chân thẻ."
     )
     doc.p(
         "**Kết quả thực hiện.** Form đang chạy có hai trường, nút đăng nhập chiếm trọn "
@@ -1548,15 +1548,15 @@ def build_ch2_3(doc: Doc) -> None:
         width_cm=7.0,
     )
     doc.p(
-        "Đoạn mã dưới là phần lõi của hàm `user_login`: nhánh xử lý khi người dùng "
-        "nhập email và bước kiểm tra mật khẩu. Hàm phụ `_is_allowed_email` chỉ dài "
-        "một dòng nên được mô tả ở đây thay vì in kèm: nó tra miền của email trong "
-        "danh sách cho phép và chấp nhận thêm mọi miền kết thúc bằng `.edu.vn`."
+        "Đoạn mã dưới là phần lõi của hàm `user_login`: nhánh kiểm tra định danh là "
+        "email và bước xác thực mật khẩu. Hàm phụ `_is_allowed_email` chỉ dài một "
+        "dòng nên được mô tả ở đây thay vì in kèm: nó tra miền của email trong danh "
+        "sách cho phép và chấp nhận thêm mọi miền kết thúc bằng `.edu.vn`."
     )
     doc.code(
         source_excerpt(
             "app_main/views.py",
-            [(856, 878)],
+            [(860, 881)],
             need=("_is_allowed_email", "email__iexact"),
         ),
         size=9,

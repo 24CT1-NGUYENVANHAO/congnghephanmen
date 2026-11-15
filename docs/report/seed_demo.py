@@ -385,8 +385,8 @@ def main() -> None:
     ids = {
         "base_url": "http://127.0.0.1:8011",
         "credentials": {
-            "student": {"username": users["hao"].username, "password": STUDENT_PASSWORD},
-            "admin": {"username": users["admin"].username, "password": ADMIN_PASSWORD},
+            "student": {"username": users["hao"].email, "password": STUDENT_PASSWORD},
+            "admin": {"username": users["admin"].email, "password": ADMIN_PASSWORD},
         },
         "users": {key: user.pk for key, user in users.items()},
         "categories": {key: category.pk for key, category in categories.items()},

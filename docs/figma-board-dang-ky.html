@@ -1031,9 +1031,9 @@
         flow: [
           { type: 'start', text: 'Sinh viên đã có tài khoản' },
           { type: 'step', text: 'Mở trang Đăng nhập từ thanh điều hướng' },
-          { type: 'step', text: 'Nhập Tên đăng nhập (hoặc Gmail) & Mật khẩu', sub: 'Hệ thống tự nhận dạng địa chỉ email' },
+          { type: 'step', text: 'Nhập Email đăng nhập & Mật khẩu', sub: 'Hệ thống tra cứu tài khoản theo địa chỉ email' },
           { type: 'sys-check', text: 'Xác thực credentials qua Django Auth & hash PBKDF2' },
-          { type: 'decision', text: 'Mật khẩu<br>chính xác?', yesText: 'Đăng nhập thành công', yesSub: '— Tạo Session & Cookie', noText: 'Sai thông tin', noSub: '— Báo lỗi tên/mật khẩu' }
+          { type: 'decision', text: 'Mật khẩu<br>chính xác?', yesText: 'Đăng nhập thành công', yesSub: '— Tạo Session & Cookie', noText: 'Sai thông tin', noSub: '— Báo lỗi email/mật khẩu' }
         ],
         footerNote: 'Hỗ trợ nhớ phiên đăng nhập và phân quyền sinh viên / cán bộ quản trị.',
         wfTitle: 'Đăng nhập hệ thống',
