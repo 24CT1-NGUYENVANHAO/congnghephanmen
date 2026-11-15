@@ -140,7 +140,7 @@ Quy ước script đặt ở root giống các script sẵn có (`make_sequence_
 
 ## 9. Cần bạn xác nhận
 
-1. Họ tên trên bìa: **Nguyễn Văn Hảo** (theo tên repo) — đúng chưa?
+1. Họ tên trên bìa: **Nguyễn Văn Hào** (theo tên repo) — đúng chưa?
 2. Tự chọn 1 = **Đăng tin sản phẩm**, Tự chọn 2 = **Đặt mua & xác nhận đơn** — đúng chưa?
 3. PERT: giữ nguyên mạng A–J và con số 35 ngày của bài nhận thức 3, chỉ thêm cột ánh xạ công việc dự án — đồng ý không?
 4. Có thêm mục **KẾT LUẬN** ngắn ở cuối (ngoài 2 chương bắt buộc) không?

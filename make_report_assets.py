@@ -238,8 +238,17 @@ class SequenceDiagram:
         self.header_h = 0.0
         self.header_bottom = 0.0
 
-    def msg(self, src: int, dst: int, label: str, kind: str = "call") -> int:
-        self.messages.append({"src": src, "dst": dst, "label": label, "kind": kind})
+    def msg(self, src: int, dst: int, label: str, kind: str = "call",
+            num: str | None = None) -> int:
+        """Thêm một thông điệp; ``num`` cho phép đánh số kiểu ``8a``/``9b``.
+
+        Không truyền ``num`` thì thông điệp mang số thứ tự tuần tự của nó, đúng
+        như bảng thông điệp. Các bước nằm trong khung ``alt`` được đánh số theo
+        nhánh (``8a``, ``9a`` cho nhánh đầu; ``8b``, ``9b`` cho nhánh ``else``)
+        để người đọc đối chiếu được hai nhánh song song.
+        """
+        self.messages.append({"src": src, "dst": dst, "label": label,
+                              "kind": kind, "num": num})
         return len(self.messages) - 1
 
     def fragment(self, kind: str, guard: str, first: int, last: int,
@@ -344,6 +353,13 @@ class SequenceDiagram:
                 message["anchor"] = "start"
                 x_text = src_x + 6
                 max_w = max(inner_right - x_text - 4, 70.0)
+            elif holder is not None and min(src_x, dst_x) > holder["left"]:
+                # Trả về giữa hai đường sống đều nằm trong khung: nhãn buộc
+                # phải ở trong khung, canh trái ngay sau đầu mũi tên, nếu
+                # không nó sẽ chạy ngược qua cạnh trái và đè lên đường bao.
+                message["anchor"] = "start"
+                x_text = dst_x + 6
+                max_w = max(inner_right - x_text - 4, 70.0)
             else:
                 # Giá trị trả về đi sang trái: nhãn canh phải, kết thúc ngay
                 # dưới đường sống nguồn như mẫu tham chiếu. Nhãn trả về được
@@ -355,13 +371,14 @@ class SequenceDiagram:
                     x_text = holder["left"] - 6
                 max_w = max(x_text - 8, 60.0)
             message["x_text"] = x_text
-            lines = _wrap_text(f"{index + 1}. {message['label']}", max_w, self.font,
+            num = message.get("num") or str(index + 1)
+            lines = _wrap_text(f"{num}. {message['label']}", max_w, self.font,
                                 char_factor=0.46)
             message["lines"] = lines
             if message["kind"] == "self":
-                height = len(lines) * self.line_h + 36
+                height = len(lines) * self.line_h + 34
             else:
-                height = len(lines) * self.line_h + 22
+                height = len(lines) * self.line_h + 20
             heights.append(height)
             y += height
         self.frag_rects = self._fragment_bounds(ys, heights, x_bounds)
@@ -662,23 +679,26 @@ SEQUENCES: dict[str, dict] = {
              "lines": ["sachgocuni.db", "auth_user,", "app_main_profile"]},
         ],
         "messages": [
-            (0, 1, "Truy cập /dang-ky/ (GET)", "call"),
-            (1, 2, "Chuyển yêu cầu cho view register()", "call"),
-            (2, 0, "Render registration/register.html + form trống", "return"),
-            (0, 2, "POST: họ tên, username, email, mật khẩu", "call"),
+            (0, 1, "Yêu cầu mở form đăng ký (Click “Đăng ký”)", "call"),
+            (1, 2, "GET /dang-ky/ → view register()", "call"),
+            (2, 1, "Hiển thị form đăng ký", "return"),
+            (0, 1, "Nhập đầy đủ thông tin và bấm “Đăng ký”", "call"),
+            (1, 2, "Gửi thông tin đăng ký (POST /dang-ky/)", "call"),
             (2, 3, "RegisterForm(request.POST)", "call"),
-            (3, 2, "is_valid(): kiểm tra các trường", "return"),
-            (2, 4, "User.objects.create_user(username, email, password)", "call"),
-            (4, 4, "signal post_save tạo Profile", "self"),
-            (4, 2, "user (đã lưu, pk mới)", "return"),
-            (2, 4, "login(request, user): ghi session", "call"),
-            (2, 0, "redirect('home') + thông báo chào mừng", "return"),
-            (2, 0, "Render lại register.html kèm lỗi từng trường", "return"),
+            (3, 4, "SELECT 1 FROM auth_user WHERE email = ?", "call"),
+            (3, 2, "Trả về lỗi từng trường", "return", "8a"),
+            (2, 1, "Render lại register.html kèm thông báo lỗi", "return", "9a"),
+            (2, 4, "INSERT INTO auth_user (…, mật khẩu băm PBKDF2)", "call", "8b"),
+            (4, 4, "signal post_save tạo Profile", "self", "9b"),
+            (4, 2, "Trả về user (pk mới)", "return", "10b"),
+            (2, 1, "Chuyển hướng về trang chủ kèm lời chào", "return", "11"),
+            (1, 0, "Hiển thị thông báo “Đăng ký thành công”", "return", "12"),
         ],
         "file": "seq-dang-ky.png",
         "fragments": [
-            {"kind": "alt", "first": 7, "split": 11, "last": 12,
-             "guard": "[Biểu mẫu hợp lệ]", "else_guard": "Biểu mẫu không hợp lệ"},
+            {"kind": "alt", "first": 8, "split": 9, "last": 13,
+             "guard": "[Trường hợp email đã tồn tại hoặc dữ liệu không hợp lệ]",
+             "else_guard": "Trường hợp dữ liệu hợp lệ và email chưa tồn tại"},
         ],
     },
     "dang-nhap": {
@@ -699,23 +719,26 @@ SEQUENCES: dict[str, dict] = {
              "lines": ["sachgocuni.db", "auth_user,", "django_session"]},
         ],
         "messages": [
-            (0, 1, "Truy cập /dang-nhap/ (GET)", "call"),
-            (1, 2, "Chuyển yêu cầu cho view user_login()", "call"),
-            (2, 0, "Render registration/login.html + form trống", "return"),
-            (0, 2, "POST: email + mật khẩu", "call"),
-            (2, 2, "_is_allowed_email(): chỉ @gmail.com và *.edu.vn", "self"),
-            (2, 3, "AuthenticationForm(username, password)", "call"),
-            (3, 4, "authenticate(): đối chiếu mật khẩu đã băm", "call"),
-            (4, 3, "user hoặc None", "return"),
-            (3, 2, "form.is_valid()", "return"),
-            (2, 4, "login(): tạo phiên làm việc (session)", "call"),
-            (2, 0, "redirect(next hoặc 'home')", "return"),
-            (2, 0, "Render lại login.html + thông báo lỗi đăng nhập", "return"),
+            (0, 1, "Yêu cầu mở form đăng nhập (Click “Đăng nhập”)", "call"),
+            (1, 2, "GET /dang-nhap/ → view user_login()", "call"),
+            (2, 1, "Hiển thị form đăng nhập (email, mật khẩu)", "return"),
+            (0, 1, "Nhập email, mật khẩu và bấm “Đăng nhập”", "call"),
+            (1, 2, "Gửi thông tin đăng nhập (POST /dang-nhap/)", "call"),
+            (2, 2, "_is_allowed_email(): lọc miền", "self"),
+            (2, 3, "AuthenticationForm(request.POST)", "call"),
+            (3, 4, "authenticate(): SELECT * FROM auth_user", "call"),
+            (3, 2, "Trả về lỗi xác thực (user = None)", "return", "9a"),
+            (2, 1, "Render lại login.html kèm thông báo lỗi", "return", "10a"),
+            (2, 4, "login(): INSERT INTO django_session", "call", "9b"),
+            (4, 2, "Trả về session_key vừa tạo", "return", "10b"),
+            (2, 1, "Chuyển hướng về trang chủ kèm lời chào", "return", "11b"),
+            (1, 0, "Hiển thị trang chủ", "return", "12"),
         ],
         "file": "seq-dang-nhap.png",
         "fragments": [
-            {"kind": "alt", "first": 10, "split": 11, "last": 12,
-             "guard": "[Xác thực thành công]", "else_guard": "Xác thực thất bại"},
+            {"kind": "alt", "first": 9, "split": 10, "last": 13,
+             "guard": "[Trường hợp sai email hoặc sai mật khẩu]",
+             "else_guard": "Trường hợp email và mật khẩu đều hợp lệ"},
         ],
     },
     "dang-tin": {
@@ -736,23 +759,24 @@ SEQUENCES: dict[str, dict] = {
              "lines": ["sachgocuni.db", "app_main_post,", "app_main_postimage"]},
         ],
         "messages": [
-            (0, 2, "Truy cập /dang-tin/ (GET, đã đăng nhập)", "call"),
-            (2, 0, "Render post_form.html + PostForm trống", "return"),
-            (0, 2, "POST: tiêu đề, danh mục, giá, mô tả, ảnh", "call"),
+            (0, 1, "Yêu cầu mở form đăng tin (Click “Đăng tin”)", "call"),
+            (1, 2, "GET /dang-tin/ → view create_post() (login_required)", "call"),
+            (2, 1, "Hiển thị form đăng tin (post_form.html)", "return"),
+            (0, 1, "Nhập tiêu đề, danh mục, giá, mô tả, ảnh và bấm “Đăng tin”", "call"),
+            (1, 2, "Gửi dữ liệu bài đăng (POST FormData)", "call"),
             (2, 3, "PostForm(request.POST, request.FILES)", "call"),
-            (3, 2, "is_valid(): kiểm tra các trường", "return"),
-            (2, 4, "Post.save(): sinh slug, giá 0 thì is_free = True", "call"),
-            (4, 2, "post.pk", "return"),
-            (2, 4, "PostImage.objects.create(post, image) cho từng ảnh", "call"),
-            (2, 0, "redirect(post_detail) — hiển thị bài vừa đăng", "return"),
-            (2, 0, "Render lại post_form.html kèm lỗi từng trường", "return"),
+            (3, 2, "Trả về lỗi từng trường", "return", "7a"),
+            (2, 1, "Render lại post_form.html báo lỗi", "return", "8a"),
+            (2, 4, "INSERT INTO app_main_post (…, slug, is_free)", "call", "7b"),
+            (4, 2, "Trả về post.pk kèm ảnh phụ đã lưu", "return", "8b"),
+            (2, 1, "Chuyển hướng tới trang chi tiết", "return", "9b"),
+            (1, 0, "Hiển thị bài đăng mới", "return", "10"),
         ],
         "file": "seq-dang-tin.png",
         "fragments": [
-            {"kind": "alt", "first": 6, "split": 9, "last": 10,
-             "guard": "[Dữ liệu hợp lệ]", "else_guard": "Dữ liệu không hợp lệ"},
-            {"kind": "opt", "first": 8, "last": 8,
-             "guard": "[Có tải thêm ảnh phụ]"},
+            {"kind": "alt", "first": 7, "split": 8, "last": 11,
+             "guard": "[Trường hợp dữ liệu không hợp lệ]",
+             "else_guard": "Trường hợp dữ liệu hợp lệ"},
         ],
     },
     "dat-mua": {
@@ -772,23 +796,26 @@ SEQUENCES: dict[str, dict] = {
             {"kind": "actor", "label": "Người bán", "layer": "client"},
         ],
         "messages": [
-            (0, 2, "Truy cập /san-pham/<pk>/dat-mua/", "call"),
-            (2, 2, "Kiểm tra: không phải chủ bài, sản phẩm còn, chưa có đơn mở", "self"),
-            (2, 0, "Render buy_post.html + OrderForm", "return"),
-            (0, 2, "POST: lời nhắn, số điện thoại, địa điểm hẹn", "call"),
-            (2, 3, "Tạo form = OrderForm(POST)", "call"),
-            (2, 3, "Gán post, buyer, seller, price_snapshot = post.price", "call"),
-            (3, 3, "INSERT đơn mới, status = PENDING", "self"),
-            (2, 0, "redirect('my_orders') + thông báo đã gửi", "return"),
-            (2, 0, "redirect(post_detail hoặc 'my_orders') + thông báo lỗi", "return"),
-            (4, 2, "POST accept_order(pk)", "call"),
-            (2, 3, "order.status = CONFIRMED; save()", "call"),
-            (2, 4, "redirect(order_detail) + thông báo xác nhận", "return"),
+            (0, 1, "Yêu cầu đặt mua sản phẩm (Click “Đặt mua”)", "call"),
+            (1, 2, "GET /san-pham/<pk>/dat-mua/ → view buy_post()", "call"),
+            (2, 1, "Hiển thị form đặt mua (buy_post.html)", "return"),
+            (0, 1, "Nhập lời nhắn, số điện thoại và bấm “Gửi yêu cầu”", "call"),
+            (1, 2, "Gửi thông tin đặt mua (POST)", "call"),
+            (2, 3, "SELECT 1 FROM app_main_order WHERE post_id=?", "call"),
+            (2, 1, "Chuyển hướng kèm thông báo đã gửi trước đó", "return", "7a"),
+            (1, 0, "Hiển thị thông báo không thể đặt mua", "return", "8a"),
+            (2, 3, "INSERT INTO app_main_order", "call", "7b"),
+            (2, 1, "Chuyển hướng tới my_orders", "return", "8b"),
+            (4, 2, "POST accept_order(pk): người bán xác nhận", "call", "9"),
+            (2, 3, "UPDATE app_main_order SET status = 'CONFIRMED'", "call", "10"),
+            (2, 1, "Chuyển hướng tới order_detail", "return", "11"),
+            (1, 0, "Hiển thị đơn xác nhận", "return", "12"),
         ],
         "file": "seq-dat-mua.png",
         "fragments": [
-            {"kind": "alt", "first": 3, "split": 8, "last": 9,
-             "guard": "[Ba điều kiện đều đạt]", "else_guard": "Vi phạm một trong ba điều kiện"},
+            {"kind": "alt", "first": 7, "split": 8, "last": 10,
+             "guard": "[Trường hợp đã có đơn mở]",
+             "else_guard": "Trường hợp chưa có đơn mở"},
         ],
     },
 }
@@ -805,8 +832,10 @@ def _render_sequence(key: str) -> Path:
     """Vẽ một sơ đồ tuần tự từ dữ liệu trong ``SEQUENCES``."""
     spec = SEQUENCES[key]
     d = SequenceDiagram(spec["headers"], spec["banner"], spec["legend"])
-    for src, dst, text, kind in spec["messages"]:
-        d.msg(src, dst, text, kind)
+    for message in spec["messages"]:
+        src, dst, text, kind = message[:4]
+        num = message[4] if len(message) > 4 else None
+        d.msg(src, dst, text, kind, num)
     for frag in spec["fragments"]:
         split = frag.get("split")
         d.fragment(

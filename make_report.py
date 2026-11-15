@@ -1056,9 +1056,11 @@ def _message_table(doc: Doc, key: str, caption: str) -> None:
 
     spec = SEQUENCES[key]
     rows = []
-    for index, (src, dst, text, kind) in enumerate(spec["messages"], start=1):
+    for index, message in enumerate(spec["messages"], start=1):
+        src, dst, text, kind = message[:4]
+        num = message[4] if len(message) > 4 else str(index)
         rows.append([
-            str(index),
+            num,
             f"{spec['actors'][src]} → {spec['actors'][dst]}",
             text,
             MESSAGE_KINDS[kind],
@@ -1096,11 +1098,17 @@ def build_ch2_1(doc: Doc) -> None:
         "dưới là hộp tiêu đề của từng tác nhân, ghi đúng đường dẫn tệp giao diện và tệp "
         "xử lý trong dự án, riêng cơ sở dữ liệu được vẽ thành hình trụ kèm tên CSDL và "
         "các bảng liên quan. Mỗi sơ đồ có đúng một khung *alt* — khung rẽ nhánh lớn "
-        "nhất — chia luồng thành hai toán hạng: điều kiện thành công ở trên và điều "
-        "kiện thất bại ở dưới, ngăn cách bởi đường kẻ đứt ghi nhãn `[else]`. Nhãn điều "
-        "kiện được đặt trong ngoặc vuông ngay sau chữ *alt*, theo đúng quy ước của UML. "
-        "Riêng sơ đồ đăng tin còn có thêm một khung *opt* lồng bên trong khung *alt*, "
-        "đánh dấu phần chỉ chạy khi người đăng có tải thêm ảnh phụ."
+        "nhất — và khung này luôn đặt nhánh thất bại lên trước, nhánh thành công "
+        "trong toán hạng `[else]`. Cách xếp này phản ánh đúng thứ tự kiểm tra trong "
+        "mã nguồn: view kiểm tra dữ liệu trước, chỉ khi mọi điều kiện đều đạt mới ghi "
+        "vào cơ sở dữ liệu. Nhãn điều kiện đặt trong ngoặc vuông ngay sau chữ *alt* "
+        "theo quy ước UML; các bước thuộc nhánh thất bại mang hậu tố `a`, các bước "
+        "thuộc nhánh thành công mang hậu tố `b`, nhờ vậy số thứ tự vẫn tăng dần theo "
+        "thời gian mà người đọc vẫn nhận ra ngay bước nào thuộc nhánh nào. Khung *alt* "
+        "chỉ ôm các đường sống phía máy chủ — view, biểu mẫu xử lý và CSDL — nên các "
+        "thông điệp trả kết quả về trình duyệt vẫn vẽ bình thường và đi ra ngoài cạnh "
+        "trái của khung; bước hiển thị kết quả cuối cùng cũng nằm ngoài khung vì nó "
+        "không phải bước xử lý."
     )
     doc.p(
         "Mỗi hình đi kèm một bảng thông điệp đánh số đúng như số thứ tự trên hình, nhờ "
@@ -1114,22 +1122,29 @@ def build_ch2_1(doc: Doc) -> None:
     # ------------------------------------------------------------ 2.1.1
     doc.h3("2.1.1. Đăng ký tài khoản")
     doc.p(
-        "Người dùng mở `/dang-ky/`, view `register()` dựng biểu mẫu trống rồi trả về "
-        "trình duyệt. Khi biểu mẫu được gửi đi, `RegisterForm` kiểm tra tính hợp lệ của "
-        "từng trường — trong đó có ràng buộc chỉ chấp nhận địa chỉ email `@gmail.com` "
-        "hoặc email của trường (`*.edu.vn`). Nếu hợp lệ, view gọi "
-        "`User.objects.create_user()` để tạo bản ghi trong bảng `auth_user`; mật khẩu "
-        "được băm bằng PBKDF2 trước khi ghi nên không lưu dạng đọc được. Ngay sau khi "
-        "bản ghi được lưu, tín hiệu `post_save` tự động tạo một `Profile` rỗng gắn với "
-        "người dùng vừa tạo, nhờ vậy các bước sau không phải kiểm tra profile có tồn "
-        "tại hay không. Cuối cùng view gọi `login()` để tạo phiên làm việc và chuyển "
-        "hướng về trang chủ kèm lời chào."
+        "Người dùng bấm “Đăng ký”, trình duyệt gửi `GET /dang-ky/`; view "
+        "`register()` dựng biểu mẫu trống rồi trả về `register.html`. Khi biểu mẫu "
+        "được gửi đi, `RegisterForm` nhận `request.POST` và kiểm tra lần lượt từng "
+        "trường — trong đó có ràng buộc chỉ chấp nhận địa chỉ `@gmail.com` hoặc email "
+        "của trường (`*.edu.vn`). Bước 7 là truy vấn thật vào bảng `auth_user` để phát "
+        "hiện email đã được đăng ký trước đó; trong nhánh thất bại, đây là bước duy "
+        "nhất chạm tới cơ sở dữ liệu."
     )
     doc.p(
-        "Nhánh `[else]` của khung *alt* mô tả trường hợp ngược lại: nếu `is_valid()` "
-        "trả về `False`, view bỏ qua toàn bộ phần tạo người dùng — không có bản ghi "
-        "`auth_user` nào được ghi, không có `Profile` nào được tạo — mà render lại "
-        "`register.html` kèm thông báo lỗi ngay dưới từng trường sai."
+        "Khung *alt* mở đầu bằng nhánh thất bại. Khi `is_valid()` trả về `False`, "
+        "form trả lỗi cho từng trường (8a) và view render lại `register.html` kèm "
+        "thông báo lỗi ngay dưới trường sai (9a) — không có bản ghi `auth_user` nào "
+        "được ghi, cũng không có `Profile` nào được tạo."
+    )
+    doc.p(
+        "Toán hạng `[else]` là đường thành công: view gọi `User.objects.create_user()` "
+        "để ghi bản ghi mới (8b), mật khẩu được băm bằng PBKDF2 trước khi lưu nên "
+        "không nằm trong cơ sở dữ liệu ở dạng đọc được. Tín hiệu `post_save` chạy ngay "
+        "sau lệnh ghi, tự động tạo một `Profile` rỗng gắn với người dùng vừa tạo (9b), "
+        "nhờ vậy các bước sau không phải kiểm tra profile có tồn tại hay không. Form "
+        "trả về người dùng mới (10b) rồi view chuyển hướng về trang chủ kèm lời chào "
+        "(11). Bước 12 nằm ngoài khung: trình duyệt hiển thị thông báo “Đăng ký thành "
+        "công”."
     )
     doc.figure(ASSETS / "seq-dang-ky.png",
                "Sơ đồ tuần tự chức năng đăng ký tài khoản")
@@ -1139,17 +1154,26 @@ def build_ch2_1(doc: Doc) -> None:
     # ------------------------------------------------------------ 2.1.2
     doc.h3("2.1.2. Đăng nhập")
     doc.p(
-        "Luồng đăng nhập có thêm một bước kiểm tra trước khi xác thực: view "
-        "`user_login()` gọi `_is_allowed_email()` để chặn các tên đăng nhập không thuộc "
-        "miền email được phép. Đây là quy ước của phạm vi đề tài — sàn chỉ phục vụ sinh "
-        "viên trong trường — nên được kiểm tra ngay ở tầng view. Tiếp theo "
-        "`AuthenticationForm` gọi `authenticate()`, hàm này băm mật khẩu vừa nhập rồi "
-        "so sánh với giá trị đã lưu; kết quả là đối tượng người dùng hoặc `None`. Nếu "
-        "xác thực thành công, `login()` ghi mã định danh phiên vào cookie và view "
-        "chuyển hướng về tham số `next` nếu có, ngược lại về trang chủ. Nhánh `[else]` "
-        "của sơ đồ là đường thất bại: khi `authenticate()` trả về `None`, view không "
-        "gọi `login()` mà render lại `login.html` kèm biến `login_error` để hiện thông "
-        "báo, nhờ vậy người dùng biết sai ở đâu và thử lại được ngay trên biểu mẫu."
+        "Luồng đăng nhập có thêm một bước kiểm tra trước khi xác thực: ngay sau khi "
+        "nhận `POST`, view `user_login()` gọi `_is_allowed_email()` (bước 6) để chặn "
+        "các tên đăng nhập không thuộc miền email được phép — quy ước của phạm vi đề "
+        "tài, sàn chỉ phục vụ sinh viên trong trường. Tiếp theo "
+        "`AuthenticationForm` (7) gọi `authenticate()`; hàm này băm mật khẩu vừa nhập "
+        "rồi so sánh với giá trị đã lưu trong bảng `auth_user` (8), kết quả là đối "
+        "tượng người dùng hoặc `None`."
+    )
+    doc.p(
+        "Nhánh thất bại đứng trước trong khung *alt*: khi `authenticate()` trả về "
+        "`None` (9a), view không gọi `login()` mà render lại `login.html` kèm biến "
+        "`login_error` (10a). Người dùng thấy thông báo sai ngay trên biểu mẫu và thử "
+        "lại được mà không phải tải lại trang."
+    )
+    doc.p(
+        "Toán hạng `[else]` là đường thành công: `login()` ghi một dòng vào "
+        "`django_session` (9b) và trả về `session_key` vừa tạo (10b); view gắn khoá "
+        "phiên vào cookie rồi chuyển hướng về trang chủ kèm lời chào (11b). Bước 12 "
+        "hiển thị trang chủ và nằm ngoài khung vì đây là bước hiển thị kết quả chứ "
+        "không phải bước xử lý."
     )
     doc.figure(ASSETS / "seq-dang-nhap.png",
                "Sơ đồ tuần tự chức năng đăng nhập")
@@ -1161,16 +1185,23 @@ def build_ch2_1(doc: Doc) -> None:
     doc.p(
         "Đăng tin là chức năng tự chọn thứ nhất. Vì người chưa đăng nhập không được "
         "phép đăng bài, view `create_post()` được bọc bởi `login_required`: yêu cầu "
-        "chưa xác thực bị chuyển sang trang đăng nhập kèm tham số `next`. Khi biểu mẫu "
-        "được gửi, `PostForm` nhận cả `request.POST` và `request.FILES` để đọc được tệp "
-        "ảnh. Hàm `Post.save()` được viết đè để tự sinh `slug` duy nhất từ tiêu đề và "
-        "tự đặt `is_free = True` khi giá nhập vào bằng 0 — nhờ vậy một tin “tặng lại” "
-        "không cần thêm thao tác riêng. Nếu người dùng chọn thêm ảnh phụ, mỗi ảnh sinh "
-        "một bản ghi `PostImage` trỏ tới bài vừa tạo (khung *opt* lồng bên trong khung "
-        "*alt*). Cuối cùng view chuyển hướng tới trang chi tiết của bài mới. Nếu "
-        "`PostForm` báo lỗi thì nhánh `[else]` được chạy: view không ghi gì vào cơ sở "
-        "dữ liệu mà render lại `post_form.html` kèm lỗi từng trường, và ảnh phụ đã "
-        "chọn cũng không được lưu."
+        "chưa xác thực bị chuyển sang trang đăng nhập kèm tham số `next`. Khi biểu "
+        "mẫu được gửi, `PostForm` nhận cả `request.POST` và `request.FILES` (6) để "
+        "đọc được tệp ảnh."
+    )
+    doc.p(
+        "Nhánh thất bại đứng trước trong khung *alt*: nếu `PostForm` báo lỗi, view "
+        "không ghi gì vào cơ sở dữ liệu mà render lại `post_form.html` kèm lỗi từng "
+        "trường (7a, 8a); ảnh phụ đã chọn cũng không được lưu."
+    )
+    doc.p(
+        "Toán hạng `[else]` là đường thành công: `Post.save()` được viết đè để tự sinh "
+        "`slug` duy nhất từ tiêu đề và tự đặt `is_free = True` khi giá nhập vào bằng "
+        "0, nhờ vậy một tin “tặng lại” không cần thêm thao tác riêng; bản ghi được ghi "
+        "vào bảng `app_main_post` (7b). Nếu người dùng có chọn ảnh phụ, mỗi ảnh sinh "
+        "một bản ghi `PostImage` trỏ tới bài vừa tạo, và bước 8b trả về `post.pk` kèm "
+        "danh sách ảnh đã lưu. View chuyển hướng tới trang chi tiết (9b); bước 10 hiển "
+        "thị bài đăng mới và nằm ngoài khung."
     )
     doc.figure(ASSETS / "seq-dang-tin.png",
                "Sơ đồ tuần tự chức năng đăng tin sản phẩm")
@@ -1181,18 +1212,28 @@ def build_ch2_1(doc: Doc) -> None:
     doc.h3("2.1.4. Đặt mua và xác nhận đơn")
     doc.p(
         "Đặt mua là chức năng tự chọn thứ hai và là luồng duy nhất có hai tác nhân "
-        "người dùng. Trước khi dựng biểu mẫu, `buy_post()` kiểm tra ba điều kiện: người "
-        "mua không phải chủ bài, sản phẩm còn ở trạng thái bán được và người mua chưa "
-        "có đơn nào đang mở trên bài đó. Ba điều kiện này chặn cùng lúc việc tự mua bài "
-        "của mình, việc mua một món đã bán và việc một người gửi nhiều yêu cầu trùng "
-        "nhau. Khi biểu mẫu hợp lệ, view gán `post`, `buyer`, `seller` và chép giá hiện "
-        "tại vào `price_snapshot` rồi mới ghi đơn với `status = PENDING`; chép giá là "
-        "cần thiết vì người bán có thể sửa giá sau đó mà đơn đã chốt phải giữ nguyên "
-        "con số hai bên đã thoả thuận. Nhánh `[else]` của khung *alt* là đường từ chối: "
-        "khi vi phạm một trong ba điều kiện, view ghi thông báo lỗi rồi chuyển hướng "
-        "về trang sản phẩm — hoặc về `my_orders` nếu lỗi là đơn đã tồn tại — thay vì "
-        "tạo đơn mới. Ở nửa dưới của sơ đồ, người bán gọi "
-        "`accept_order()` để chuyển đơn sang `CONFIRMED`, hoàn tất giao dịch."
+        "người dùng. Trước khi dựng biểu mẫu, `buy_post()` đã loại sẵn hai trường hợp "
+        "không hợp lệ: người mua trùng với chủ bài và sản phẩm không còn ở trạng thái "
+        "bán được. Phần được vẽ trong sơ đồ là điều kiện thứ ba — người mua chưa có "
+        "đơn nào đang mở trên bài đó: bước 6 truy vấn `app_main_order` để kiểm tra "
+        "điều kiện này trước khi ghi."
+    )
+    doc.p(
+        "Nhánh thất bại đứng trước trong khung *alt*: khi đã tồn tại một đơn `PENDING`, "
+        "view ghi thông báo rồi chuyển hướng về trang sản phẩm (7a); trình duyệt hiển "
+        "thị thông báo không thể đặt mua (8a). Không có bản ghi đơn hàng mới nào được "
+        "tạo, nhờ vậy một người không gửi được nhiều yêu cầu trùng nhau cho cùng một "
+        "món."
+    )
+    doc.p(
+        "Toán hạng `[else]` là đường thành công: view gán `post`, `buyer`, `seller`, "
+        "chép giá hiện tại vào `price_snapshot` rồi ghi đơn với `status = PENDING` "
+        "(7b). Chép giá là cần thiết vì người bán có thể sửa giá sau đó mà đơn đã chốt "
+        "phải giữ nguyên con số hai bên đã thoả thuận. View chuyển hướng tới "
+        "`my_orders` (8b). Nửa dưới của sơ đồ nằm ngoài khung vì là một yêu cầu khác "
+        "do người bán khởi phát: người bán gọi `accept_order()` (9), view cập nhật "
+        "`status = 'CONFIRMED'` (10), chuyển hướng tới `order_detail` (11) và trình "
+        "duyệt hiển thị đơn đã xác nhận (12)."
     )
     doc.figure(ASSETS / "seq-dat-mua.png",
                "Sơ đồ tuần tự chức năng đặt mua và xác nhận đơn")
