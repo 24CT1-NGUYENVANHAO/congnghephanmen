@@ -61,6 +61,9 @@ MANIFEST
 *.sublime-project
 *.sublime-workspace
 
+# --- File khóa tạm của Word khi đang mở .docx ---
+~$*
+
 # --- OS ---
 .DS_Store
 Thumbs.db
