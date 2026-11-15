@@ -23,6 +23,7 @@ Chuyên dụng cho **mua bán sách cũ, giáo trình, dụng cụ học tập**
 7. [Kiểm thử](#-kiểm-thử)
 8. [Sơ đồ kiến trúc](#-sơ-đồ-kiến-trúc)
 9. [Biểu đồ tuần tự](#-biểu-đồ-tuần-tự-sequence-diagram)
+10. [Ghi chú kỹ thuật](#-ghi-chú-kỹ-thuật)
 
 ---
 
@@ -59,9 +60,9 @@ Chuyên dụng cho **mua bán sách cũ, giáo trình, dụng cụ học tập**
 | 🛡️ **Chống CSRF** | Mọi hành động đổi trạng thái đều POST + CSRF token |
 | 🔑 **Mật khẩu mạnh** | Tối thiểu 8 ký tự, có hoa + số, không chứa thông tin cá nhân |
 | 🚫 **Phân quyền** | Chỉ chủ bài đăng được sửa/xoá; chỉ tác giả/chủ bài xoá bình luận |
-| 📋 **Vòng đời bài đăng** | Chờ duyệt → Đang hiển thị → Đã bán / Bị từ chối / Đã ẩn |
+| 📋 **Vòng đời bài đăng** | Đang hiển thị → Đã bán / Đã ẩn / Bị từ chối; admin ẩn hoặc từ chối kèm lý do |
 | 🛡️ **Trang quản trị** | Duyệt/ẩn/từ chối bài đăng, khoá tài khoản, xử lý báo cáo |
-| 🧹 **Kiểm duyệt tự động** | Bài chưa duyệt không hiển thị trên trang chủ |
+| 🧹 **Kiểm duyệt tự động** | Trang chủ chỉ hiện bài *Đang hiển thị*; bài bị ẩn hoặc từ chối biến mất ngay |
 
 ### 🎨 Trải nghiệm người dùng
 
@@ -128,7 +129,7 @@ DB_NAME=sachgocuni_db
 DB_USER=root
 DB_PASSWORD=          # XAMPP để trống; MySQL riêng thì điền mật khẩu
 DB_HOST=127.0.0.1
-DB_PORT=3307          # hoặc 3307 tuỳ cấu hình XAMPP
+DB_PORT=3307          # XAMPP mặc định 3306; 3307 nếu máy đã có MySQL khác
 ```
 
 </details>
@@ -200,8 +201,9 @@ python download_images.py --only "Bàn"   # chỉ một sản phẩm
 python seed_data.py
 ```
 
-Tạo 6 danh mục, 34 sản phẩm (có gán ảnh), hơn 90 bình luận, yêu thích và
-đánh giá. Thời gian đăng được rải rác trong 30 ngày gần nhất cho tự nhiên.
+Tạo 6 danh mục, 34 sản phẩm (có gán ảnh), khoảng 100 bình luận (0–4 mỗi bài,
+một nửa có người bán trả lời), yêu thích, đánh giá và 4 đơn hàng mẫu đủ bốn
+trạng thái. Thời gian đăng được rải rác trong 30 ngày gần nhất cho tự nhiên.
 
 ### Bước 7 — Khởi chạy
 
@@ -294,6 +296,11 @@ Nhờ vậy dự án **luôn chạy được**, kể cả trên máy chưa cài 
 | `DB_PASSWORD` | Mật khẩu (XAMPP để trống) | *(rỗng)* |
 | `DB_HOST` | Địa chỉ server | `127.0.0.1` |
 | `DB_PORT` | Cổng | `3306` |
+| `DEBUG` | Bật chế độ gỡ lỗi | `True` |
+| `ALLOWED_HOSTS` | Host được phép truy cập, cách nhau dấu phẩy | `127.0.0.1,localhost` |
+| `SECRET_KEY` | Khoá ký session/CSRF — đổi khi triển khai thật | khoá mẫu trong `.env.example` |
+| `MAX_UPLOAD_SIZE` | Giới hạn dung lượng mỗi ảnh (byte) | `5242880` (5 MB) |
+| `POSTS_PER_PAGE` | Số bài đăng mỗi trang | `12` |
 
 ### Cổng MySQL thường gặp
 
@@ -301,11 +308,14 @@ Mỗi máy một kiểu, nên `DB_PORT` có thể khác nhau:
 
 | Tình huống | Cổng |
 |---|---|
-| XAMPP mặc định | `3307` |
-| XAMPP (khi máy đã có MySQL khác chiếm 3306) | `3307` |
-| MySQL cài riêng | `3307` |
+| XAMPP mặc định | `3306` |
+| XAMPP khi máy đã có MySQL khác chiếm 3306 | `3307` |
+| MySQL cài riêng | `3306` |
+| Giá trị đang ghi trong `.env.example` | `3307` |
 
 **Cách xem cổng đang dùng:** mở XAMPP Control Panel → dòng **MySQL** cột *Port(s)*.
+Nếu phpMyAdmin vẫn vào bình thường mà app báo không kết nối được thì gần như chắc
+chắn là sai cổng — chạy `python check_db.py` để biết app đang trỏ vào đâu.
 
 ### Xem đang dùng CSDL nào
 
