@@ -55,7 +55,7 @@ Chuyên dụng cho **mua bán sách cũ, giáo trình, dụng cụ học tập**
 
 | Tính năng | Mô tả |
 |---|---|
-| 🔐 **Xác thực** | Đăng ký/đăng nhập bằng username **hoặc** Gmail |
+| 🔐 **Xác thực** | Đăng nhập chỉ bằng **email đã đăng ký** (`gmail.com` hoặc email trường `@edu.vn`); tên đăng nhập do hệ thống sinh, người dùng không cần nhớ |
 | 🛡️ **Chống CSRF** | Mọi hành động đổi trạng thái đều POST + CSRF token |
 | 🔑 **Mật khẩu mạnh** | Tối thiểu 8 ký tự, có hoa + số, không chứa thông tin cá nhân |
 | 🚫 **Phân quyền** | Chỉ chủ bài đăng được sửa/xoá; chỉ tác giả/chủ bài xoá bình luận |
@@ -217,6 +217,9 @@ Truy cập: **http://127.0.0.1:8000/**
 **Địa chỉ:** http://127.0.0.1:8000/django-admin/
 **Tài khoản:** `admin` / `admin123`
 
+> Django admin đăng nhập bằng **username**. Muốn vào bằng giao diện của ứng dụng
+> (`/dang-nhap/`) thì dùng email `admin@sachgocuni.edu.vn` / `admin123`.
+
 Chức năng có sẵn:
 
 | Trang | Chức năng |
@@ -239,15 +242,20 @@ Tất cả thao tác kiểm duyệt đều hỗ trợ **chọn nhiều dòng r�
 
 ## 🔑 Tài khoản mẫu
 
-| Vai trò | Username | Mật khẩu | Đường dẫn |
-|---|---|---|---|
-| 👑 Quản trị | `admin` | `admin123` | `/django-admin/` |
-| 🎓 Sinh viên | `sinhvien_demo` | `123456` | `/dang-nhap/` |
-| 🎓 Sinh viên | `thanhhoa` | `123456` | `/dang-nhap/` |
-| 🎓 Sinh viên | `minhthu` | `123456` | `/dang-nhap/` |
-| 🎓 Sinh viên | `quynhanh` | `123456` | `/dang-nhap/` |
+Trang `/dang-nhap/` **chỉ nhận email**, không nhận tên đăng nhập. Email phải là
+`@gmail.com` hoặc email trường đuôi `.edu.vn`; nhập thiếu `@`, sai miền, hay email
+chưa đăng ký đều bị chặn ngay với thông báo riêng cho từng trường hợp.
 
-> Trang đăng nhập có nút **"Điền nhanh"** để test tiện hơn.
+| Vai trò | Email đăng nhập | Mật khẩu | Đường dẫn |
+|---|---|---|---|
+| 👑 Quản trị | `admin@sachgocuni.edu.vn` | `admin123` | `/dang-nhap/` · `/django-admin/` (dùng `admin`) |
+| 🎓 Sinh viên | `hao.nguyen24@gmail.com` | `123456` | `/dang-nhap/` |
+| 🎓 Sinh viên | `thanhhoa@gmail.com` | `123456` | `/dang-nhap/` |
+| 🎓 Sinh viên | `minhthu@gmail.com` | `123456` | `/dang-nhap/` |
+| 🎓 Sinh viên | `quynhanh@gmail.com` | `123456` | `/dang-nhap/` |
+
+> Trang đăng nhập có sẵn hai nút **"Điền nhanh"** (sinh viên và quản trị) để test
+> tiện hơn.
 
 ---
 
@@ -324,25 +332,31 @@ Kết quả:
 ├── app_main/                      # Ứng dụng chính
 │   ├── models.py                  # 9 model: Category, Profile, Post, PostImage,
 │   │                              #   Favorite, Comment, Review, Report, Order
-│   ├── views.py                   # 31 view xử lý toàn bộ nghiệp vụ
+│   ├── views.py                   # 36 view xử lý toàn bộ nghiệp vụ
 │   ├── forms.py                   # Form + validation tập trung
-│   ├── urls.py                    # 29 route
+│   ├── urls.py                    # 34 route
 │   ├── admin.py                   # Trang quản trị kiểm duyệt
 │   ├── signals.py                 # Tự tạo Profile khi đăng ký
 │   ├── context_processors.py      # Biến dùng chung cho template
 │   ├── templatetags/app_extras.py # Filter & tag tùy chỉnh
-│   ├── tests.py                   # 114 test tự động
+│   ├── tests.py                   # 138 test tự động
 │   └── migrations/                # Lịch sử cấu trúc CSDL
 │
 ├── templates/                     # Template dùng chung
 │   ├── base.html                  # Khung trang (nav, messages, footer)
 │   ├── 404.html / 500.html        # Trang lỗi
-│   ├── app_main/                  # 13 trang nghiệp vụ
+│   ├── app_main/                  # 14 trang nghiệp vụ
 │   ├── registration/              # Đăng nhập / Đăng ký
 │   └── partials/                  # navbar, footer, messages, card, phân trang
 │
 ├── docs/
-│   └── sequence-diagrams.md       # 7 sơ đồ Mermaid (4 chức năng chính)
+│   ├── BaoCao_GiuaKy_CNPM_SachGocUni.docx  # Báo cáo giữa kỳ (2 chương)
+│   ├── figma-board-*.html         # 4 board phác thảo giao diện
+│   └── report/                    # Bộ dựng báo cáo
+│       ├── assets/                # Ảnh chèn vào báo cáo (chụp app, sơ đồ, ERD…)
+│       ├── seed_demo.py           # Nạp dữ liệu cho ảnh chụp trong báo cáo
+│       ├── seed_ids.json          # ID bản ghi dùng cho ảnh chụp
+│       └── verify.py              # Xuất .docx → PDF + ảnh từng trang để tự kiểm tra
 │
 ├── static/
 │   ├── css/main.css               # Design token + component dùng chung
@@ -356,8 +370,10 @@ Kết quả:
 ├── download_images.py             # Tải ảnh thật từ Openverse (CC)
 ├── make_contact_sheet.py          # Gộp ảnh để kiểm tra bằng mắt
 ├── load_tzinfo.py                 # Nạp dữ liệu múi giờ vào MySQL (chạy 1 lần)
-├── make_sequence_diagrams.py      # Sinh docs/sequence-diagrams.md
+├── make_sequence_diagrams.py      # Sinh docs/sequence-diagrams.md (chạy khi cần)
 ├── check_mermaid.py               # Kiểm tra cú pháp sơ đồ trước khi dán
+├── make_report.py                 # Dựng file báo cáo .docx từ nội dung + assets
+├── make_report_assets.py          # Chụp ảnh app, vẽ sơ đồ/ERD/PERT cho báo cáo
 ├── requirements.txt
 ├── .env.example                   # Mẫu cấu hình (copy thành .env)
 └── manage.py
@@ -373,26 +389,29 @@ python manage.py test app_main.tests.InteractionTests   # Chỉ 1 nhóm
 python manage.py test --verbosity 2      # Chi tiết từng test
 ```
 
-**114 test tự động** bao phủ:
+**138 test tự động** bao phủ:
 
 | Nhóm | Số test | Nội dung |
 |---|---|---|
-| Model | 21 | Sinh slug, đồng bộ trạng thái, ràng buộc unique, đơn hàng |
+| Model | 23 | Sinh slug, đồng bộ trạng thái, ràng buộc unique, đơn hàng |
 | Form | 15 | Mật khẩu yếu, Gmail trùng, trùng username, liên hệ hợp lệ |
-| Public view | 15 | Tìm kiếm, lọc, sắp xếp, phân trang |
-| Auth | 7 | Đăng ký, đăng nhập bằng email, đăng xuất |
-| Phân quyền | 8 | Chặn truy cập trái phép, sở hữu bài đăng |
-| Tương tác | 14 | Yêu thích, bình luận, đánh giá, báo cáo |
-| **Đặt mua** | **26** | Đặt mua, xác nhận, từ chối, hoàn tất, huỷ, phân quyền |
+| Public view | 14 | Tìm kiếm, lọc, sắp xếp, phân trang |
+| Auth | 12 | Đăng ký, đăng nhập **chỉ bằng email** (chặn username), đăng xuất |
+| Phân quyền | 16 | Chặn truy cập trái phép, sở hữu bài đăng |
+| Tương tác | 16 | Yêu thích, bình luận, đánh giá, báo cáo |
+| **Đặt mua** | **18** | Đặt mua, xác nhận, từ chối, hoàn tất, huỷ, phân quyền |
 | Hồ sơ | 3 | Sửa hồ sơ, đổi mật khẩu |
-| Kịch bản đầu-cuối | 5 | Luồng mua → bán → hoàn tất, đăng tin → bán |
-| **Tổng** | **114** | ✅ |
+| Kịch bản đầu-cuối | 1 | Hành trình đầy đủ: đăng ký → đăng tin → mua → hoàn tất |
+| **Quản trị** | **20** | Dashboard, duyệt/từ chối bài, xử lý báo cáo, khoá tài khoản |
+| **Tổng** | **138** | ✅ |
 
 Bao gồm các test bảo mật quan trọng:
 
 - ❌ Đổi trạng thái bằng `GET` phải bị từ chối (405) — chống CSRF
 - ❌ Sửa/xoá bài đăng của người khác phải bị chặn
 - ❌ Mật khẩu rỗng không gây crash (lỗi `IndexError` ở bản cũ)
+- ❌ Đăng nhập bằng **tên đăng nhập** phải bị từ chối, chỉ nhận email
+- ❌ Email ngoài `gmail.com` / `.edu.vn` bị chặn trước khi truy vấn CSDL
 - ✅ Hành trình đầy đủ: đăng ký → đăng tin → tìm kiếm → yêu thích → bình luận → đánh giá
 
 ---
@@ -415,7 +434,7 @@ flowchart TD
 
     subgraph FRONTEND ["🟦 PHẦN 1 · FRONTEND — Tầng giao diện"]
         direction TB
-        T1["📄 Django Templates<br/><b>base.html + 12 trang + 5 partials</b>"]
+        T1["📄 Django Templates<br/><b>base.html + 14 trang + 5 partials</b>"]
         T2["🎨 main.css<br/><b>Design system: .btn .card .badge</b>"]
         T3["⚡ main.js<br/><b>Menu, yêu thích AJAX, validate</b>"]
         T4["🖼️ tailwind.min.js<br/><b>Tailwind lưu cục bộ (offline)</b>"]
@@ -424,11 +443,11 @@ flowchart TD
     subgraph BACKEND ["🟩 PHẦN 2 · BACKEND — Tầng ứng dụng Django"]
         direction TB
         B1["🛡️ Middleware<br/><b>Session · CSRF · Auth · Security</b>"]
-        B2["🔗 urls.py<br/><b>core + app_main · 29 route</b>"]
+        B2["🔗 urls.py<br/><b>core + app_main · 34 route</b>"]
 
         subgraph NGHIEPVU ["Module nghiệp vụ"]
             direction LR
-            B3["🎯 views.py<br/><b>31 view</b>"]
+            B3["🎯 views.py<br/><b>36 view</b>"]
             B4["📝 forms.py<br/><b>Validation tập trung</b>"]
             B5["🛡️ admin.py<br/><b>Kiểm duyệt hàng loạt</b>"]
         end
@@ -619,18 +638,17 @@ Bốn chức năng chính được vẽ theo **đúng mã nguồn đang chạy**
 | 3 | Đăng tin sản phẩm | `views.create_post` | `POST /dang-tin/` |
 | 4 | Đặt mua | `views.buy_post` | `POST /san-pham/<pk>/dat-mua/` |
 
-📄 **[Xem toàn bộ sơ đồ → `docs/sequence-diagrams.md`](docs/sequence-diagrams.md)**
-
-File đó chứa 7 sơ đồ Mermaid sẵn sàng dán vào
-[app.diagrams.net](https://app.diagrams.net) để xuất ảnh PNG:
+📄 Ảnh đã xuất sẵn nằm trong `docs/report/assets/seq-*.png` và được in ở **mục 2.1**
+của báo cáo. Muốn xem lại dạng Mermaid thì sinh file nháp:
 
 ```bash
-python make_sequence_diagrams.py   # Sinh lại file docs/sequence-diagrams.md
+python make_sequence_diagrams.py   # Sinh docs/sequence-diagrams.md (4 sơ đồ)
 python check_mermaid.py            # Kiểm tra cú pháp trước khi dán
 ```
 
-Cách dán: mở app.diagrams.net → **Arrange ▸ Insert ▸ Advanced ▸ Mermaid…** →
-dán code trong khối `mermaid` → **File ▸ Export as ▸ PNG**.
+File `docs/sequence-diagrams.md` **không commit** (sinh lại được), nên sau khi clone
+cần chạy lệnh trên mới có. Cách dán: mở app.diagrams.net → **Arrange ▸ Insert ▸
+Advanced ▸ Mermaid…** → dán code trong khối `mermaid` → **File ▸ Export as ▸ PNG**.
 
 ---
 
