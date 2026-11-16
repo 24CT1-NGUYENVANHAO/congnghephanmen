@@ -22,7 +22,7 @@ Chuyên dụng cho **mua bán sách cũ, giáo trình, dụng cụ học tập**
 6. [Cấu trúc dự án](#-cấu-trúc-dự-án)
 7. [Kiểm thử](#-kiểm-thử)
 8. [Sơ đồ kiến trúc](#-sơ-đồ-kiến-trúc)
-9. [Biểu đồ tuần tự](#-biểu-đồ-tuần-tự-sequence-diagram)
+9. [Luồng xử lý chính](#-luồng-xử-lý-chính)
 10. [Ghi chú kỹ thuật](#-ghi-chú-kỹ-thuật)
 
 ---
@@ -374,10 +374,6 @@ Kết quả:
 ├── download_images.py             # Tải ảnh thật từ Openverse (CC)
 ├── make_contact_sheet.py          # Gộp ảnh để kiểm tra bằng mắt
 ├── load_tzinfo.py                 # Nạp dữ liệu múi giờ vào MySQL (chạy 1 lần)
-├── make_sequence_diagrams.py      # Sinh sơ đồ tuần tự Mermaid (chạy khi cần)
-├── check_mermaid.py               # Kiểm tra cú pháp sơ đồ trước khi dán
-├── make_report.py                 # Dựng file báo cáo .docx từ nội dung + assets
-├── make_report_assets.py          # Chụp ảnh app, vẽ sơ đồ/ERD/PERT cho báo cáo
 ├── requirements.txt
 ├── .env.example                   # Mẫu cấu hình (copy thành .env)
 └── manage.py
@@ -631,9 +627,9 @@ stateDiagram-v2
 
 ---
 
-## 🔄 Biểu đồ tuần tự (Sequence Diagram)
+## 🔄 Luồng xử lý chính
 
-Bốn chức năng chính được vẽ theo **đúng mã nguồn đang chạy**:
+Bốn chức năng chính của ứng dụng, mỗi luồng đi qua đúng view và route dưới đây:
 
 | # | Chức năng | View xử lý | Route |
 |---|---|---|---|
@@ -641,18 +637,6 @@ Bốn chức năng chính được vẽ theo **đúng mã nguồn đang chạy**
 | 2 | Đăng ký | `views.register` | `POST /dang-ky/` |
 | 3 | Đăng tin sản phẩm | `views.create_post` | `POST /dang-tin/` |
 | 4 | Đặt mua | `views.buy_post` | `POST /san-pham/<pk>/dat-mua/` |
-
-📄 Ảnh đã xuất sẵn dạng `seq-*.png` được dùng cho **mục 2.1** của báo cáo.
-Muốn xem lại dạng Mermaid thì sinh file nháp khi cần:
-
-```bash
-python make_sequence_diagrams.py   # Sinh 4 sơ đồ dạng Mermaid
-python check_mermaid.py            # Kiểm tra cú pháp trước khi dán
-```
-
-File sơ đồ sinh ra **không commit** (chạy lại là có), nên sau khi clone cần chạy
-lệnh trên. Cách dán: mở app.diagrams.net → **Arrange ▸ Insert ▸ Advanced ▸
-Mermaid…** → dán code trong khối `mermaid` → **File ▸ Export as ▸ PNG**.
 
 ---
 
