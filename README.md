@@ -129,7 +129,7 @@ DB_NAME=sachgocuni_db
 DB_USER=root
 DB_PASSWORD=          # XAMPP để trống; MySQL riêng thì điền mật khẩu
 DB_HOST=127.0.0.1
-DB_PORT=3307          # XAMPP mặc định 3306; 3307 nếu máy đã có MySQL khác
+DB_PORT=3307          # Cổng MySQL XAMPP đang dùng trong dự án
 ```
 
 </details>
@@ -295,7 +295,7 @@ Nhờ vậy dự án **luôn chạy được**, kể cả trên máy chưa cài 
 | `DB_USER` | Tài khoản MySQL | `root` |
 | `DB_PASSWORD` | Mật khẩu (XAMPP để trống) | *(rỗng)* |
 | `DB_HOST` | Địa chỉ server | `127.0.0.1` |
-| `DB_PORT` | Cổng | `3306` |
+| `DB_PORT` | Cổng MySQL; XAMPP của dự án dùng | `3307` |
 | `DEBUG` | Bật chế độ gỡ lỗi | `True` |
 | `ALLOWED_HOSTS` | Host được phép truy cập, cách nhau dấu phẩy | `127.0.0.1,localhost` |
 | `SECRET_KEY` | Khoá ký session/CSRF — đổi khi triển khai thật | khoá mẫu trong `.env.example` |
@@ -304,16 +304,18 @@ Nhờ vậy dự án **luôn chạy được**, kể cả trên máy chưa cài 
 
 ### Cổng MySQL thường gặp
 
-Mỗi máy một kiểu, nên `DB_PORT` có thể khác nhau:
+Trong cấu hình dùng với XAMPP của dự án, MySQL chạy ở cổng **3307**:
 
 | Tình huống | Cổng |
 |---|---|
-| XAMPP mặc định | `3306` |
-| XAMPP khi máy đã có MySQL khác chiếm 3306 | `3307` |
+| XAMPP của dự án | `3307` |
+| XAMPP mặc định trên một số máy | `3306` |
 | MySQL cài riêng | `3306` |
 | Giá trị đang ghi trong `.env.example` | `3307` |
 
 **Cách xem cổng đang dùng:** mở XAMPP Control Panel → dòng **MySQL** cột *Port(s)*.
+Nếu máy của bạn dùng XAMPP ở cổng khác, sửa `DB_PORT` trong `.env` cho đúng;
+riêng cấu hình chuẩn của dự án là `DB_PORT=3307`.
 Nếu phpMyAdmin vẫn vào bình thường mà app báo không kết nối được thì gần như chắc
 chắn là sai cổng — chạy `python check_db.py` để biết app đang trỏ vào đâu.
 
@@ -359,28 +361,20 @@ Kết quả:
 │   ├── registration/              # Đăng nhập / Đăng ký
 │   └── partials/                  # navbar, footer, messages, card, phân trang
 │
-├── docs/
-│   ├── BaoCao_GiuaKy_CNPM_SachGocUni.docx  # Báo cáo giữa kỳ (2 chương)
-│   ├── figma-board-*.html         # 4 board phác thảo giao diện
-│   └── report/                    # Bộ dựng báo cáo
-│       ├── assets/                # Ảnh chèn vào báo cáo (chụp app, sơ đồ, ERD…)
-│       ├── seed_demo.py           # Nạp dữ liệu cho ảnh chụp trong báo cáo
-│       ├── seed_ids.json          # ID bản ghi dùng cho ảnh chụp
-│       └── verify.py              # Xuất .docx → PDF + ảnh từng trang để tự kiểm tra
-│
 ├── static/
 │   ├── css/main.css               # Design token + component dùng chung
 │   ├── js/tailwind.min.js         # Tailwind CSS lưu cục bộ (offline)
 │   └── js/main.js                 # Menu, yêu thích AJAX, validate mật khẩu
 │
-├── media/                         # Ảnh người dùng tải lên (không commit)
-│   └── posts/seed/                # Ảnh mẫu do generate_images.py tạo
+├── media/                         # Ảnh tải lên trong quá trình chạy (không commit)
+│   └── posts/seed/                # Ảnh sản phẩm mẫu do generate_images.py tạo
+│
 ├── seed_data.py                   # Script nạp dữ liệu mẫu
 ├── generate_images.py             # Vẽ ảnh minh hoạ bằng Pillow (không cần mạng)
 ├── download_images.py             # Tải ảnh thật từ Openverse (CC)
 ├── make_contact_sheet.py          # Gộp ảnh để kiểm tra bằng mắt
 ├── load_tzinfo.py                 # Nạp dữ liệu múi giờ vào MySQL (chạy 1 lần)
-├── make_sequence_diagrams.py      # Sinh docs/sequence-diagrams.md (chạy khi cần)
+├── make_sequence_diagrams.py      # Sinh sơ đồ tuần tự Mermaid (chạy khi cần)
 ├── check_mermaid.py               # Kiểm tra cú pháp sơ đồ trước khi dán
 ├── make_report.py                 # Dựng file báo cáo .docx từ nội dung + assets
 ├── make_report_assets.py          # Chụp ảnh app, vẽ sơ đồ/ERD/PERT cho báo cáo
@@ -648,17 +642,17 @@ Bốn chức năng chính được vẽ theo **đúng mã nguồn đang chạy**
 | 3 | Đăng tin sản phẩm | `views.create_post` | `POST /dang-tin/` |
 | 4 | Đặt mua | `views.buy_post` | `POST /san-pham/<pk>/dat-mua/` |
 
-📄 Ảnh đã xuất sẵn nằm trong `docs/report/assets/seq-*.png` và được in ở **mục 2.1**
-của báo cáo. Muốn xem lại dạng Mermaid thì sinh file nháp:
+📄 Ảnh đã xuất sẵn dạng `seq-*.png` được dùng cho **mục 2.1** của báo cáo.
+Muốn xem lại dạng Mermaid thì sinh file nháp khi cần:
 
 ```bash
-python make_sequence_diagrams.py   # Sinh docs/sequence-diagrams.md (4 sơ đồ)
+python make_sequence_diagrams.py   # Sinh 4 sơ đồ dạng Mermaid
 python check_mermaid.py            # Kiểm tra cú pháp trước khi dán
 ```
 
-File `docs/sequence-diagrams.md` **không commit** (sinh lại được), nên sau khi clone
-cần chạy lệnh trên mới có. Cách dán: mở app.diagrams.net → **Arrange ▸ Insert ▸
-Advanced ▸ Mermaid…** → dán code trong khối `mermaid` → **File ▸ Export as ▸ PNG**.
+File sơ đồ sinh ra **không commit** (chạy lại là có), nên sau khi clone cần chạy
+lệnh trên. Cách dán: mở app.diagrams.net → **Arrange ▸ Insert ▸ Advanced ▸
+Mermaid…** → dán code trong khối `mermaid` → **File ▸ Export as ▸ PNG**.
 
 ---
 
