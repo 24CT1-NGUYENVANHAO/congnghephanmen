@@ -135,7 +135,7 @@ DB_PORT=3307          # Cổng MySQL XAMPP đang dùng trong dự án
 
 ### Bước 3 — Tạo database
 
-**Nếu dùng MySQL**, tạo database trước:
+Tạo database trước:
 
 ```sql
 CREATE DATABASE sachgocuni_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -147,7 +147,7 @@ CREATE DATABASE sachgocuni_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 python manage.py migrate
 ```
 
-### Bước 4b — Nạp dữ liệu múi giờ vào MySQL (chỉ khi dùng MySQL)
+### Bước 4b — Nạp dữ liệu múi giờ vào MySQL
 
 Bảng `mysql.time_zone_*` trên XAMPP/MySQL mới cài thường **để trống**, khiến
 trang quản trị báo lỗi `Database returned an invalid datetime value`. Chạy
@@ -351,6 +351,7 @@ Kết quả mong đợi: `django.db.backends.mysql`. Nếu thấy lỗi kết n�
 ├── media/                         # Ảnh tải lên trong quá trình chạy (không commit)
 │   └── posts/seed/                # Ảnh sản phẩm mẫu do generate_images.py tạo
 │
+├── check_db.py                    # Script kiểm tra kết nối MySQL và đếm bản ghi
 ├── seed_data.py                   # Script nạp dữ liệu mẫu
 ├── generate_images.py             # Vẽ ảnh minh hoạ bằng Pillow (không cần mạng)
 ├── download_images.py             # Tải ảnh thật từ Openverse (CC)
@@ -590,6 +591,20 @@ erDiagram
         text detail
         string status
         datetime created_at
+    }
+
+    Order {
+        int id PK
+        int post_id FK
+        int buyer_id FK
+        int seller_id FK
+        decimal price_snapshot
+        string status
+        string contact
+        text message
+        text seller_note
+        datetime created_at
+        datetime updated_at
     }
 ```
 
