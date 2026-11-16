@@ -1556,8 +1556,7 @@ TREE_LINES: list[tuple[str, str]] = [
     ("│   ├── registration/", "login.html, register.html"),
     ("│   └── app_main/", "14 template nghiệp vụ"),
     ("├── static/", "css/ và js/ tự viết"),
-    ("├── media/", "ảnh tải lên: avatars/, posts/"),
-    ("└── docs/", "tài liệu, sơ đồ, báo cáo"),
+    ("└── media/", "ảnh tải lên: avatars/, posts/"),
 ]
 
 

@@ -990,8 +990,8 @@ def build_ch1(doc: Doc) -> None:
     doc.p(
         "Dự án được chia thành hai phần rõ ràng: thư mục `core/` giữ cấu hình chung và "
         "thư mục `app_main/` giữ toàn bộ nghiệp vụ. Giao diện tập trung trong "
-        "`templates/`, tài nguyên tĩnh trong `static/`, tệp người dùng tải lên trong "
-        "`media/`, còn tài liệu và sơ đồ trong `docs/`. Cách chia này tuân theo bố cục "
+        "`templates/`, tài nguyên tĩnh trong `static/`, còn tệp người dùng tải lên "
+        "trong `media/`. Cách chia này tuân theo bố cục "
         "chuẩn của Django nên khi cần mở rộng chỉ việc tạo thêm ứng dụng mới mà không "
         "phải sửa cấu trúc hiện có. Hình 1.2 mô tả cây thư mục rút gọn của dự án."
     )
@@ -1007,7 +1007,7 @@ def build_ch1(doc: Doc) -> None:
         "`templates/` gồm khung chung `base.html`, thư mục `partials/` chứa thanh điều "
         "hướng, chân trang và thẻ tin đăng dùng lại ở nhiều trang, cùng mười bốn "
         "template nghiệp vụ; `static/` chứa CSS và JavaScript tự viết. Nhóm thứ ba là "
-        "dữ liệu: `media/` nhận ảnh người dùng tải lên, `docs/` giữ sơ đồ và báo cáo, "
+        "dữ liệu: `media/` nhận ảnh người dùng tải lên, "
         "`db.sqlite3` là cơ sở dữ liệu dự phòng khi MariaDB chưa khởi động."
     )
     doc.p(
