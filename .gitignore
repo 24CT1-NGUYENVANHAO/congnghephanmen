@@ -19,8 +19,8 @@ db.sqlite3-journal
 # .env KHÔNG commit vì có thể chứa mật khẩu MySQL thật.
 # Thầy/cô clone về chạy:  cp .env.example .env
 #
-# Dự án TỰ ĐỘNG chuyển sang SQLite nếu không kết nối được MySQL,
-# nên thiếu file .env vẫn chạy được.
+# Thiếu file .env thì app dùng giá trị mặc định trong core/settings.py;
+# MySQL không nối được -> Django báo lỗi kết nối (không có CSDL dự phòng).
 .env
 .env.local
 !.env.example

@@ -81,7 +81,7 @@ Chuyên dụng cho **mua bán sách cũ, giáo trình, dụng cụ học tập**
 |---|---|---|
 | **Frontend** | Django Template + Tailwind CSS (bản **lưu cục bộ**) | Giao diện responsive |
 | **Backend** | Django 4.2 / 5.2 (MTV) | Xử lý logic nghiệp vụ |
-| **CSDL** | MySQL 8.0 (mặc định) hoặc SQLite | Lưu trữ dữ liệu qua ORM |
+| **CSDL** | MySQL 8.0 / MariaDB | Lưu trữ dữ liệu qua ORM |
 | **Cấu hình** | django-environ + `.env` | Quản lý bí mật, không hardcode |
 | **Media** | Pillow | Xử lý & kiểm tra ảnh tải lên |
 
@@ -113,9 +113,9 @@ pip install -r requirements.txt
 cp .env.example .env      # Windows: copy .env.example .env
 ```
 
-> 💡 **Bỏ qua bước này cũng được.** Dự án tự dò MySQL; nếu không kết nối
-> được sẽ tự chuyển sang SQLite và in cảnh báo hướng dẫn. Xem
-> [Kết nối CSDL](#-kết-nối-csdl).
+> 💡 Dự án **chỉ dùng MySQL**. Nếu không tạo `.env`, app dùng giá trị mặc định
+> trong `core/settings.py` (cổng 3306); máy chạy XAMPP của dự án cần
+> `DB_PORT=3307`. Xem [Kết nối CSDL](#-kết-nối-csdl).
 
 <details>
 <summary>⚙️ Chỉnh cấu hình MySQL cho đúng máy của bạn</summary>
@@ -124,7 +124,6 @@ Mở `.env` và sửa cho khớp. Cổng MySQL thay đổi tuỳ máy — xem c�
 trong XAMPP Control Panel:
 
 ```env
-USE_SQLITE=False
 DB_NAME=sachgocuni_db
 DB_USER=root
 DB_PASSWORD=          # XAMPP để trống; MySQL riêng thì điền mật khẩu
@@ -159,7 +158,7 @@ python load_tzinfo.py
 ```
 
 Script nạp ~598 múi giờ từ thư viện `zoneinfo` của Python, không cần
-`mysql_tzinfo_to_sql`. Bỏ qua bước này nếu bạn dùng SQLite.
+`mysql_tzinfo_to_sql`.
 
 ### Bước 5 — Chuẩn bị ảnh cho sản phẩm mẫu
 
@@ -263,34 +262,18 @@ chưa đăng ký đều bị chặn ngay với thông báo riêng cho từng tr�
 
 ## 🔌 Kết nối CSDL
 
-### Cơ chế tự động
+### Cơ chế
 
-Dự án **tự dò** MySQL khi khởi động. Nếu kết nối được → dùng MySQL.
-Nếu không → **tự chuyển sang SQLite** và in cảnh báo giải thích nguyên nhân.
-Nhờ vậy dự án **luôn chạy được**, kể cả trên máy chưa cài MySQL.
-
-```
-┌─────────────────────────────────────────────────────────┐
-│  python manage.py runserver                              │
-└──────────────────────┬──────────────────────────────────┘
-                       ▼
-            ┌─────────────────────┐      Có    ┌──────────────┐
-            │  Thử kết nối MySQL │─────────────▶│  Dùng MySQL  │
-            │  (đọc từ file .env) │             └──────────────┘
-            └──────────┬──────────┘
-                       │ Không / Sai cấu hình
-                       ▼
-            ┌─────────────────────┐          ┌──────────────┐
-            │ In cảnh báo rõ ràng│─────────▶│  Dùng SQLite │
-            │ kèm cách khắc phục │          └──────────────┘
-            └─────────────────────┘
-```
+Dự án **chỉ dùng MySQL/MariaDB**. Django đọc thông tin kết nối từ `.env` và
+nối thẳng vào MySQL — không có cơ chế chuyển sang CSDL khác. Nếu MySQL chưa
+chạy, sai cổng hoặc database chưa tồn tại, ngay truy vấn đầu tiên (khi mở
+trang web) Django báo lỗi kết nối. Chạy `python check_db.py` để biết app đang
+trỏ vào đâu rồi sửa `.env`.
 
 ### Tham số cấu hình (file `.env`)
 
 | Biến | Ý nghĩa | Mặc định |
 |---|---|---|
-| `USE_SQLITE` | Đặt `True` để ép dùng SQLite | `False` |
 | `DB_NAME` | Tên database | `sachgocuni_db` |
 | `DB_USER` | Tài khoản MySQL | `root` |
 | `DB_PASSWORD` | Mật khẩu (XAMPP để trống) | *(rỗng)* |
@@ -325,9 +308,8 @@ chắn là sai cổng — chạy `python check_db.py` để biết app đang tr�
 python manage.py shell -c "from django.db import connection; print(connection.settings_dict['ENGINE'])"
 ```
 
-Kết quả:
-- `django.db.backends.mysql` → đang dùng MySQL
-- `django.db.backends.sqlite3` → đã tự chuyển sang SQLite
+Kết quả mong đợi: `django.db.backends.mysql`. Nếu thấy lỗi kết nối, xem lại
+`DB_HOST`/`DB_PORT`/`DB_PASSWORD` trong `.env`.
 
 ---
 
@@ -337,7 +319,7 @@ Kết quả:
 24CT1-NGUYEN_VAN HAO/
 │
 ├── core/                          # Cấu hình dự án cấp cao nhất
-│   ├── settings.py                # Đọc cấu hình từ .env, MySQL/SQLite
+│   ├── settings.py                # Đọc cấu hình từ .env, cấu hình MySQL
 │   ├── urls.py                    # Định tuyến gốc + xử lý 404/500
 │   ├── wsgi.py / asgi.py          # Cổng giao tiếp web server
 │
@@ -351,7 +333,7 @@ Kết quả:
 │   ├── signals.py                 # Tự tạo Profile khi đăng ký
 │   ├── context_processors.py      # Biến dùng chung cho template
 │   ├── templatetags/app_extras.py # Filter & tag tùy chỉnh
-│   ├── tests.py                   # 138 test tự động
+│   ├── tests.py                   # 140 test tự động
 │   └── migrations/                # Lịch sử cấu trúc CSDL
 │
 ├── templates/                     # Template dùng chung
@@ -389,7 +371,7 @@ python manage.py test app_main.tests.InteractionTests   # Chỉ 1 nhóm
 python manage.py test --verbosity 2      # Chi tiết từng test
 ```
 
-**138 test tự động** bao phủ:
+**140 test tự động** bao phủ:
 
 | Nhóm | Số test | Nội dung |
 |---|---|---|
@@ -403,7 +385,8 @@ python manage.py test --verbosity 2      # Chi tiết từng test
 | Hồ sơ | 3 | Sửa hồ sơ, đổi mật khẩu |
 | Kịch bản đầu-cuối | 1 | Hành trình đầy đủ: đăng ký → đăng tin → mua → hoàn tất |
 | **Quản trị** | **20** | Dashboard, duyệt/từ chối bài, xử lý báo cáo, khoá tài khoản |
-| **Tổng** | **138** | ✅ |
+| Cấu hình CSDL | 2 | Engine luôn MySQL, không còn cờ chuyển CSDL |
+| **Tổng** | **140** | ✅ |
 
 Bao gồm các test bảo mật quan trọng:
 
@@ -426,7 +409,7 @@ Hệ thống chia làm **3 phần riêng biệt**, mỗi phần một màu khác
 |---|---|---|
 | 🟦 **Frontend** | Hiển thị giao diện cho người dùng | Django Template, CSS, JavaScript |
 | 🟩 **Backend** | Xử lý nghiệp vụ, bảo mật | Django (Python) |
-| 🟥 **Database** | Lưu trữ dữ liệu | MySQL / SQLite |
+| 🟥 **Database** | Lưu trữ dữ liệu | MySQL / MariaDB |
 
 ```mermaid
 flowchart TD

@@ -10,7 +10,7 @@ Thiết kế mô hình:
   - Favorite  : quan hệ yêu thích (Wishlist) giữa User và Post
   - Report    : báo cáo vi phạm bài đăng để Admin kiểm duyệt
 
-Toàn bộ dữ liệu được lưu trữ qua ORM vào MySQL hoặc SQLite tuỳ cấu hình .env
+Toàn bộ dữ liệu được lưu trữ qua ORM vào MySQL (cấu hình trong .env).
 """
 
 from django.contrib.auth.models import User
@@ -524,7 +524,7 @@ class Order(models.Model):
 
     Ràng buộc "1 đơn mở / 1 sản phẩm / 1 người mua" được kiểm tra trong
     view buy_post chứ không dùng UniqueConstraint có điều kiện, vì MySQL
-    không hỗ trợ partial index (chỉ SQLite/PostgreSQL mới có).
+    không hỗ trợ partial index (chỉ một số CSDL khác mới có).
     """
 
     class Status(models.TextChoices):

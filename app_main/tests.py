@@ -6,9 +6,10 @@ Chạy:  python manage.py test
 Bao phủ: Model, Form, View, phân quyền, CSRF và luồng người dùng chính.
 """
 
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import IntegrityError, transaction
-from django.test import Client, TestCase, override_settings
+from django.test import Client, SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 
 from .forms import RegisterForm
@@ -1449,3 +1450,18 @@ class AdminDashboardTests(TestCase):
     def test_navbar_hides_dashboard_for_guest(self):
         response = self.client.get(reverse('home'))
         self.assertNotContains(response, reverse('admin_dashboard'))
+
+
+class DatabaseConfigTests(SimpleTestCase):
+    """Dự án chỉ dùng MySQL - không có đường lui sang SQLite."""
+
+    def test_engine_is_mysql(self):
+        self.assertEqual(
+            settings.DATABASES['default']['ENGINE'],
+            'django.db.backends.mysql',
+        )
+
+    def test_sqlite_switch_is_gone(self):
+        self.assertFalse(hasattr(settings, 'USE_SQLITE'))
+        self.assertFalse(hasattr(settings, 'DB_ENGINE_IN_USE'))
+        self.assertFalse(hasattr(settings, 'DB_AUTO_FALLBACK'))

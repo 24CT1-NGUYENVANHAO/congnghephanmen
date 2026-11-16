@@ -7,8 +7,6 @@ thay vì hardcode, giúp dự án chạy được trên nhiều máy khác nhau.
 Tài liệu cấu hình: https://docs.djangoproject.com/en/5.2/topics/settings/
 """
 
-import os
-import sys
 from pathlib import Path
 
 import environ
@@ -20,16 +18,11 @@ import environ
 # BASE_DIR trỏ tới thư mục gốc chứa manage.py
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Ghi cảnh báo vào stderr để nổi lên trước khi Django in thông báo riêng
-def _warn(message):
-    print(f"\n⚠️  {message}", file=sys.stderr)
-
 
 env = environ.Env(
     # (tên biến, giá trị mặc định nếu .env không khai báo)
     DEBUG=(bool, True),
     ALLOWED_HOSTS=(list, ['127.0.0.1', 'localhost']),
-    USE_SQLITE=(bool, False),
     DB_NAME=(str, 'sachgocuni_db'),
     DB_USER=(str, 'root'),
     DB_PASSWORD=(str, ''),
@@ -105,18 +98,10 @@ ASGI_APPLICATION = 'core.asgi.application'
 # ---------------------------------------------------------------------------
 # 3. CƠ SỞ DỮ LIỆU
 # ---------------------------------------------------------------------------
-# Dự án dùng MySQL làm CSDL chính (đúng kiến trúc đồ án).
-#
-# Vấn đề thực tế: mỗi máy cấu hình MySQL khác nhau (cổng, mật khẩu, có bật
-# XAMPP hay không...). Nếu bắt người dùng phải tự sửa file .env thì rất dễ
-# gặp lỗi "Access denied for user 'root'@'localhost'" và không biết cách sửa.
-#
-# Giải pháp: TỰ ĐỘNG DÒ. Thử kết nối MySQL trước; nếu thất bại thì chuyển
-# sang SQLite một cách âm thầm để dự án LUÔN chạy được. Muốn ép dùng SQLite
-# thì đặt USE_SQLITE=True trong .env.
-#
-# Cách này giúp thầy giáo clone về chạy thử được ngay mà không cần cài
-# MySQL hay chỉnh sửa cấu hình.
+# Dự án chỉ dùng MySQL/MariaDB (đúng kiến trúc đồ án). Thông tin kết nối đọc
+# từ .env, không có cơ chế chuyển sang CSDL khác: nếu MySQL chưa chạy, sai
+# cổng hoặc database chưa tồn tại thì truy vấn đầu tiên sẽ báo lỗi kết nối.
+# Chạy `python check_db.py` để xem app đang trỏ vào đâu rồi sửa .env.
 # ---------------------------------------------------------------------------
 
 # Cho phép dùng PyMySQL (driver thuần Python) thay cho mysqlclient
@@ -147,88 +132,7 @@ def _mysql_settings():
     }
 
 
-def _sqlite_settings():
-    """Cấu hình SQLite - không cần cài đặt gì thêm."""
-    return {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
-    }
-
-
-def _can_connect_mysql(settings_dict):
-    """
-    Thử kết nối MySQL để kiểm tra cấu hình có đúng không.
-
-    Trả về True nếu kết nối được và database tồn tại.
-    """
-    import MySQLdb
-
-    config = settings_dict['default']
-    try:
-        # Nối tới MySQL server (chưa chọn database) để dò cổng/mật khẩu trước
-        connection = MySQLdb.connect(
-            host=config['HOST'],
-            port=int(config['PORT']),
-            user=config['USER'],
-            passwd=config['PASSWORD'],
-            connect_timeout=3,
-        )
-        try:
-            cursor = connection.cursor()
-            cursor.execute(
-                "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA "
-                "WHERE SCHEMA_NAME = %s",
-                [config['NAME']],
-            )
-            exists = cursor.fetchone() is not None
-            cursor.close()
-            return exists
-        finally:
-            connection.close()
-    except Exception:
-        return False
-
-
-USE_SQLITE = env('USE_SQLITE')
-DB_ENGINE_IN_USE = 'sqlite3'
-
-if USE_SQLITE:
-    DATABASES = _sqlite_settings()
-else:
-    _mysql = _mysql_settings()
-    if _can_connect_mysql(_mysql):
-        DATABASES = _mysql
-        DB_ENGINE_IN_USE = 'mysql'
-    else:
-        # Không kết nối được MySQL -> tự chuyển sang SQLite để dự án vẫn chạy
-        DATABASES = _sqlite_settings()
-        DB_AUTO_FALLBACK = True
-        _cfg = _mysql['default']
-        _warn("Không kết nối được MySQL - đang dùng SQLite tạm thời.")
-        _warn(
-            "CẢNH BÁO: dữ liệu bạn thấy trên web KHÔNG nằm trong MySQL "
-            f"'{_cfg['NAME']}'. Mọi thứ đăng/đăng ký bây giờ sẽ lưu vào "
-            "db.sqlite3 và sẽ BIẾN MẤT khi bạn sửa cấu hình rồi migrate lại.\n"
-            "   ==> Hãy sửa DB_PORT/DB_PASSWORD trong .env cho đúng, rồi chạy:\n"
-            "          python manage.py migrate\n"
-            "          python seed_data.py"
-        )
-        print(
-            f"   Đã thử    : mysql://{_cfg['USER']}@{_cfg['HOST']}:{_cfg['PORT']}"
-            f"/{_cfg['NAME']}\n"
-            f"   Nguyên nhân: MySQL chưa chạy, sai cổng, sai mật khẩu, "
-            f"hoặc database '{_cfg['NAME']}' chưa tồn tại.\n"
-            f"   Cách sửa  : mở XAMPP và bật MySQL, rồi tạo database:\n"
-            f"                CREATE DATABASE {_cfg['NAME']} "
-            f"CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\n"
-            f"               hoặc sửa DB_PORT/DB_PASSWORD trong file .env\n"
-            f"               hoặc chạy: python manage.py migrate\n"
-            f"                         python seed_data.py\n"
-            f"   (Dự án vẫn chạy bình thường với SQLite)",
-            file=sys.stderr,
-        )
+DATABASES = _mysql_settings()
 
 # ---------------------------------------------------------------------------
 # 4. XÁC THỰC & MẬT KHẨU
