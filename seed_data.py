@@ -31,7 +31,8 @@ from django.db import transaction  # noqa: E402
 from django.utils import timezone  # noqa: E402
 
 from app_main.models import (  # noqa: E402
-    Category, Comment, Favorite, Order, Post, Review,
+    Category, Comment, Favorite, Order, Post, Profile, Review,
+    SupportMessage, SupportTicket,
 )
 
 # Thư mục chứa ảnh minh hoạ do generate_images.py tạo ra
@@ -291,6 +292,22 @@ def run():
 
     print(f"   ✅ Đã tạo {len(users)} tài khoản sinh viên.")
 
+    # --- 4b. Tài khoản kiểm duyệt viên ---
+    moderator, created = User.objects.get_or_create(
+        username='moderator',
+        defaults={
+            'email': 'moderator@sachgocuni.edu.vn',
+            'first_name': 'Kiểm duyệt viên',
+        },
+    )
+    if created:
+        moderator.set_password('123456')
+        moderator.save()
+    moderator.profile.role = Profile.Role.MODERATOR
+    moderator.profile.faculty = 'Ban quản trị sàn'
+    moderator.profile.save()
+    print("   ✅ Tài khoản kiểm duyệt viên: moderator / 123456")
+
     # --- 4. Tạo danh mục ---
     cat_map = {}
     for order, (name, icon, description) in enumerate(CATEGORIES):
@@ -351,6 +368,24 @@ def run():
         created_posts.append(post)
 
     print(f"   ✅ Đã tạo {len(created_posts)} bài đăng.")
+
+    # --- 5b. Bài mẫu chờ duyệt (PENDING) ---
+    for title, cat_name in (
+        ('Giáo trình Xác suất thống kê (bản mới)', 'Giáo trình'),
+        ('Bộ đề thi TOEIC có đáp án', 'Giáo trình'),
+    ):
+        Post.objects.get_or_create(
+            title=title,
+            defaults={
+                'seller': users[0],
+                'category': cat_map.get(cat_name),
+                'description': 'Bài mẫu đang chờ kiểm duyệt viên xử lý.',
+                'price': 45000,
+                'condition': 'GOOD',
+                'status': Post.Status.PENDING,
+                'location': 'KTX A',
+            },
+        )
 
     # --- 6. Tạo bình luận ---
     comment_count = 0
@@ -480,6 +515,27 @@ def run():
 
     print(f"   ✅ Đã tạo {order_count} đơn hàng.")
 
+    # --- Phiên tranh chấp mẫu trên một đơn đã xác nhận ---
+    sample_order = Order.objects.filter(status=Order.Status.CONFIRMED).first()
+    if sample_order and not SupportTicket.objects.filter(order=sample_order).exists():
+        ticket = SupportTicket.objects.create(
+            order=sample_order,
+            opened_by=sample_order.buyer,
+            category=SupportTicket.Category.DISPUTE,
+            subject='Sản phẩm không đúng mô tả',
+        )
+        SupportMessage.objects.create(
+            ticket=ticket, author=sample_order.buyer,
+            body='Sách nhận được bị rách bìa và thiếu phụ lục.',
+        )
+        SupportMessage.objects.create(
+            ticket=ticket, author=sample_order.seller,
+            body='Mình đã gửi ảnh trước khi giao, nhờ kiểm duyệt viên xem giúp.',
+        )
+        sample_order.status = Order.Status.DISPUTED
+        sample_order.save(update_fields=['status', 'updated_at'])
+        print(f"   ✅ Phiên tranh chấp mẫu cho đơn #{sample_order.pk}.")
+
     # --- 10. Thống kê & thông tin đăng nhập ---
     print("\n" + "=" * 60)
     print("  ✅ HOÀN TẤT NẠP DỮ LIỆU!")
@@ -506,6 +562,11 @@ def run():
         email: hao.nguyen24@gmail.com
         password: 123456
         (Các tài khoản: thanhhoa, minhthu, quynhanh — cùng mật khẩu 123456)
+
+     Kiểm duyệt viên:
+        username: moderator
+        password: 123456
+        Vai trò: Kiểm duyệt viên — Duyệt bài / xử lý báo cáo / tranh chấp
 
   🚀 KHỞI ĐỘNG:
         python manage.py runserver
