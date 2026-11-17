@@ -34,7 +34,7 @@ Chuyên dụng cho **mua bán sách cũ, giáo trình, dụng cụ học tập**
 | Tính năng | Mô tả |
 |---|---|
 | 📖 **Mua bán sản phẩm** | Đăng bán giáo trình, dụng cụ vẽ, thiết bị với giá tuỳ chọn |
-| 🛒 **Đặt mua trong hệ thống** | Gửi yêu cầu → người bán xác nhận/từ chối → hoàn tất. Giá chốt không đổi sau khi đặt |
+| 🛒 **Đặt mua trong hệ thống** | Gửi yêu cầu → người bán xác nhận/từ chối → hoàn tất. Giá chốt không đổi sau khi đặt. Trang đặt mua kèm mã VietQR để chuyển khoản (chỉ hiện với sản phẩm có giá) |
 | 📋 **Quản lý đơn hàng** | 5 trạng thái: Chờ xác nhận, Đã xác nhận, Hoàn tất, Từ chối, Đã huỷ |
 | 🎁 **Tặng miễn phí 0đ** | Chuyên mục tặng lại đồ cho tân sinh viên |
 | 🔍 **Tìm kiếm thông minh** | Tìm theo tiêu đề, mô tả, mã học phần, khoa |
@@ -255,9 +255,6 @@ chưa đăng ký đều bị chặn ngay với thông báo riêng cho từng tr�
 | 🎓 Sinh viên | `minhthu@gmail.com` | `123456` | `/dang-nhap/` |
 | 🎓 Sinh viên | `quynhanh@gmail.com` | `123456` | `/dang-nhap/` |
 
-> Trang đăng nhập có sẵn hai nút **"Điền nhanh"** (sinh viên và quản trị) để test
-> tiện hơn.
-
 ---
 
 ## 🔌 Kết nối CSDL
@@ -333,7 +330,7 @@ Kết quả mong đợi: `django.db.backends.mysql`. Nếu thấy lỗi kết n�
 │   ├── signals.py                 # Tự tạo Profile khi đăng ký
 │   ├── context_processors.py      # Biến dùng chung cho template
 │   ├── templatetags/app_extras.py # Filter & tag tùy chỉnh
-│   ├── tests.py                   # 140 test tự động
+│   ├── tests.py                   # 142 test tự động
 │   └── migrations/                # Lịch sử cấu trúc CSDL
 │
 ├── templates/                     # Template dùng chung
@@ -345,6 +342,7 @@ Kết quả mong đợi: `django.db.backends.mysql`. Nếu thấy lỗi kết n�
 │
 ├── static/
 │   ├── css/main.css               # Design token + component dùng chung
+│   ├── img/qr.jpg                 # Mã VietQR nhận chuyển khoản thanh toán
 │   ├── js/tailwind.min.js         # Tailwind CSS lưu cục bộ (offline)
 │   └── js/main.js                 # Menu, yêu thích AJAX, validate mật khẩu
 │
@@ -372,7 +370,7 @@ python manage.py test app_main.tests.InteractionTests   # Chỉ 1 nhóm
 python manage.py test --verbosity 2      # Chi tiết từng test
 ```
 
-**140 test tự động** bao phủ:
+**142 test tự động** bao phủ:
 
 | Nhóm | Số test | Nội dung |
 |---|---|---|
@@ -382,12 +380,12 @@ python manage.py test --verbosity 2      # Chi tiết từng test
 | Auth | 12 | Đăng ký, đăng nhập **chỉ bằng email** (chặn username), đăng xuất |
 | Phân quyền | 16 | Chặn truy cập trái phép, sở hữu bài đăng |
 | Tương tác | 16 | Yêu thích, bình luận, đánh giá, báo cáo |
-| **Đặt mua** | **18** | Đặt mua, xác nhận, từ chối, hoàn tất, huỷ, phân quyền |
+| **Đặt mua** | **20** | Đặt mua, xác nhận, từ chối, hoàn tất, huỷ, phân quyền, QR thanh toán |
 | Hồ sơ | 3 | Sửa hồ sơ, đổi mật khẩu |
 | Kịch bản đầu-cuối | 1 | Hành trình đầy đủ: đăng ký → đăng tin → mua → hoàn tất |
 | **Quản trị** | **20** | Dashboard, duyệt/từ chối bài, xử lý báo cáo, khoá tài khoản |
 | Cấu hình CSDL | 2 | Engine luôn MySQL, không còn cờ chuyển CSDL |
-| **Tổng** | **140** | ✅ |
+| **Tổng** | **142** | ✅ |
 
 Bao gồm các test bảo mật quan trọng:
 

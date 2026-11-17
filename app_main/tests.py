@@ -455,7 +455,8 @@ class AuthViewTests(TestCase):
     def test_login_form_asks_for_email_only(self):
         response = self.client.get(reverse('login'))
         self.assertNotContains(response, 'tên đăng nhập')
-        self.assertContains(response, 'admin@sachgocuni.edu.vn')
+        self.assertContains(response, 'Email đăng nhập')
+        self.assertContains(response, 'type="email"')
 
     def test_login_with_email(self):
         user = create_user('sinhvien', 'MatKhau123')
@@ -1040,6 +1041,19 @@ class OrderFlowTests(TestCase):
         response = self.client_buyer.get(reverse('buy_post', args=[self.post.pk]))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Đặt mua')
+
+    def test_buy_page_shows_payment_qr_for_paid_post(self):
+        response = self.client_buyer.get(reverse('buy_post', args=[self.post.pk]))
+        self.assertContains(response, 'static/img/qr.jpg')
+        self.assertContains(response, '8822172044')
+
+    def test_buy_page_hides_payment_qr_for_free_post(self):
+        self.post.is_free = True
+        self.post.price = 0
+        self.post.save()
+        response = self.client_buyer.get(reverse('buy_post', args=[self.post.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'static/img/qr.jpg')
 
     def test_buy_own_post_rejected(self):
         self.client_buyer.force_login(self.seller)
