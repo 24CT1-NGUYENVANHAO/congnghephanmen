@@ -711,8 +711,13 @@ def my_tickets(request):
 
 
 @login_required
-def support_ticket_detail(request, pk):
-    """Xem chi tiết một phiên hỗ trợ kèm luồng tin nhắn."""
+def support_ticket_detail(request, pk, reply_form=None):
+    """Xem chi tiết một phiên hỗ trợ kèm luồng tin nhắn.
+
+    Nếu caller truyền `reply_form` (bound form đã lỗi validation từ
+    support_ticket_reply) thì dùng luôn form đó để hiển thị lỗi inline
+    ngay bên cạnh ô nhập, thay vì thông báo chung qua messages.
+    """
     ticket = get_object_or_404(
         SupportTicket.objects.select_related(
             'order__post', 'order__buyer', 'order__seller'
@@ -723,9 +728,12 @@ def support_ticket_detail(request, pk):
     if not _can_view_ticket(request.user, ticket):
         raise Http404("Phiên hỗ trợ không tồn tại.")
 
-    reply_form = None
-    if ticket.status != SupportTicket.Status.RESOLVED:
-        reply_form = SupportReplyForm()
+    if reply_form is None:
+        reply_form = (
+            None
+            if ticket.status == SupportTicket.Status.RESOLVED
+            else SupportReplyForm()
+        )
 
     return render(request, 'app_main/support_ticket_detail.html', {
         'ticket': ticket,
@@ -740,6 +748,11 @@ def open_support_ticket(request, pk):
     Chỉ người mua hoặc người bán của đơn được mở. Mỗi đơn chỉ được có tối
     đa 1 phiên chưa kết thúc (OPEN / IN_PROGRESS) — kiểm tra trước cả GET
     và POST để luôn về phiên cũ nếu đã có.
+
+    Lưu ý: view dùng `@student_required` mà KHÔNG kèm `@require_POST`
+    vì spec Step 4 yêu cầu GET để hiện form mở phiên
+    (support_ticket_form.html). Đây là thiết kế deliberate, không phải
+    Regression.
     """
     order = get_object_or_404(Order.objects.select_related('post'), pk=pk)
 
@@ -819,10 +832,11 @@ def support_ticket_reply(request, pk):
         # Cập nhật updated_at để phiên hiển thị đúng thứ tự hoạt động mới nhất.
         ticket.save(update_fields=['updated_at'])
         messages.success(request, "💬 Đã gửi tin nhắn.")
-    else:
-        messages.error(request, "Nội dung trả lời không hợp lệ.")
+        return redirect('support_ticket_detail', pk=ticket.pk)
 
-    return redirect('support_ticket_detail', pk=ticket.pk)
+    # Form lỗi: render lại trang chi tiết kèm form ràng lỗi để người dùng
+    # sửa lại nội dung thay vì bị mất input vừa nhập.
+    return support_ticket_detail(request, pk, reply_form=form)
 
 
 # ===========================================================================
