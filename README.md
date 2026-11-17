@@ -34,7 +34,7 @@ Chuyên dụng cho **mua bán sách cũ, giáo trình, dụng cụ học tập**
 | Tính năng | Mô tả |
 |---|---|
 | 📖 **Mua bán sản phẩm** | Đăng bán giáo trình, dụng cụ vẽ, thiết bị với giá tuỳ chọn |
-| 🛒 **Đặt mua trong hệ thống** | Gửi yêu cầu → người bán xác nhận/từ chối → hoàn tất. Giá chốt không đổi sau khi đặt. Trang đặt mua kèm mã VietQR để chuyển khoản (chỉ hiện với sản phẩm có giá) |
+| 🛒 **Đặt mua trong hệ thống** | Gửi yêu cầu → người bán xác nhận/từ chối → hoàn tất. Giá chốt không đổi sau khi đặt. Sau khi gửi yêu cầu, trang đặt mua hiện mã VietQR để chuyển khoản (chỉ với sản phẩm có giá) |
 | 📋 **Quản lý đơn hàng** | 5 trạng thái: Chờ xác nhận, Đã xác nhận, Hoàn tất, Từ chối, Đã huỷ |
 | 🎁 **Tặng miễn phí 0đ** | Chuyên mục tặng lại đồ cho tân sinh viên |
 | 🔍 **Tìm kiếm thông minh** | Tìm theo tiêu đề, mô tả, mã học phần, khoa |

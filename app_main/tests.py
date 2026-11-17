@@ -1042,8 +1042,17 @@ class OrderFlowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Đặt mua')
 
-    def test_buy_page_shows_payment_qr_for_paid_post(self):
+    def test_buy_page_hides_qr_until_request_is_sent(self):
+        # Trước khi gửi yêu cầu: form đặt mua không có mã QR
         response = self.client_buyer.get(reverse('buy_post', args=[self.post.pk]))
+        self.assertNotContains(response, 'static/img/qr.jpg')
+
+        # Sau khi gửi yêu cầu: trang hiện xác nhận kèm mã QR để quét
+        response = self.client_buyer.post(reverse('buy_post', args=[self.post.pk]), {
+            'contact': '0901234567',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Đã gửi yêu cầu')
         self.assertContains(response, 'static/img/qr.jpg')
         self.assertContains(response, '8822172044')
 
@@ -1051,7 +1060,9 @@ class OrderFlowTests(TestCase):
         self.post.is_free = True
         self.post.price = 0
         self.post.save()
-        response = self.client_buyer.get(reverse('buy_post', args=[self.post.pk]))
+        response = self.client_buyer.post(reverse('buy_post', args=[self.post.pk]), {
+            'contact': '0901234567',
+        })
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, 'static/img/qr.jpg')
 
@@ -1072,14 +1083,15 @@ class OrderFlowTests(TestCase):
             'message': 'Mình muốn mua, giao dịch tối nay được không?',
             'contact': '0901234567',
         })
-        self.assertRedirects(response, reverse('my_orders'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Đã gửi yêu cầu')
         order = Order.objects.get()
         self.assertEqual(order.buyer, self.buyer)
         self.assertEqual(order.seller, self.seller)
         self.assertEqual(order.status, Order.Status.PENDING)
         self.assertEqual(order.price_snapshot, 450000)
 
-    def test_duplicate_order_redirects_to_list(self):
+    def test_duplicate_order_does_not_create_second_one(self):
         Order.objects.create(
             post=self.post, buyer=self.buyer, seller=self.seller,
             status=Order.Status.PENDING,
@@ -1087,7 +1099,8 @@ class OrderFlowTests(TestCase):
         response = self.client_buyer.post(reverse('buy_post', args=[self.post.pk]), {
             'contact': '0901234567',
         })
-        self.assertRedirects(response, reverse('my_orders'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Đã gửi yêu cầu')
         self.assertEqual(Order.objects.count(), 1)
 
     def test_seller_accept_order(self):

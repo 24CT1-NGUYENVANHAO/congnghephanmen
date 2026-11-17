@@ -464,19 +464,18 @@ def buy_post(request, pk):
         messages.error(request, "Sản phẩm này đã bán, không thể đặt mua.")
         return redirect(post.get_absolute_url())
 
-    # Đã có đơn đang mở thì không tạo thêm
+    # Đã có đơn đang mở thì không tạo thêm, chỉ hiện lại trạng thái đã gửi
     existing = Order.objects.filter(
         post=post, buyer=request.user,
         status__in=[Order.Status.PENDING, Order.Status.CONFIRMED]
     ).first()
 
     if existing:
-        messages.warning(
-            request,
-            f"Bạn đã gửi yêu cầu mua sản phẩm này (đơn #{existing.pk}). "
-            f"Trạng thái: {existing.get_status_display()}."
-        )
-        return redirect('my_orders')
+        return render(request, 'app_main/buy_post.html', {
+            'post': post,
+            'form': OrderForm(),
+            'sent_order': existing,
+        })
 
     if request.method == 'POST':
         form = OrderForm(request.POST)
@@ -488,12 +487,12 @@ def buy_post(request, pk):
             # Chốt giá tại thời điểm đặt mua
             order.price_snapshot = post.price
             order.save()
-            messages.success(
-                request,
-                f"🎉 Đã gửi yêu cầu mua! Đơn #{order.pk}. "
-                f"Người bán '{post.seller.profile.display_name}' sẽ liên hệ lại."
-            )
-            return redirect('my_orders')
+            # Ở lại trang đặt mua để hiện mã QR thanh toán cho người mua
+            return render(request, 'app_main/buy_post.html', {
+                'post': post,
+                'form': OrderForm(),
+                'sent_order': order,
+            })
     else:
         form = OrderForm()
 

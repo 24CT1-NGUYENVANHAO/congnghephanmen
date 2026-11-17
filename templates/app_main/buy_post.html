@@ -38,6 +38,85 @@
         </div>
     </div>
 
+    {% if sent_order %}
+    <!-- Trạng thái đã gửi yêu cầu -->
+    <div class="card p-6 md:p-8">
+        <h1 class="text-2xl font-extrabold text-slate-900 mb-2">✅ Đã gửi yêu cầu</h1>
+        <p class="text-sm text-slate-500 mb-6">
+            Yêu cầu của bạn đã gửi tới <strong>{{ post.seller.profile.display_name }}</strong>.
+            Người bán sẽ xem xét và liên hệ lại bạn.
+        </p>
+
+        <dl class="divide-y divide-slate-100 text-sm">
+            <div class="flex items-center justify-between gap-4 py-3">
+                <dt class="text-slate-500">Mã đơn</dt>
+                <dd class="font-semibold text-slate-800">#{{ sent_order.pk }}</dd>
+            </div>
+            <div class="flex items-center justify-between gap-4 py-3">
+                <dt class="text-slate-500">Trạng thái</dt>
+                <dd>
+                    {% if sent_order.status == 'PENDING' %}<span class="badge badge-warning">Chờ xác nhận</span>
+                    {% elif sent_order.status == 'CONFIRMED' %}<span class="badge badge-info">Đã xác nhận</span>
+                    {% else %}<span class="badge badge-slate">{{ sent_order.get_status_display }}</span>{% endif %}
+                </dd>
+            </div>
+            <div class="flex items-center justify-between gap-4 py-3">
+                <dt class="text-slate-500">Giá chốt</dt>
+                <dd class="font-extrabold {% if sent_order.price_snapshot == 0 %}text-emerald-600{% else %}text-indigo-600{% endif %}">
+                    {{ sent_order.price_display }}
+                </dd>
+            </div>
+            {% if sent_order.message %}
+            <div class="py-3">
+                <dt class="text-slate-500 mb-1">Lời nhắn của bạn</dt>
+                <dd class="text-slate-700 whitespace-pre-line">{{ sent_order.message }}</dd>
+            </div>
+            {% endif %}
+            {% if sent_order.contact %}
+            <div class="flex items-center justify-between gap-4 py-3">
+                <dt class="text-slate-500">Liên hệ</dt>
+                <dd class="text-slate-700">{{ sent_order.contact }}</dd>
+            </div>
+            {% endif %}
+        </dl>
+
+        <div class="flex flex-col sm:flex-row gap-3 pt-6">
+            <a href="{% url 'order_detail' sent_order.pk %}" class="btn btn-primary btn-lg flex-1">
+                Xem chi tiết đơn
+            </a>
+            <a href="{{ post.get_absolute_url }}" class="btn btn-outline btn-lg">Về trang sản phẩm</a>
+        </div>
+    </div>
+
+    {% if sent_order.price_snapshot > 0 %}
+        <!-- Thanh toán bằng chuyển khoản -->
+        <div class="card p-6 mt-6">
+            <h2 class="text-lg font-extrabold text-slate-900 mb-1">💳 Chuyển khoản thanh toán</h2>
+            <p class="text-sm text-slate-500 mb-5">
+                Quét mã VietQR dưới đây để chuyển khoản cho người bán.
+                Nếu điện thoại không quét được, gõ tay số tài khoản in kèm.
+            </p>
+
+            <div class="flex flex-col sm:flex-row items-center gap-6">
+                <img src="{% static 'img/qr.jpg' %}"
+                     alt="Mã VietQR chuyển khoản BIDV — NGUYEN VAN HAO, số tài khoản 8822172044"
+                     class="w-44 h-auto rounded-2xl border border-slate-200 bg-white shrink-0">
+
+                <div class="text-sm text-slate-600 space-y-1.5 w-full">
+                    <p>Ngân hàng: <strong class="text-slate-800">BIDV</strong> — PGD Anh Sơn</p>
+                    <p>Số tài khoản: <strong class="text-slate-800">8822172044</strong></p>
+                    <p>Chủ tài khoản: <strong class="text-slate-800">NGUYEN VAN HAO</strong></p>
+                    <p>Số tiền: <strong class="text-indigo-600">{{ sent_order.price_display }}</strong></p>
+                    <p>Nội dung chuyển khoản:
+                        <strong class="text-slate-800">SGU {{ post.pk }}</strong>
+                        <span class="text-slate-400">— {{ post.title|truncatechars:40 }}</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    {% else %}
     <div class="card p-6 md:p-8">
         <h1 class="text-2xl font-extrabold text-slate-900 mb-2">
             {% if post.is_free or post.price == 0 %}🎁 Đăng ký nhận sản phẩm{% else %}🛒 Đặt mua sản phẩm{% endif %}
@@ -69,6 +148,11 @@
                 và không thay đổi sau đó. Sản phẩm chỉ chuyển sang "Đã bán" khi
                 giao dịch hoàn tất.
             </div>
+            {% if not post.is_free and post.price > 0 %}
+            <p class="text-xs text-slate-500">
+                Sau khi gửi yêu cầu, trang này sẽ hiện mã VietQR để bạn chuyển khoản thanh toán.
+            </p>
+            {% endif %}
 
             <div class="flex flex-col sm:flex-row gap-3 pt-2">
                 <button type="submit" class="btn btn-success btn-lg flex-1">
@@ -78,33 +162,6 @@
             </div>
         </form>
     </div>
-
-    {% if post.price > 0 and not post.is_free %}
-        <!-- Thanh toán bằng chuyển khoản -->
-        <div class="card p-6 mt-6">
-            <h2 class="text-lg font-extrabold text-slate-900 mb-1">💳 Chuyển khoản thanh toán</h2>
-            <p class="text-sm text-slate-500 mb-5">
-                Sau khi người bán xác nhận đơn, bạn quét mã VietQR dưới đây để chuyển khoản.
-                Nếu điện thoại không quét được, gõ tay số tài khoản in kèm.
-            </p>
-
-            <div class="flex flex-col sm:flex-row items-center gap-6">
-                <img src="{% static 'img/qr.jpg' %}"
-                     alt="Mã VietQR chuyển khoản BIDV — NGUYEN VAN HAO, số tài khoản 8822172044"
-                     class="w-44 h-auto rounded-2xl border border-slate-200 bg-white shrink-0">
-
-                <div class="text-sm text-slate-600 space-y-1.5 w-full">
-                    <p>Ngân hàng: <strong class="text-slate-800">BIDV</strong> — PGD Anh Sơn</p>
-                    <p>Số tài khoản: <strong class="text-slate-800">8822172044</strong></p>
-                    <p>Chủ tài khoản: <strong class="text-slate-800">NGUYEN VAN HAO</strong></p>
-                    <p>Số tiền: <strong class="text-indigo-600">{{ post.price_display }}</strong></p>
-                    <p>Nội dung chuyển khoản:
-                        <strong class="text-slate-800">SGU {{ post.pk }}</strong>
-                        <span class="text-slate-400">— {{ post.title|truncatechars:40 }}</span>
-                    </p>
-                </div>
-            </div>
-        </div>
     {% endif %}
 </div>
 {% endblock %}
