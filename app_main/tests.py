@@ -279,7 +279,7 @@ class ModeratorRoleTests(TestCase):
         response = self.client.get(reverse('admin_dashboard'))
         self.assertNotContains(response, 'Doanh thu')
         self.assertNotContains(response, '/django-admin/')
-        self.assertContains(response, 'Hỗ trợ')
+        self.assertContains(response, 'Phiên hỗ trợ')
 
     def test_moderator_navbar_swaps_create_button(self):
         self.client.force_login(self.mod)
