@@ -23,6 +23,7 @@
             {% if order.status == 'PENDING' %}<span class="badge badge-warning text-sm px-4 py-2">Chờ xác nhận</span>
             {% elif order.status == 'CONFIRMED' %}<span class="badge badge-info text-sm px-4 py-2">Đã xác nhận</span>
             {% elif order.status == 'COMPLETED' %}<span class="badge badge-success text-sm px-4 py-2">Hoàn tất</span>
+            {% elif order.status == 'DISPUTED' %}<span class="badge badge-danger text-sm px-4 py-2">Đang tranh chấp</span>
             {% else %}<span class="badge badge-danger text-sm px-4 py-2">{{ order.get_status_display }}</span>{% endif %}
         </div>
 
@@ -159,6 +160,23 @@
                 {% endif %}
             </div>
         {% endif %}
+
+        <!-- Link hỗ trợ cho cả người mua và người bán -->
+        <div class="mt-5 pt-5 border-t border-slate-100">
+            {% with ticket=order.support_tickets.first %}
+                {% if ticket %}
+                    <a href="{% url 'support_ticket_detail' ticket.pk %}"
+                       class="btn btn-outline btn-block flex items-center justify-center gap-2">
+                        🆘 Xem phiên hỗ trợ #{{ ticket.pk }}
+                    </a>
+                {% else %}
+                    <a href="{% url 'open_support_ticket' order.pk %}"
+                       class="btn btn-primary btn-block flex items-center justify-center gap-2">
+                        🆘 Cần hỗ trợ cho đơn này
+                    </a>
+                {% endif %}
+            {% endwith %}
+        </div>
     </div>
 </div>
 {% endblock %}

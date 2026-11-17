@@ -35,6 +35,7 @@
                     {% if order.status == 'PENDING' %}<span class="badge badge-warning">Chờ xác nhận</span>
                     {% elif order.status == 'CONFIRMED' %}<span class="badge badge-info">Đã xác nhận</span>
                     {% elif order.status == 'COMPLETED' %}<span class="badge badge-success">Hoàn tất</span>
+                    {% elif order.status == 'DISPUTED' %}<span class="badge badge-danger">Đang tranh chấp</span>
                     {% else %}<span class="badge badge-danger">{{ order.get_status_display }}</span>{% endif %}
                 </div>
                 <a href="{{ order.post.get_absolute_url }}"
@@ -50,6 +51,13 @@
                     {{ order.price_display }}
                 </span>
                 <a href="{% url 'order_detail' order.pk %}" class="btn btn-outline btn-sm">Chi tiết</a>
+                {% with ticket=order.support_tickets.first %}
+                    {% if ticket %}
+                        <a href="{% url 'support_ticket_detail' ticket.pk %}" class="btn btn-outline btn-sm">🆘 Xem phiên</a>
+                    {% else %}
+                        <a href="{% url 'open_support_ticket' order.pk %}" class="btn btn-outline btn-sm">🆘 Hỗ trợ</a>
+                    {% endif %}
+                {% endwith %}
             </div>
         </div>
         {% empty %}
@@ -77,6 +85,7 @@
                     {% if order.status == 'PENDING' %}<span class="badge badge-warning">Chờ bạn xác nhận</span>
                     {% elif order.status == 'CONFIRMED' %}<span class="badge badge-info">Đã xác nhận</span>
                     {% elif order.status == 'COMPLETED' %}<span class="badge badge-success">Hoàn tất</span>
+                    {% elif order.status == 'DISPUTED' %}<span class="badge badge-danger">Đang tranh chấp</span>
                     {% else %}<span class="badge badge-danger">{{ order.get_status_display }}</span>{% endif %}
                 </div>
                 <a href="{{ order.post.get_absolute_url }}"
@@ -93,6 +102,13 @@
                     {{ order.price_display }}
                 </span>
                 <a href="{% url 'order_detail' order.pk %}" class="btn btn-outline btn-sm">Xử lý</a>
+                {% with ticket=order.support_tickets.first %}
+                    {% if ticket %}
+                        <a href="{% url 'support_ticket_detail' ticket.pk %}" class="btn btn-outline btn-sm">🆘 Xem phiên</a>
+                    {% else %}
+                        <a href="{% url 'open_support_ticket' order.pk %}" class="btn btn-outline btn-sm">🆘 Hỗ trợ</a>
+                    {% endif %}
+                {% endwith %}
             </div>
         </div>
         {% empty %}

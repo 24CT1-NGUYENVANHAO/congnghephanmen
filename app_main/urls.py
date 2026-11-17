@@ -36,6 +36,12 @@ urlpatterns = [
     path('don-hang/<int:pk>/hoan-tat/', views.complete_order, name='complete_order'),
     path('don-hang/<int:pk>/huy/', views.cancel_order, name='cancel_order'),
 
+    # --- Hỗ trợ (người mua / người bán) ---
+    path('ho-tro/', views.my_tickets, name='my_tickets'),
+    path('ho-tro/<int:pk>/', views.support_ticket_detail, name='support_ticket_detail'),
+    path('don-hang/<int:pk>/ho-tro/', views.open_support_ticket, name='open_support_ticket'),
+    path('ho-tro/<int:pk>/tra-loi/', views.support_ticket_reply, name='support_ticket_reply'),
+
     # --- Quản lý bài đăng ---
     path('dang-tin/', views.create_post, name='create_post'),
     path('tin-cua-toi/', views.my_posts, name='my_posts'),

@@ -12,7 +12,10 @@ from django import forms
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 
-from .models import Category, Comment, Order, Post, PostImage, Report, Review
+from .models import (
+    Category, Comment, Order, Post, PostImage, Report, Review,
+    SupportMessage, SupportTicket,
+)
 
 
 def build_username_from_email(email):
@@ -430,6 +433,62 @@ class OrderForm(forms.ModelForm):
                 "Thông tin liên hệ phải chứa email hoặc số điện thoại."
             )
         return contact
+
+
+class SupportTicketForm(forms.ModelForm):
+    """Mở phiên hỗ trợ cho một đơn hàng."""
+
+    body = forms.CharField(
+        label="Nội dung",
+        widget=forms.Textarea(attrs={
+            'class': TEXTAREA_CLASS, 'rows': 4, 'maxlength': 2000,
+            'placeholder': 'Mô tả vấn đề bạn đang gặp...',
+        }),
+    )
+
+    class Meta:
+        model = SupportTicket
+        fields = ['category', 'subject']
+        field_order = ['category', 'subject', 'body']
+        widgets = {
+            'category': forms.Select(attrs={'class': SELECT_CLASS}),
+            'subject': forms.TextInput(attrs={'class': INPUT_CLASS}),
+        }
+        labels = {'category': "Loại yêu cầu", 'subject': "Tiêu đề"}
+
+
+class SupportReplyForm(forms.Form):
+    """Một tin nhắn trong phiên hỗ trợ."""
+
+    body = forms.CharField(
+        label="Nội dung",
+        max_length=2000,
+        widget=forms.Textarea(attrs={
+            'class': TEXTAREA_CLASS, 'rows': 3, 'maxlength': 2000,
+            'placeholder': 'Nhập nội dung trao đổi...',
+        }),
+    )
+
+
+class TicketResolveForm(forms.Form):
+    """Kết luận của kiểm duyệt viên."""
+
+    resolution_note = forms.CharField(
+        label="Kết luận xử lý",
+        max_length=1000,
+        widget=forms.Textarea(attrs={
+            'class': TEXTAREA_CLASS, 'rows': 3, 'maxlength': 1000,
+        }),
+    )
+    decision = forms.ChoiceField(
+        label="Quyết định cho đơn hàng",
+        choices=[
+            ('none', 'Chỉ kết luận phiên, không đổi đơn'),
+            ('cancel', 'Huỷ đơn hàng'),
+            ('complete', 'Xác nhận hoàn tất đơn hàng'),
+        ],
+        widget=forms.Select(attrs={'class': SELECT_CLASS}),
+    )
 
 
 class OrderDecisionForm(forms.Form):

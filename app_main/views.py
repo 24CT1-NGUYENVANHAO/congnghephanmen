@@ -24,8 +24,12 @@ from django.views.decorators.http import require_POST
 from .forms import (
     CommentForm, OrderDecisionForm, OrderForm, PostForm, PostImageForm,
     ProfileForm, RegisterForm, ReportForm, ReviewForm,
+    SupportReplyForm, SupportTicketForm, TicketResolveForm,
 )
-from .models import Category, Comment, Favorite, Order, Post, Report, Review
+from .models import (
+    Category, Comment, Favorite, Order, Post, Report, Review,
+    SupportMessage, SupportTicket,
+)
 from .permissions import can_moderate, moderator_required, student_required
 
 
@@ -484,10 +488,12 @@ def buy_post(request, pk):
         messages.error(request, "Sản phẩm này đã bán, không thể đặt mua.")
         return redirect(post.get_absolute_url())
 
-    # Đã có đơn đang mở thì không tạo thêm, chỉ hiện lại trạng thái đã gửi
+    # Đã có đơn đang mở (bao gồm đơn đang tranh chấp) thì không tạo thêm,
+    # chỉ hiện lại trạng thái đã gửi
     existing = Order.objects.filter(
         post=post, buyer=request.user,
-        status__in=[Order.Status.PENDING, Order.Status.CONFIRMED]
+        status__in=[Order.Status.PENDING, Order.Status.CONFIRMED,
+                    Order.Status.DISPUTED]
     ).first()
 
     if existing:
@@ -658,6 +664,165 @@ def cancel_order(request, pk):
     order.save(update_fields=['status', 'updated_at'])
     messages.info(request, f"Đã huỷ đơn #{order.pk}.")
     return redirect('my_orders')
+
+
+# ---------------------------------------------------------------------------
+#  HỖ TRỢ / TRANH CHẤP (phiên hỗ trợ gắn với một đơn hàng)
+# ---------------------------------------------------------------------------
+
+def _is_order_party(user, order):
+    """Người mua hoặc người bán của đơn."""
+    return user in (order.buyer, order.seller)
+
+
+def _can_view_ticket(user, ticket):
+    """Người mở phiên, hai bên của đơn, hoặc người kiểm duyệt."""
+    return can_moderate(user) or _is_order_party(user, ticket.order)
+
+
+@login_required
+def my_tickets(request):
+    """Danh sách phiên hỗ trợ liên quan đến người dùng hiện tại.
+
+    Lấy phiên mà người dùng là người mở, hoặc là người mua / người bán của
+    đơn hàng gắn kèm. Hỗ trợ lọc ?status=open|resolved qua tham số GET.
+    """
+    tickets = (
+        SupportTicket.objects.filter(
+            Q(opened_by=request.user)
+            | Q(order__buyer=request.user)
+            | Q(order__seller=request.user)
+        )
+        .distinct()
+        .select_related('order__post', 'order__buyer', 'order__seller')
+        .order_by('-created_at')
+    )
+
+    status_filter = request.GET.get('status', '')
+    if status_filter == 'open':
+        tickets = tickets.exclude(status=SupportTicket.Status.RESOLVED)
+    elif status_filter == 'resolved':
+        tickets = tickets.filter(status=SupportTicket.Status.RESOLVED)
+
+    return render(request, 'app_main/my_tickets.html', {
+        'tickets': tickets,
+        'status_filter': status_filter,
+    })
+
+
+@login_required
+def support_ticket_detail(request, pk):
+    """Xem chi tiết một phiên hỗ trợ kèm luồng tin nhắn."""
+    ticket = get_object_or_404(
+        SupportTicket.objects.select_related(
+            'order__post', 'order__buyer', 'order__seller'
+        ).prefetch_related('messages__author__profile'),
+        pk=pk,
+    )
+
+    if not _can_view_ticket(request.user, ticket):
+        raise Http404("Phiên hỗ trợ không tồn tại.")
+
+    reply_form = None
+    if ticket.status != SupportTicket.Status.RESOLVED:
+        reply_form = SupportReplyForm()
+
+    return render(request, 'app_main/support_ticket_detail.html', {
+        'ticket': ticket,
+        'reply_form': reply_form,
+    })
+
+
+@student_required
+def open_support_ticket(request, pk):
+    """Mở phiên hỗ trợ cho một đơn hàng (GET hiện form, POST tạo phiên).
+
+    Chỉ người mua hoặc người bán của đơn được mở. Mỗi đơn chỉ được có tối
+    đa 1 phiên chưa kết thúc (OPEN / IN_PROGRESS) — kiểm tra trước cả GET
+    và POST để luôn về phiên cũ nếu đã có.
+    """
+    order = get_object_or_404(Order.objects.select_related('post'), pk=pk)
+
+    if not _is_order_party(request.user, order):
+        raise Http404("Bạn không thuộc đơn hàng này.")
+
+    existing = (
+        SupportTicket.objects.filter(
+            order=order,
+            status__in=[SupportTicket.Status.OPEN,
+                        SupportTicket.Status.IN_PROGRESS],
+        )
+        .first()
+    )
+    if existing:
+        messages.warning(
+            request,
+            f"Đơn #{order.pk} đã có phiên hỗ trợ #{existing.pk} đang mở."
+        )
+        return redirect('support_ticket_detail', pk=existing.pk)
+
+    if request.method == 'POST':
+        form = SupportTicketForm(request.POST)
+        if form.is_valid():
+            ticket = form.save(commit=False)
+            ticket.order = order
+            ticket.opened_by = request.user
+            ticket.save()
+
+            # Tin nhắn đầu tiên là nội dung người dùng gửi khi mở phiên.
+            SupportMessage.objects.create(
+                ticket=ticket, author=request.user,
+                body=form.cleaned_data['body'],
+            )
+
+            # Mở phiên loại tranh chấp thì chuyển đơn sang DISPUTED.
+            if (
+                ticket.category == SupportTicket.Category.DISPUTE
+                and order.status in (Order.Status.PENDING, Order.Status.CONFIRMED)
+            ):
+                order.status = Order.Status.DISPUTED
+                order.save(update_fields=['status', 'updated_at'])
+
+            messages.success(
+                request,
+                f"🆘 Đã mở phiên hỗ trợ #{ticket.pk} cho đơn #{order.pk}."
+            )
+            return redirect('support_ticket_detail', pk=ticket.pk)
+    else:
+        form = SupportTicketForm()
+
+    return render(request, 'app_main/support_ticket_form.html', {
+        'order': order,
+        'form': form,
+    })
+
+
+@require_POST
+@student_required
+def support_ticket_reply(request, pk):
+    """Trả lời một phiên hỗ trợ (POST + CSRF). Chỉ người có quyền xem."""
+    ticket = get_object_or_404(SupportTicket.objects.select_related('order'), pk=pk)
+
+    if not _can_view_ticket(request.user, ticket):
+        raise Http404("Phiên hỗ trợ không tồn tại.")
+
+    if ticket.status == SupportTicket.Status.RESOLVED:
+        messages.error(request, "Phiên hỗ trợ này đã kết thúc, không thể trả lời.")
+        return redirect('support_ticket_detail', pk=ticket.pk)
+
+    form = SupportReplyForm(request.POST)
+    if form.is_valid():
+        SupportMessage.objects.create(
+            ticket=ticket, author=request.user,
+            body=form.cleaned_data['body'],
+        )
+        # Cập nhật updated_at để phiên hiển thị đúng thứ tự hoạt động mới nhất.
+        ticket.save(update_fields=['updated_at'])
+        messages.success(request, "💬 Đã gửi tin nhắn.")
+    else:
+        messages.error(request, "Nội dung trả lời không hợp lệ.")
+
+    return redirect('support_ticket_detail', pk=ticket.pk)
 
 
 # ===========================================================================

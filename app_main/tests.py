@@ -1530,6 +1530,100 @@ class OrderJourneyTests(TestCase):
 
 
 # ===========================================================================
+#  HỖ TRỢ / TRANH CHẤP — MỞ PHIÊN VÀ TRAO ĐỔI HAI CHIỀU
+# ===========================================================================
+
+@override_settings(PASSWORD_HASHERS=PASSWORD_HASHERS)
+class SupportTicketTests(TestCase):
+    """Phiên hỗ trợ gắn với đơn hàng và tranh chấp."""
+
+    def setUp(self):
+        self.buyer = create_user('buyer')
+        self.seller = create_user('seller')
+        self.outsider = create_user('outsider')
+        self.mod = create_moderator('moder')
+        self.post = create_post(self.seller)
+        self.order = Order.objects.create(
+            post=self.post, buyer=self.buyer, seller=self.seller,
+            price_snapshot=50000, status=Order.Status.CONFIRMED,
+        )
+
+    def _open(self, user, category=SupportTicket.Category.DISPUTE, subject='Sai mô tả'):
+        self.client.force_login(user)
+        return self.client.post(
+            reverse('open_support_ticket', args=[self.order.pk]),
+            {'category': category, 'subject': subject, 'body': 'Nội dung đầu tiên'},
+        )
+
+    def _ticket(self):
+        return SupportTicket.objects.get(order=self.order)
+
+    def test_buyer_opens_dispute(self):
+        self._open(self.buyer)
+        self.order.refresh_from_db()
+        ticket = self._ticket()
+        self.assertEqual(ticket.status, SupportTicket.Status.OPEN)
+        self.assertEqual(ticket.opened_by, self.buyer)
+        self.assertEqual(ticket.messages.count(), 1)
+        self.assertEqual(self.order.status, Order.Status.DISPUTED)
+
+    def test_seller_opens_question_keeps_order(self):
+        self._open(self.seller, SupportTicket.Category.QUESTION, 'Hỏi về đơn')
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, Order.Status.CONFIRMED)
+        self.assertEqual(self._ticket().category, SupportTicket.Category.QUESTION)
+
+    def test_outsider_cannot_open_or_view(self):
+        self._open(self.buyer)
+        ticket = self._ticket()
+        self.client.force_login(self.outsider)
+        self.assertEqual(
+            self.client.get(reverse('open_support_ticket', args=[self.order.pk])).status_code,
+            404,
+        )
+        self.assertEqual(
+            self.client.get(reverse('support_ticket_detail', args=[ticket.pk])).status_code,
+            404,
+        )
+
+    def test_only_one_active_ticket_per_order(self):
+        self._open(self.buyer)
+        response = self._open(self.buyer, subject='Mở lần hai')
+        self.assertEqual(SupportTicket.objects.filter(order=self.order).count(), 1)
+        self.assertRedirects(
+            response,
+            reverse('support_ticket_detail', args=[self._ticket().pk]),
+        )
+
+    def test_participant_reply_adds_message(self):
+        self._open(self.buyer)
+        ticket = self._ticket()
+        self.client.force_login(self.seller)
+        self.client.post(reverse('support_ticket_reply', args=[ticket.pk]),
+                         {'body': 'Người bán trả lời'})
+        self.assertEqual(ticket.messages.count(), 2)
+
+    def test_outsider_cannot_reply(self):
+        self._open(self.buyer)
+        ticket = self._ticket()
+        self.client.force_login(self.outsider)
+        response = self.client.post(reverse('support_ticket_reply', args=[ticket.pk]),
+                                    {'body': 'Chen ngang'})
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(ticket.messages.count(), 1)
+
+    def test_cannot_reply_to_resolved_ticket(self):
+        self._open(self.buyer)
+        ticket = self._ticket()
+        ticket.status = SupportTicket.Status.RESOLVED
+        ticket.save(update_fields=['status'])
+        self.client.force_login(self.buyer)
+        self.client.post(reverse('support_ticket_reply', args=[ticket.pk]),
+                         {'body': 'Tin sau khi đóng'})
+        self.assertEqual(ticket.messages.count(), 1)
+
+
+# ===========================================================================
 #  QUẢN TRỊ (DASHBOARD TRONG APP)
 # ===========================================================================
 
