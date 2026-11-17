@@ -125,10 +125,16 @@
                                     <span class="badge badge-slate">Đã bán / tặng</span>
                                 {% elif post.status == 'REJECTED' %}
                                     <span class="badge badge-danger" title="{{ post.rejection_reason }}">Bị từ chối</span>
+                                    {% if post.rejection_reason %}
+                                        <span class="text-xs text-red-600" title="{{ post.rejection_reason }}">{{ post.rejection_reason }}</span>
+                                    {% endif %}
                                 {% elif post.status == 'PENDING' %}
                                     <span class="badge badge-warning">Chờ duyệt</span>
                                 {% else %}
-                                    <span class="badge badge-slate">Đã ẩn</span>
+                                    <span class="badge badge-slate" title="{{ post.rejection_reason }}">Đã ẩn</span>
+                                    {% if post.rejection_reason %}
+                                        <span class="text-xs text-red-600" title="{{ post.rejection_reason }}">{{ post.rejection_reason }}</span>
+                                    {% endif %}
                                 {% endif %}
                             </td>
 
