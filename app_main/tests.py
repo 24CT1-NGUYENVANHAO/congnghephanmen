@@ -7,6 +7,7 @@ Bao phủ: Model, Form, View, phân quyền, CSRF và luồng người dùng ch�
 """
 
 from django.conf import settings
+from django.contrib import admin
 from django.contrib.auth.models import User
 from django.db import IntegrityError, transaction
 from django.test import Client, SimpleTestCase, TestCase, override_settings
@@ -15,6 +16,7 @@ from django.urls import reverse
 from .forms import RegisterForm
 from .models import (
     Category, Comment, Favorite, Order, Post, Profile, Report, Review,
+    SupportMessage, SupportTicket,
 )
 
 # Hash mật khẩu nhanh để test chạy nhanh hơn (chỉ dùng trong test)
@@ -171,6 +173,49 @@ class ReviewModelTests(TestCase):
     def test_stars_property(self):
         review = Review.objects.create(seller=self.seller, reviewer=self.reviewer, rating=4)
         self.assertEqual(review.stars, [1, 1, 1, 1, 0])
+
+
+@override_settings(PASSWORD_HASHERS=PASSWORD_HASHERS)
+class ModeratorModelTests(TestCase):
+    """Trường vai trò, lý do báo cáo mới, trạng thái tranh chấp và model hỗ trợ."""
+
+    def test_profile_role_defaults_to_student(self):
+        user = create_user('sv1')
+        self.assertEqual(user.profile.role, Profile.Role.STUDENT)
+        self.assertFalse(user.profile.is_moderator)
+
+    def test_report_has_prohibited_reason(self):
+        self.assertEqual(
+            Report.Reason.PROHIBITED.label, 'Hàng cấm / vi phạm pháp luật'
+        )
+
+    def test_disputed_order_is_open(self):
+        self.assertTrue(Order(status=Order.Status.DISPUTED).is_open)
+
+    def test_support_ticket_and_messages(self):
+        buyer = create_user('buyer1')
+        seller = create_user('seller1')
+        post = create_post(seller)
+        order = Order.objects.create(
+            post=post, buyer=buyer, seller=seller,
+            price_snapshot=50000, status=Order.Status.CONFIRMED,
+        )
+        ticket = SupportTicket.objects.create(
+            order=order, opened_by=buyer,
+            category=SupportTicket.Category.DISPUTE,
+            subject='Sách không đúng mô tả',
+        )
+        self.assertEqual(ticket.status, SupportTicket.Status.OPEN)
+        self.assertIn('#{}'.format(ticket.pk), str(ticket))
+        SupportMessage.objects.create(ticket=ticket, author=buyer, body='Tin 1')
+        SupportMessage.objects.create(ticket=ticket, author=seller, body='Tin 2')
+        self.assertEqual(
+            [m.body for m in ticket.messages.all()], ['Tin 1', 'Tin 2']
+        )
+
+    def test_support_models_registered_in_admin(self):
+        self.assertTrue(admin.site.is_registered(SupportTicket))
+        self.assertTrue(admin.site.is_registered(SupportMessage))
 
 
 # ===========================================================================

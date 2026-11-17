@@ -87,6 +87,15 @@ class Profile(models.Model):
     avatar = models.ImageField(
         upload_to='avatars/', blank=True, null=True, verbose_name="Ảnh đại diện"
     )
+
+    class Role(models.TextChoices):
+        STUDENT = 'STUDENT', 'Sinh viên'
+        MODERATOR = 'MODERATOR', 'Kiểm duyệt viên'
+
+    role = models.CharField(
+        max_length=20, choices=Role.choices, default=Role.STUDENT,
+        db_index=True, verbose_name="Vai trò",
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Ngày tạo")
 
     class Meta:
@@ -95,6 +104,11 @@ class Profile(models.Model):
 
     def __str__(self):
         return f"Hồ sơ {self.user.username}"
+
+    @property
+    def is_moderator(self):
+        """Chỉ đúng khi role là MODERATOR; quyền admin xét riêng bằng is_staff."""
+        return self.role == self.Role.MODERATOR
 
     @property
     def display_name(self):
@@ -477,6 +491,7 @@ class Report(models.Model):
         FAKE = 'FAKE', 'Thông tin sai lệch / lừa đảo'
         INAPPROPRIATE = 'INAPPROPRIATE', 'Nội dung không phù hợp'
         DUPLICATE = 'DUPLICATE', 'Đăng trùng lặp'
+        PROHIBITED = 'PROHIBITED', 'Hàng cấm / vi phạm pháp luật'
         OTHER = 'OTHER', 'Vấn đề khác'
 
     class Status(models.TextChoices):
@@ -533,6 +548,7 @@ class Order(models.Model):
         COMPLETED = 'COMPLETED', 'Hoàn tất'
         REJECTED = 'REJECTED', 'Từ chối'
         CANCELLED = 'CANCELLED', 'Đã huỷ'
+        DISPUTED = 'DISPUTED', 'Đang tranh chấp'
 
     post = models.ForeignKey(
         Post, on_delete=models.CASCADE, related_name='orders',
@@ -585,10 +601,89 @@ class Order(models.Model):
     @property
     def is_open(self):
         """Đơn còn chờ xử lý (chưa bị từ chối/huỷ/hoàn tất)."""
-        return self.status in (self.Status.PENDING, self.Status.CONFIRMED)
+        return self.status in (
+            self.Status.PENDING, self.Status.CONFIRMED, self.Status.DISPUTED
+        )
 
     @property
     def price_display(self):
         if self.price_snapshot == 0:
             return "Miễn phí"
         return f"{int(self.price_snapshot):,}đ".replace(",", ".")
+
+
+# ---------------------------------------------------------------------------
+#  HỖ TRỢ / TRANH CHẤP
+# ---------------------------------------------------------------------------
+
+class SupportTicket(models.Model):
+    """Phiên hỗ trợ / tranh chấp gắn với một đơn hàng."""
+
+    class Category(models.TextChoices):
+        DISPUTE = 'DISPUTE', 'Tranh chấp đơn hàng'
+        QUESTION = 'QUESTION', 'Cần giải đáp'
+        OTHER = 'OTHER', 'Vấn đề khác'
+
+    class Status(models.TextChoices):
+        OPEN = 'OPEN', 'Chờ tiếp nhận'
+        IN_PROGRESS = 'IN_PROGRESS', 'Đang xử lý'
+        RESOLVED = 'RESOLVED', 'Đã giải quyết'
+
+    order = models.ForeignKey(
+        Order, on_delete=models.CASCADE,
+        related_name='support_tickets', verbose_name="Đơn hàng",
+    )
+    opened_by = models.ForeignKey(
+        User, on_delete=models.CASCADE,
+        related_name='support_tickets_opened', verbose_name="Người mở",
+    )
+    category = models.CharField(
+        max_length=20, choices=Category.choices,
+        default=Category.QUESTION, verbose_name="Loại yêu cầu",
+    )
+    subject = models.CharField(max_length=200, verbose_name="Tiêu đề")
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.OPEN,
+        db_index=True, verbose_name="Trạng thái",
+    )
+    handled_by = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='support_tickets_handled', verbose_name="Người xử lý",
+    )
+    resolution_note = models.TextField(
+        max_length=1000, blank=True, verbose_name="Kết luận xử lý",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Phiên hỗ trợ"
+        verbose_name_plural = "Phiên hỗ trợ"
+
+    def __str__(self):
+        return f"#{self.pk} {self.get_category_display()} — {self.subject[:40]}"
+
+
+class SupportMessage(models.Model):
+    """Một tin nhắn trong phiên hỗ trợ."""
+
+    ticket = models.ForeignKey(
+        SupportTicket, on_delete=models.CASCADE,
+        related_name='messages', verbose_name="Phiên hỗ trợ",
+    )
+    author = models.ForeignKey(
+        User, on_delete=models.CASCADE,
+        related_name='support_messages', verbose_name="Người gửi",
+    )
+    body = models.TextField(max_length=2000, verbose_name="Nội dung")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+        verbose_name = "Tin nhắn hỗ trợ"
+        verbose_name_plural = "Tin nhắn hỗ trợ"
+
+    def __str__(self):
+        return f"{self.author.username}: {self.body[:30]}"

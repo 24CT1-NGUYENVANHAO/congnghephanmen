@@ -13,6 +13,7 @@ from django.utils.html import format_html
 
 from .models import (
     Category, Comment, Favorite, Order, Post, PostImage, Profile, Report, Review,
+    SupportMessage, SupportTicket,
 )
 
 
@@ -156,9 +157,9 @@ class PostAdmin(admin.ModelAdmin):
 
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'student_id', 'faculty', 'phone', 'rating_display')
+    list_display = ('user', 'student_id', 'faculty', 'phone', 'role', 'rating_display')
     search_fields = ('user__username', 'student_id', 'faculty')
-    list_filter = ('faculty',)
+    list_filter = ('faculty', 'role')
 
     @admin.display(description="Điểm uy tín")
     def rating_display(self, obj):
@@ -260,7 +261,7 @@ class ProfileInline(admin.StackedInline):
     model = Profile
     can_delete = False
     extra = 0
-    fields = ('student_id', 'faculty', 'phone', 'bio', 'avatar')
+    fields = ('student_id', 'faculty', 'phone', 'bio', 'avatar', 'role')
 
 
 admin.site.unregister(User)
@@ -395,3 +396,20 @@ class OrderAdmin(admin.ModelAdmin):
         self.message_user(request, f"Đã hoàn tất {count} đơn hàng.")
 
     actions = [mark_completed]
+
+
+# ---------------------------------------------------------------------------
+#  HỖ TRỢ / TRANH CHẤP
+# ---------------------------------------------------------------------------
+
+@admin.register(SupportTicket)
+class SupportTicketAdmin(admin.ModelAdmin):
+    list_display = ('subject', 'order', 'opened_by', 'category', 'status', 'handled_by', 'created_at')
+    list_filter = ('category', 'status')
+    search_fields = ('subject', 'order__post__title')
+
+
+@admin.register(SupportMessage)
+class SupportMessageAdmin(admin.ModelAdmin):
+    list_display = ('ticket', 'author', 'created_at')
+    search_fields = ('body',)
