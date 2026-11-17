@@ -1,0 +1,199 @@
+{% extends 'base.html' %}
+
+{% block title %}Chi tiết phiên #{{ ticket.pk }} — SáchGóc Uni{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <a href="{% url 'moderator_ticket_list' %}"
+       class="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-indigo-600 transition mb-6">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+        </svg>
+        Quay lại danh sách kiểm duyệt
+    </a>
+
+    <!-- Tóm sắt phiên & đơn hàng -->
+    <div class="card p-6 md:p-8">
+        <div class="flex items-start justify-between gap-4 flex-wrap mb-6">
+            <div>
+                <h1 class="text-xl font-extrabold text-slate-900">Phiên hỗ trợ #{{ ticket.pk }}</h1>
+                <p class="text-sm text-slate-500 mt-0.5">
+                    {{ ticket.subject }}
+                    <span class="ml-2 text-xs font-semibold text-slate-400">
+                        {{ ticket.get_category_display }}
+                    </span>
+                </p>
+            </div>
+            {% if ticket.status == 'OPEN' %}
+                <span class="badge badge-warning text-sm px-3 py-1.5">Chờ tiếp nhận</span>
+            {% elif ticket.status == 'IN_PROGRESS' %}
+                <span class="badge badge-info text-sm px-3 py-1.5">Đang xử lý</span>
+            {% else %}
+                <span class="badge badge-success text-sm px-3 py-1.5">Đã giải quyết</span>
+            {% endif %}
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Đơn hàng</p>
+                <div class="text-sm font-semibold text-slate-800">#{{ ticket.order.pk }}</div>
+            </div>
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Sản phẩm</p>
+                <a href="{{ ticket.order.post.get_absolute_url }}"
+                   class="text-sm text-slate-800 hover:text-indigo-600 transition line-clamp-2">
+                    {{ ticket.order.post.title }}
+                </a>
+            </div>
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Người mua</p>
+                <p class="text-sm text-slate-700">{{ ticket.order.buyer.profile.display_name }}</p>
+            </div>
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Người bán</p>
+                <p class="text-sm text-slate-700">{{ ticket.order.seller.profile.display_name }}</p>
+            </div>
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Giá chốt</p>
+                <p class="text-sm font-semibold text-slate-800">{{ ticket.order.price_display }}</p>
+            </div>
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Trạng thái đơn</p>
+                {% if ticket.order.status == 'PENDING' %}
+                    <span class="badge badge-warning text-sm">{{ ticket.order.get_status_display }}</span>
+                {% elif ticket.order.status == 'CONFIRMED' %}
+                    <span class="badge badge-info text-sm">{{ ticket.order.get_status_display }}</span>
+                {% elif ticket.order.status == 'DISPUTED' %}
+                    <span class="badge badge-danger text-sm">{{ ticket.order.get_status_display }}</span>
+                {% else %}
+                    <span class="badge badge-success text-sm">{{ ticket.order.get_status_display }}</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3 flex-wrap mb-4">
+            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Người mở:</span>
+            <span class="text-sm text-slate-700 font-medium">{{ ticket.opened_by.profile.display_name }}</span>
+            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tạo lúc:</span>
+            <span class="text-sm text-slate-700">{{ ticket.created_at|date:"d/m/Y H:i" }}</span>
+        </div>
+    </div>
+
+    <!-- Luồng tin nhắn -->
+    <div class="card p-0 md:p-6 border-slate-200">
+        <h2 class="text-lg font-bold text-slate-900 mb-4">Tin nhắn</h2>
+
+        <div class="space-y-4 min-h-[300px]">
+            {% for message in ticket.messages.all %}
+            <div class="flex gap-3 {% if message.author == request.user %}justify-end{% else %}justify-start{% endif %}">
+                <div class="max-w-[80%] {% if message.author == request.user %}text-right{% endif %}">
+                    <div class="flex items-baseline gap-2 mb-1">
+                        <span class="text-xs font-semibold text-slate-700">{{ message.author.profile.display_name }}</span>
+                        <span class="text-xs text-slate-400">{{ message.created_at|date:"d/m/Y H:i" }}</span>
+                    </div>
+                    <div class="inline-block rounded-xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-line
+                                 {% if message.author == request.user %}
+                                     bg-indigo-100 text-indigo-900 border border-indigo-200 rounded-tr-none
+                                 {% else %}
+                                     bg-white text-slate-800 border border-slate-200 rounded-tl-none
+                                 {% endif %}">
+                        {{ message.body|linebreaks }}
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="text-center py-8 text-slate-400">
+                <p>Chưa có tin nhắn nào trong phiên này.</p>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Form trả lời (ẩn khi phiên đã kết thúc) -->
+        {% if ticket.status != 'RESOLVED' and reply_form %}
+        <div class="mt-6 pt-6 border-t border-slate-100">
+            <form method="post" action="{% url 'moderator_ticket_reply' ticket.pk %}" class="space-y-3">
+                {% csrf_token %}
+                <div>
+                    <label for="{{ reply_form.body.id_for_label }}" class="form-label">Trả lời</label>
+                    {{ reply_form.body }}
+                    {% for error in reply_form.body.errors %}<p class="form-error">{{ error }}</p>{% endfor %}
+                </div>
+                <button type="submit" class="btn btn-primary">💬 Gửi tin nhắn</button>
+            </form>
+        </div>
+        {% endif %}
+
+        <!-- Form kết luận phiên (ẩn khi phiên đã kết thúc) -->
+        {% if ticket.status != 'RESOLVED' and resolve_form %}
+        <div class="mt-6 pt-6 border-t border-slate-100">
+            <form method="post" action="{% url 'moderator_ticket_resolve' ticket.pk %}" class="space-y-3">
+                {% csrf_token %}
+                <div>
+                    <label for="{{ resolve_form.resolution_note.id_for_label }}" class="form-label">Kết luận xử lý</label>
+                    {{ resolve_form.resolution_note }}
+                    {% for error in resolve_form.resolution_note.errors %}<p class="form-error">{{ error }}</p>{% endfor %}
+                </div>
+                <div>
+                    <label for="{{ resolve_form.decision.id_for_label }}" class="form-label">Quyết định cho đơn hàng</label>
+                    {{ resolve_form.decision }}
+                    {% for error in resolve_form.decision.errors %}<p class="form-error">{{ error }}</p>{% endfor %}
+                </div>
+                <button type="submit" class="btn btn-primary">🔒 Kết luận &amp; đóng phiên</button>
+            </form>
+        </div>
+        {% endif %}
+
+        <!-- Khi phiên đã kết thúc: hiển thị kết luận xử lý -->
+        {% if ticket.status == 'RESOLVED' %}
+        <div class="mt-6 pt-6 border-t border-slate-100 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-sm text-emerald-800">
+            <p class="text-xs font-semibold text-emerald-700 uppercase tracking-wider mb-2">Kết quả xử lý</p>
+            <p class="text-emerald-900 whitespace-pre-line">{{ ticket.resolution_note }}</p>
+            <p class="mt-2 text-xs text-emerald-700">
+                Người xử lý: <strong>{{ ticket.handled_by.profile.display_name }}</strong>
+                · Thời gian: {{ ticket.resolved_at|date:"d/m/Y H:i" }}
+            </p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Quyết định đơn hàng (chỉ khi đơn còn mở) -->
+    {% if ticket.order.is_open %}
+    <div class="card p-6 md:p-8">
+        <h2 class="text-lg font-bold text-slate-900 mb-4">Quyết định đơn hàng #{{ ticket.order.pk }}</h2>
+        <p class="text-sm text-slate-600 mb-4">
+            Chọn hành động đối với đơn hàng này. Quyết định sau được áp dụng
+            ngay lập tức, <strong>không đóng phiên hỗ trợ</strong>.
+        </p>
+        <form method="post" action="{% url 'moderator_order_decision' ticket.pk %}" class="space-y-3">
+            {% csrf_token %}
+            <div>
+                <label for="id_order_decision_note" class="form-label">Kết luận xử lý (dùng chung cho cả hai nút)</label>
+                <textarea name="resolution_note" id="id_order_decision_note"
+                          class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm shadow-sm transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 focus:outline-none min-h-28 resize-y"
+                          rows="3" maxlength="1000" placeholder="Ví dụ: Hai bên xác nhận huỷ đơn..."></textarea>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button type="submit" name="decision" value="cancel" class="btn btn-outline btn-block">
+                    🚫 Huỷ đơn hàng
+                </button>
+                <button type="submit" name="decision" value="complete" class="btn btn-success btn-block">
+                    ✅ Xác nhận hoàn tất
+                </button>
+            </div>
+            <p class="text-xs text-slate-400 mt-2">
+                Chỉ có thể quyết định khi đơn còn mở (Chờ xác nhận / Đã xác nhận / Đang tranh chấp).
+            </p>
+        </form>
+    </div>
+    {% else %}
+    <div class="card p-6 md:p-8 border border-slate-100">
+        <p class="text-sm text-slate-500">
+            Đơn #{{ ticket.order.pk }} đã kết thúc (
+            <span class="font-medium">{{ ticket.order.get_status_display }}</span>),
+            không thể thay đổi trạng thái đơn từ trang này.
+        </p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

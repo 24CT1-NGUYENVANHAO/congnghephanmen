@@ -69,4 +69,15 @@ urlpatterns = [
     path('quan-tri/bai-dang/<int:pk>/tu-choi/', views.admin_reject_post, name='admin_reject_post'),
     path('quan-tri/bao-cao/<int:pk>/xu-ly/', views.admin_resolve_report, name='admin_resolve_report'),
     path('quan-tri/bao-cao/<int:pk>/bo-qua/', views.admin_dismiss_report, name='admin_dismiss_report'),
+
+    # --- Quản trị: hỗ trợ / tranh chấp đơn hàng (chỉ kiểm duyệt viên) ---
+    path('quan-tri/ho-tro/', views.moderator_ticket_list, name='moderator_ticket_list'),
+    path('quan-tri/ho-tro/<int:pk>/', views.moderator_ticket_detail,
+         name='moderator_ticket_detail'),
+    path('quan-tri/ho-tro/<int:pk>/tra-loi/', views.moderator_ticket_reply,
+         name='moderator_ticket_reply'),
+    path('quan-tri/ho-tro/<int:pk>/ket-luan/', views.moderator_ticket_resolve,
+         name='moderator_ticket_resolve'),
+    path('quan-tri/ho-tro/<int:pk>/quyet-dinh/', views.moderator_order_decision,
+         name='moderator_order_decision'),
 ]

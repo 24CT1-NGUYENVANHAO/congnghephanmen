@@ -19,6 +19,7 @@ from django.core.paginator import Paginator
 from django.db.models import Avg, Count, Q, Sum
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from .forms import (
@@ -576,6 +577,13 @@ def accept_order(request, pk):
         messages.error(request, "Chỉ người bán mới xác nhận được đơn hàng.")
         return redirect('my_orders')
 
+    if order.status == Order.Status.DISPUTED:
+        messages.error(
+            request,
+            "Đơn đang tranh chấp. Chỉ kiểm duyệt viên mới xử lý được.",
+        )
+        return redirect('order_detail', pk=order.pk)
+
     if order.status != Order.Status.PENDING:
         messages.error(request, "Đơn hàng này không còn ở trạng thái chờ xác nhận.")
         return redirect('order_detail', pk=order.pk)
@@ -599,6 +607,13 @@ def reject_order(request, pk):
     if order.seller != request.user:
         messages.error(request, "Chỉ người bán mới từ chối được đơn hàng.")
         return redirect('my_orders')
+
+    if order.status == Order.Status.DISPUTED:
+        messages.error(
+            request,
+            "Đơn đang tranh chấp. Chỉ kiểm duyệt viên mới xử lý được.",
+        )
+        return redirect('order_detail', pk=order.pk)
 
     if order.status != Order.Status.PENDING:
         messages.error(request, "Đơn hàng này không còn ở trạng thái chờ xác nhận.")
@@ -625,6 +640,13 @@ def complete_order(request, pk):
     if request.user not in (order.buyer, order.seller):
         messages.error(request, "Bạn không có quyền xử lý đơn hàng này.")
         return redirect('my_orders')
+
+    if order.status == Order.Status.DISPUTED:
+        messages.error(
+            request,
+            "Đơn đang tranh chấp. Chỉ kiểm duyệt viên mới xử lý được.",
+        )
+        return redirect('order_detail', pk=order.pk)
 
     if order.status not in (Order.Status.PENDING, Order.Status.CONFIRMED):
         messages.error(request, "Đơn hàng này không thể đánh dấu hoàn tất.")
@@ -655,6 +677,13 @@ def cancel_order(request, pk):
     if order.buyer != request.user:
         messages.error(request, "Chỉ người mua mới huỷ được đơn hàng.")
         return redirect('my_orders')
+
+    if order.status == Order.Status.DISPUTED:
+        messages.error(
+            request,
+            "Đơn đang tranh chấp. Chỉ kiểm duyệt viên mới xử lý được.",
+        )
+        return redirect('order_detail', pk=order.pk)
 
     if order.status not in (Order.Status.PENDING, Order.Status.CONFIRMED):
         messages.error(request, "Đơn hàng này không thể huỷ.")
@@ -1286,6 +1315,159 @@ def admin_dismiss_report(request, pk):
             f"⚪ Đã bỏ qua báo cáo cho bài “{report.post.title}”."
         )
     return redirect('admin_dashboard')
+
+
+# ===========================================================================
+#  KIỂM DUYỊT VIÊN: HỖ TRỢ / TRANH CHẤP VÀ QUYẾT ĐỊNH ĐƠN HÀNG
+# ===========================================================================
+
+def _resolve_order_decision(order, decision):
+    """Áp dụng quyết định của moderator; chỉ đổi khi đơn còn mở."""
+    open_states = (Order.Status.PENDING, Order.Status.CONFIRMED, Order.Status.DISPUTED)
+    if decision == 'cancel' and order.status in open_states:
+        order.status = Order.Status.CANCELLED
+        order.save(update_fields=['status', 'updated_at'])
+    elif decision == 'complete' and order.status in open_states:
+        order.status = Order.Status.COMPLETED
+        order.save(update_fields=['status', 'updated_at'])
+        post = order.post
+        post.status = Post.Status.SOLD
+        post.is_sold = True
+        post.save(update_fields=['status', 'is_sold', 'updated_at'])
+
+
+def _render_moderator_ticket_detail(request, ticket, reply_form=None, resolve_form=None):
+    """Render chung trang chi tiết phiên hỗ trợ cho kiểm duyệt viên.
+
+    Nạp ticket kèm đơn → sản phẩm, người mua / người bán, và luồng tin nhắn
+    kèm hồ sơ tác giả. Mặc định trống form trả lời và form kết luận.
+    """
+    ticket = (
+        SupportTicket.objects.select_related(
+            'order__post', 'order__buyer', 'order__seller'
+        )
+        .prefetch_related('messages__author__profile')
+        .get(pk=ticket.pk)
+    )
+    if reply_form is None:
+        reply_form = SupportReplyForm()
+    if resolve_form is None:
+        resolve_form = TicketResolveForm()
+    return render(request, 'app_main/moderator_ticket_detail.html', {
+        'ticket': ticket,
+        'reply_form': reply_form,
+        'resolve_form': resolve_form,
+    })
+
+
+@moderator_required
+def moderator_ticket_list(request):
+    """Danh sách tất cả phiên hỗ trợ / tranh chấp (chỉ kiểm duyệt viên).
+
+    Hỗ trợ lọc ?status=open|resolved|all (mặc định open = OPEN | IN_PROGRESS),
+    sắp xếp theo cập nhật gần nhất.
+    """
+    tickets = (
+        SupportTicket.objects.select_related(
+            'order__post', 'opened_by', 'handled_by'
+        )
+        .order_by('-updated_at')
+    )
+    status_filter = request.GET.get('status', 'open')
+    if status_filter == 'open':
+        tickets = tickets.filter(
+            status__in=[
+                SupportTicket.Status.OPEN,
+                SupportTicket.Status.IN_PROGRESS,
+            ]
+        )
+    elif status_filter == 'resolved':
+        tickets = tickets.filter(status=SupportTicket.Status.RESOLVED)
+    # 'all' → không lọc, hiển thị tất cả phiên
+    return render(request, 'app_main/moderator_ticket_list.html', {
+        'tickets': tickets,
+        'status_filter': status_filter,
+    })
+
+
+@moderator_required
+def moderator_ticket_detail(request, pk):
+    """Xem chi tiết một phiên hỗ trợ — kiểm duyệt viên xem được tất cả."""
+    ticket = get_object_or_404(SupportTicket, pk=pk)
+    return _render_moderator_ticket_detail(request, ticket)
+
+
+@moderator_required
+@require_POST
+def moderator_ticket_reply(request, pk):
+    """Trả lời một phiên hỗ trợ từ trang kiểm duyệt (POST + CSRF)."""
+    ticket = get_object_or_404(SupportTicket.objects.select_related('order'), pk=pk)
+
+    if ticket.status == SupportTicket.Status.RESOLVED:
+        messages.error(request, "Phiên đã kết thúc.")
+        return redirect('moderator_ticket_detail', pk=ticket.pk)
+
+    form = SupportReplyForm(request.POST)
+    if not form.is_valid():
+        # Giữ lại input vừa nhập để hiển thị lỗi inline trên trang chi tiết
+        return _render_moderator_ticket_detail(request, ticket, reply_form=form)
+
+    if ticket.status == SupportTicket.Status.OPEN:
+        ticket.status = SupportTicket.Status.IN_PROGRESS
+    SupportMessage.objects.create(
+        ticket=ticket, author=request.user,
+        body=form.cleaned_data['body'],
+    )
+    ticket.save(update_fields=['status', 'updated_at'])
+    messages.success(request, "💬 Đã gửi tin nhắn.")
+    return redirect('moderator_ticket_detail', pk=ticket.pk)
+
+
+@moderator_required
+@require_POST
+def moderator_ticket_resolve(request, pk):
+    """Kết luận phiên + quyết định đơn hàng gắn kèm."""
+    ticket = get_object_or_404(SupportTicket.objects.select_related('order'), pk=pk)
+    form = TicketResolveForm(request.POST)
+    if not form.is_valid():
+        return _render_moderator_ticket_detail(request, ticket, resolve_form=form)
+
+    _resolve_order_decision(ticket.order, form.cleaned_data['decision'])
+
+    ticket.status = SupportTicket.Status.RESOLVED
+    ticket.handled_by = request.user
+    ticket.resolution_note = form.cleaned_data['resolution_note']
+    ticket.resolved_at = timezone.now()
+    ticket.save(
+        update_fields=[
+            'status', 'handled_by', 'resolution_note', 'resolved_at', 'updated_at',
+        ]
+    )
+    messages.success(request, "✅ Đã kết luận phiên hỗ trợ.")
+    return redirect('moderator_ticket_detail', pk=ticket.pk)
+
+
+@moderator_required
+@require_POST
+def moderator_order_decision(request, pk):
+    """Quyết định trạng thái đơn hàng từ trang chi tiết phiên (không đóng phiên).
+
+    Nếu đơn đã kết thúc thì chỉ cảnh báo, không đổi trạng thái.
+    """
+    ticket = get_object_or_404(SupportTicket.objects.select_related('order'), pk=pk)
+    form = TicketResolveForm(request.POST)
+    if not form.is_valid():
+        return _render_moderator_ticket_detail(request, ticket, resolve_form=form)
+
+    order = ticket.order
+    open_states = (Order.Status.PENDING, Order.Status.CONFIRMED, Order.Status.DISPUTED)
+    if order.status in open_states:
+        _resolve_order_decision(order, form.cleaned_data['decision'])
+    else:
+        messages.warning(
+            request, "Đơn đã kết thúc, không đổi được trạng thái."
+        )
+    return redirect('moderator_ticket_detail', pk=ticket.pk)
 
 
 # ===========================================================================

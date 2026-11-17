@@ -1622,6 +1622,105 @@ class SupportTicketTests(TestCase):
                          {'body': 'Tin sau khi đóng'})
         self.assertEqual(ticket.messages.count(), 1)
 
+    def test_moderator_reply_sets_in_progress(self):
+        self._open(self.buyer)
+        ticket = self._ticket()
+        self.client.force_login(self.mod)
+        self.client.post(reverse('moderator_ticket_reply', args=[ticket.pk]),
+                         {'body': 'Kiểm duyệt viên đã tiếp nhận'})
+        ticket.refresh_from_db()
+        self.assertEqual(ticket.status, SupportTicket.Status.IN_PROGRESS)
+        self.assertEqual(ticket.messages.count(), 2)
+
+    def test_resolve_requires_note(self):
+        self._open(self.buyer)
+        ticket = self._ticket()
+        self.client.force_login(self.mod)
+        response = self.client.post(reverse('moderator_ticket_resolve', args=[ticket.pk]),
+                                    {'resolution_note': '', 'decision': 'cancel'})
+        ticket.refresh_from_db(); self.order.refresh_from_db()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(ticket.status, SupportTicket.Status.OPEN)
+        self.assertEqual(self.order.status, Order.Status.DISPUTED)
+
+    def test_resolve_cancel_order(self):
+        self._open(self.buyer)
+        ticket = self._ticket()
+        self.client.force_login(self.mod)
+        self.client.post(reverse('moderator_ticket_resolve', args=[ticket.pk]), {
+            'resolution_note': 'Hai bên xác nhận huỷ.', 'decision': 'cancel',
+        })
+        ticket.refresh_from_db(); self.order.refresh_from_db()
+        self.assertEqual(self.order.status, Order.Status.CANCELLED)
+        self.assertEqual(ticket.status, SupportTicket.Status.RESOLVED)
+        self.assertEqual(ticket.handled_by, self.mod)
+        self.assertEqual(ticket.resolution_note, 'Hai bên xác nhận huỷ.')
+
+    def test_resolve_complete_marks_post_sold(self):
+        self._open(self.buyer)
+        ticket = self._ticket()
+        self.client.force_login(self.mod)
+        self.client.post(reverse('moderator_ticket_resolve', args=[ticket.pk]), {
+            'resolution_note': 'Đã giao dịch xong.', 'decision': 'complete',
+        })
+        self.order.refresh_from_db(); self.post.refresh_from_db()
+        self.assertEqual(self.order.status, Order.Status.COMPLETED)
+        self.assertEqual(self.post.status, Post.Status.SOLD)
+        self.assertTrue(self.post.is_sold)
+
+    def test_resolve_finished_order_only_closes_ticket(self):
+        self._open(self.buyer)
+        ticket = self._ticket()
+        self.order.status = Order.Status.COMPLETED
+        self.order.save(update_fields=['status'])
+        self.client.force_login(self.mod)
+        self.client.post(reverse('moderator_ticket_resolve', args=[ticket.pk]), {
+            'resolution_note': 'Đơn đã hoàn tất trước đó.', 'decision': 'cancel',
+        })
+        self.order.refresh_from_db(); ticket.refresh_from_db()
+        self.assertEqual(self.order.status, Order.Status.COMPLETED)
+        self.assertEqual(ticket.status, SupportTicket.Status.RESOLVED)
+
+    def test_disputed_order_blocks_buyer_and_seller_actions(self):
+        self._open(self.buyer)
+        for name in ('accept_order', 'reject_order', 'complete_order'):
+            self.client.force_login(self.seller)
+            self.client.post(reverse(name, args=[self.order.pk]))
+        self.client.force_login(self.buyer)
+        self.client.post(reverse('cancel_order', args=[self.order.pk]))
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, Order.Status.DISPUTED)
+
+    def test_student_cannot_use_moderator_ticket_pages(self):
+        self._open(self.buyer)
+        ticket = self._ticket()
+        self.client.force_login(self.buyer)
+        for name in ('moderator_ticket_list', 'moderator_ticket_detail'):
+            kwargs = {'pk': ticket.pk} if name.endswith('detail') else {}
+            response = self.client.get(reverse(name, kwargs=kwargs))
+            self.assertRedirects(response, reverse('home'))
+
+    def test_moderator_ticket_endpoints_reject_get(self):
+        self._open(self.buyer)
+        ticket = self._ticket()
+        self.client.force_login(self.mod)
+        for name in ('moderator_ticket_reply', 'moderator_ticket_resolve',
+                     'moderator_order_decision'):
+            self.assertEqual(
+                self.client.get(reverse(name, args=[ticket.pk])).status_code, 405
+            )
+
+    def test_order_decision_cancels_without_closing_ticket(self):
+        self._open(self.buyer)
+        ticket = self._ticket()
+        self.client.force_login(self.mod)
+        self.client.post(reverse('moderator_order_decision', args=[ticket.pk]), {
+            'resolution_note': 'Huỷ vì hàng không giao.', 'decision': 'cancel',
+        })
+        self.order.refresh_from_db(); ticket.refresh_from_db()
+        self.assertEqual(self.order.status, Order.Status.CANCELLED)
+        self.assertEqual(ticket.status, SupportTicket.Status.OPEN)
+
 
 # ===========================================================================
 #  QUẢN TRỊ (DASHBOARD TRONG APP)

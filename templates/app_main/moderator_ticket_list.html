@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+
+{% block title %}Kiểm duyệt hỗ trợ &amp; tranh chấp — SáchGóc Uni{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-extrabold text-slate-900">🛡️ Hỗ trợ &amp; tranh chấp</h1>
+            <p class="text-sm text-slate-500 mt-1">
+                Xem toàn bộ phiên hỗ trợ, quyết định trạng thái đơn hàng đang tranh chấp.
+            </p>
+        </div>
+        <a href="{% url 'admin_dashboard' %}"
+           class="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-indigo-600 transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+            </svg>
+            Về bảng điều khiển
+        </a>
+    </div>
+
+    <!-- Chip lọc trạng thái phiên -->
+    <div class="flex gap-2 flex-wrap">
+        <a href="{% url 'moderator_ticket_list' %}"
+           class="px-3 py-1.5 rounded-lg text-sm font-medium {% if status_filter == '' or status_filter == 'open' %}bg-indigo-50 text-indigo-700{% else %}bg-slate-100 text-slate-600 hover:bg-slate-200{% endif %} transition">
+            Đang mở
+        </a>
+        <a href="{% url 'moderator_ticket_list' %}?status=resolved"
+           class="px-3 py-1.5 rounded-lg text-sm font-medium {% if status_filter == 'resolved' %}bg-emerald-50 text-emerald-700{% else %}bg-slate-100 text-slate-600 hover:bg-slate-200{% endif %} transition">
+            Đã giải quyết
+        </a>
+        <a href="{% url 'moderator_ticket_list' %}?status=all"
+           class="px-3 py-1.5 rounded-lg text-sm font-medium {% if status_filter == 'all' %}bg-slate-200 text-slate-700 font-medium{% else %}bg-slate-100 text-slate-600 hover:bg-slate-200{% endif %} transition">
+            Tất cả
+        </a>
+    </div>
+
+    {% if tickets %}
+        <div class="card overflow-hidden">
+            <table class="min-w-full divide-y divide-slate-200">
+                <thead class="bg-slate-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Phiên</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Đơn hàng</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Sản phẩm</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Người mở</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Loại</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Trạng thái phiên</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Trạng thái đơn</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Người xử lý</th>
+                        <th class="px-6 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-slate-100">
+                    {% for ticket in tickets %}
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-slate-900">#{{ ticket.pk }}</div>
+                            <div class="text-xs text-slate-500 truncate max-w-[34rem]">{{ ticket.subject }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-slate-900">#{{ ticket.order.pk }}</div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="text-sm text-slate-700 line-clamp-2">{{ ticket.order.post.title }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-slate-700">{{ ticket.opened_by.profile.display_name }}</div>
+                            <div class="text-xs text-slate-400">@{{ ticket.opened_by.username }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="badge badge-slate text-xs">{{ ticket.get_category_display }}</span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if ticket.status == 'OPEN' %}
+                                <span class="badge badge-warning text-sm">Chờ tiếp nhận</span>
+                            {% elif ticket.status == 'IN_PROGRESS' %}
+                                <span class="badge badge-info text-sm">Đang xử lý</span>
+                            {% else %}
+                                <span class="badge badge-success text-sm">Đã giải quyết</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if ticket.order.status == 'PENDING' %}
+                                <span class="badge badge-warning text-sm">{{ ticket.order.get_status_display }}</span>
+                            {% elif ticket.order.status == 'CONFIRMED' %}
+                                <span class="badge badge-info text-sm">{{ ticket.order.get_status_display }}</span>
+                            {% elif ticket.order.status == 'DISPUTED' %}
+                                <span class="badge badge-danger text-sm">{{ ticket.order.get_status_display }}</span>
+                            {% elif ticket.order.status == 'COMPLETED' %}
+                                <span class="badge badge-success text-sm">{{ ticket.order.get_status_display }}</span>
+                            {% else %}
+                                <span class="badge badge-danger text-sm">{{ ticket.order.get_status_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if ticket.handled_by %}
+                                <div class="text-sm text-slate-700">{{ ticket.handled_by.profile.display_name }}</div>
+                            {% else %}
+                                <div class="text-sm text-slate-400">Chưa xử lý</div>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-right whitespace-nowrap">
+                            <a href="{% url 'moderator_ticket_detail' ticket.pk %}"
+                               class="btn btn-outline btn-sm">Xem chi tiết</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+    <div class="card p-12 text-center text-slate-400">
+        <p class="text-3xl mb-2">🛡️</p>
+        {% if status_filter %}
+            <p class="text-sm">Không có phiên hỗ trợ nào trạng thái này.</p>
+        {% else %}
+            <p class="text-sm">Chưa có phiên hỗ trợ nào trong hệ thống.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
