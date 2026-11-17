@@ -18,12 +18,14 @@ Chuyên dụng cho **mua bán sách cũ, giáo trình, dụng cụ học tập**
 2. [Công nghệ sử dụng](#-công-nghệ-sử-dụng)
 3. [Cài đặt & chạy dự án](#-cài-đặt--chạy-dự-án)
 4. [Tài khoản mẫu](#-tài-khoản-mẫu)
-5. [Kết nối CSDL](#-kết-nối-csdl)
-6. [Cấu trúc dự án](#-cấu-trúc-dự-án)
-7. [Kiểm thử](#-kiểm-thử)
-8. [Sơ đồ kiến trúc](#-sơ-đồ-kiến-trúc)
-9. [Luồng xử lý chính](#-luồng-xử-lý-chính)
-10. [Ghi chú kỹ thuật](#-ghi-chú-kỹ-thuật)
+5. [Vai trò & phân quyền](#-vai-trò--phân-quyền)
+6. [Luồng kiểm duyệt](#-luồng-kiểm-duyệt)
+7. [Kết nối CSDL](#-kết-nối-csdl)
+8. [Cấu trúc dự án](#-cấu-trúc-dự-án)
+9. [Kiểm thử](#-kiểm-thử)
+10. [Sơ đồ kiến trúc](#-sơ-đồ-kiến-trúc)
+11. [Luồng xử lý chính](#-luồng-xử-lý-chính)
+12. [Ghi chú kỹ thuật](#-ghi-chú-kỹ-thuật)
 
 ---
 
@@ -250,10 +252,35 @@ chưa đăng ký đều bị chặn ngay với thông báo riêng cho từng tr�
 | Vai trò | Email đăng nhập | Mật khẩu | Đường dẫn |
 |---|---|---|---|
 | 👑 Quản trị | `admin@sachgocuni.edu.vn` | `admin123` | `/dang-nhap/` · `/django-admin/` (dùng `admin`) |
+| 🛡️ Kiểm duyệt | `moderator@sachgocuni.edu.vn` (đăng nhập `moderator`) | `123456` | `/dang-nhap/` |
 | 🎓 Sinh viên | `hao.nguyen24@gmail.com` | `123456` | `/dang-nhap/` |
 | 🎓 Sinh viên | `thanhhoa@gmail.com` | `123456` | `/dang-nhap/` |
 | 🎓 Sinh viên | `minhthu@gmail.com` | `123456` | `/dang-nhap/` |
 | 🎓 Sinh viên | `quynhanh@gmail.com` | `123456` | `/dang-nhap/` |
+
+---
+
+## 👤 Vai trò & phân quyền
+
+Hệ thống có ba vai trò chính. Phân quyền dựa trên cờ `is_staff` của tài khoản Django kết hợp với trường `role` trong hồ sơ:
+
+| Vai trò | Tài khoản demo | Quyền hạn chính |
+|---|---|---|
+| **Sinh viên** | `hao.nguyen24@gmail.com` / `123456` | Đăng tin, sửa/xoá bài của mình, đặt mua, bình luận, đánh giá, yêu thích, báo cáo vi phạm |
+| **Kiểm duyệt viên** | `moderator@sachgocuni.edu.vn` (đăng nhập `moderator`) / `123456` | Duyệt/từ chối bài `PENDING`, ẩn bài vi phạm, xử lý báo cáo, mở phiên hỗ trợ & tranh chấp |
+| **Quản trị viên** | `admin@sachgocuni.edu.vn` / `admin123` | Toàn quyền: quản lý người dùng, khoá/mở khoá tài khoản, gán `is_staff`, truy cập `/django-admin/` |
+
+**Quy ước:** `is_staff` luôn thắng — tài khoản có `is_staff = True` được coi là quản trị và ưu tiên cao hơn vai trò `role` trong hồ sơ. Kiểm duyệt viên (`role = MODERATOR`, `is_staff = False`) chỉ có quyền kiểm duyệt, không can thiệp vào tài khoản admin.
+
+---
+
+## 🛡️ Luồng kiểm duyệt
+
+1. **Đăng bài:** Sinh viên đăng tin → bài được tạo với trạng thái `PENDING` (Chờ duyệt), **không** hiện trên trang chủ cho đến khi kiểm duyệt viên duyệt.
+2. **Duyệt / từ chối:** Kiểm duyệt viên hoặc quản trị viên vào trang quản trị → danh sách bài chờ → chọn **Duyệt** (sang `ACTIVE`) hoặc **Từ chối** (sang `REJECTED` kèm lý do). Bài bị từ chối biến ngay khỏi trang chủ.
+3. **Sửa bài:** Người bán sửa bài đã được duyệt → trạng thái quay về `PENDING` để duyệt lại, **trừ** khi bài đang `SOLD` (đã bán/đã tặng) thì không được sửa và không duyệt lại.
+4. **Báo cáo vi phạm:** Bất kỳ ai có thể báo cáo bài đăng, lý do bao gồm **"Hàng cấm / vi phạm pháp luật"** (`PROHIBITED`) cùng spam, thông tin sai lệch, nội dung không phù hợp, đăng trùng lặp. Admin xử lý báo cáo (xử lý / bỏ qua).
+5. **Phiên hỗ trợ & tranh chấp:** Sau khi đặt mua, hai bên có thể mở phiên hỗ trợ. Nếu xảy ra tranh chấp, đơn hàng sang trạng thái `DISPUTED` và kiểm duyệt viên can thiệp, yêu cầu ghi chú kết luận trước khi giải quyết.
 
 ---
 
@@ -330,7 +357,7 @@ Kết quả mong đợi: `django.db.backends.mysql`. Nếu thấy lỗi kết n�
 │   ├── signals.py                 # Tự tạo Profile khi đăng ký
 │   ├── context_processors.py      # Biến dùng chung cho template
 │   ├── templatetags/app_extras.py # Filter & tag tùy chỉnh
-│   ├── tests.py                   # 142 test tự động
+│   ├── tests.py                   # 182 test tự động
 │   └── migrations/                # Lịch sử cấu trúc CSDL
 │
 ├── templates/                     # Template dùng chung
@@ -370,7 +397,7 @@ python manage.py test app_main.tests.InteractionTests   # Chỉ 1 nhóm
 python manage.py test --verbosity 2      # Chi tiết từng test
 ```
 
-**142 test tự động** bao phủ:
+**182 test tự động** bao phủ:
 
 | Nhóm | Số test | Nội dung |
 |---|---|---|
@@ -385,7 +412,7 @@ python manage.py test --verbosity 2      # Chi tiết từng test
 | Kịch bản đầu-cuối | 1 | Hành trình đầy đủ: đăng ký → đăng tin → mua → hoàn tất |
 | **Quản trị** | **20** | Dashboard, duyệt/từ chối bài, xử lý báo cáo, khoá tài khoản |
 | Cấu hình CSDL | 2 | Engine luôn MySQL, không còn cờ chuyển CSDL |
-| **Tổng** | **142** | ✅ |
+| **Tổng** | **182** | ✅ |
 
 Bao gồm các test bảo mật quan trọng:
 
