@@ -16,7 +16,7 @@
     </div>
 
     <!-- Thống kê -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <div class="card p-5">
             <p class="text-xs text-slate-400 mb-1">Tổng tin đăng</p>
             <p class="text-2xl font-extrabold text-slate-900">{{ stats.total }}</p>
@@ -24,6 +24,10 @@
         <div class="card p-5">
             <p class="text-xs text-slate-400 mb-1">Đang hiển thị</p>
             <p class="text-2xl font-extrabold text-emerald-600">{{ stats.active }}</p>
+        </div>
+        <div class="card p-5">
+            <p class="text-xs text-slate-400 mb-1">Chờ duyệt</p>
+            <p class="text-2xl font-extrabold text-amber-600">{{ stats.pending }}</p>
         </div>
         <div class="card p-5">
             <p class="text-xs text-slate-400 mb-1">Đã bán / tặng</p>
@@ -48,6 +52,10 @@
         <a href="?status=sold"
            class="btn btn-sm {% if status_filter == 'sold' %}btn-primary{% else %}btn-outline{% endif %}">
             Đã bán ({{ stats.sold }})
+        </a>
+        <a href="?status=pending"
+           class="btn btn-sm {% if status_filter == 'pending' %}btn-primary{% else %}btn-outline{% endif %}">
+            Chờ duyệt ({{ stats.pending }})
         </a>
     </div>
 

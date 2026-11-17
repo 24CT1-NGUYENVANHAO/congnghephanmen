@@ -696,6 +696,8 @@ class PostManagementTests(TestCase):
         post = Post.objects.get(title='Giáo trình Tin học văn phòng')
         self.assertRedirects(response, post.get_absolute_url())
         self.assertEqual(post.seller, self.user)
+        # Bài mới đăng phải ở trạng thái chờ duyệt (PENDING)
+        self.assertEqual(post.status, Post.Status.PENDING)
 
     def test_create_post_free_sets_flag(self):
         self.client.post(reverse('create_post'), {
@@ -779,6 +781,101 @@ class PostManagementTests(TestCase):
         create_post(self.other, title='Bài của người khác')
         response = self.client.get(reverse('my_posts'))
         self.assertNotContains(response, 'Bài của người khác')
+
+
+@override_settings(PASSWORD_HASHERS=PASSWORD_HASHERS)
+class PostApprovalTests(TestCase):
+    """Duyệt bài trước khi hiển thị, duyệt lại khi sửa, chặn xem bài ẩn."""
+
+    def setUp(self):
+        self.mod = create_moderator('moder')
+        self.seller = create_user('seller')
+        self.other = create_user('other')
+
+    def _create(self, title='Bài mới'):
+        return self.client.post(reverse('create_post'), {
+            'title': title, 'description': 'Mô tả đủ dài.',
+            'price': '30000', 'condition': Post.Condition.GOOD, 'category': '',
+        })
+
+    def test_new_post_is_pending_and_hidden_from_home(self):
+        self.client.force_login(self.seller)
+        self._create('Giáo trình chờ duyệt')
+        post = Post.objects.get(title='Giáo trình chờ duyệt')
+        self.assertEqual(post.status, Post.Status.PENDING)
+        self.assertNotContains(self.client.get(reverse('home')), 'Giáo trình chờ duyệt')
+
+    def test_owner_sees_pending_post_but_other_gets_404(self):
+        post = create_post(self.seller, status=Post.Status.PENDING)
+        self.client.force_login(self.seller)
+        self.assertEqual(
+            self.client.get(reverse('post_detail', args=[post.pk])).status_code, 200
+        )
+        self.client.force_login(self.other)
+        self.assertEqual(
+            self.client.get(reverse('post_detail', args=[post.pk])).status_code, 404
+        )
+
+    def test_moderator_approves_post(self):
+        post = create_post(self.seller, status=Post.Status.PENDING, title='Chờ duyệt')
+        self.client.force_login(self.mod)
+        self.client.post(reverse('admin_approve_post', args=[post.pk]))
+        post.refresh_from_db()
+        self.assertEqual(post.status, Post.Status.ACTIVE)
+        self.assertContains(self.client.get(reverse('home')), 'Chờ duyệt')
+
+    def test_reject_shows_reason_to_owner(self):
+        post = create_post(self.seller, status=Post.Status.PENDING)
+        self.client.force_login(self.mod)
+        self.client.post(reverse('admin_reject_post', args=[post.pk]), {
+            'reason': 'Ảnh mờ, không rõ sản phẩm.'
+        })
+        post.refresh_from_db()
+        self.assertEqual(post.status, Post.Status.REJECTED)
+        self.client.force_login(self.seller)
+        response = self.client.get(reverse('post_detail', args=[post.pk]))
+        self.assertContains(response, 'Ảnh mờ, không rõ sản phẩm.')
+
+    def test_seller_edit_active_post_returns_to_pending(self):
+        post = create_post(self.seller, status=Post.Status.ACTIVE,
+                           rejection_reason='Lý do cũ')
+        self.client.force_login(self.seller)
+        self.client.post(reverse('edit_post', args=[post.pk]), {
+            'title': 'Đã sửa', 'description': 'Mô tả mới.',
+            'price': '30000', 'condition': Post.Condition.GOOD, 'category': '',
+        })
+        post.refresh_from_db()
+        self.assertEqual(post.status, Post.Status.PENDING)
+        self.assertEqual(post.rejection_reason, '')
+
+    def test_seller_edit_sold_post_keeps_sold(self):
+        post = create_post(self.seller, status=Post.Status.SOLD)
+        post.is_sold = True; post.save()
+        self.client.force_login(self.seller)
+        self.client.post(reverse('edit_post', args=[post.pk]), {
+            'title': 'Đã sửa', 'description': 'Mô tả mới.',
+            'price': '30000', 'condition': Post.Condition.GOOD, 'category': '',
+        })
+        post.refresh_from_db()
+        self.assertEqual(post.status, Post.Status.SOLD)
+
+    def test_admin_edit_keeps_status(self):
+        post = create_post(self.seller, status=Post.Status.REJECTED)
+        self.client.force_login(create_user('admin2', is_staff=True))
+        self.client.post(reverse('edit_post', args=[post.pk]), {
+            'title': 'Admin sửa', 'description': 'Mô tả mới.',
+            'price': '30000', 'condition': Post.Condition.GOOD, 'category': '',
+        })
+        post.refresh_from_db()
+        self.assertEqual(post.status, Post.Status.REJECTED)
+
+    def test_my_posts_counts_pending(self):
+        create_post(self.seller, status=Post.Status.PENDING)
+        create_post(self.seller, status=Post.Status.ACTIVE)
+        self.client.force_login(self.seller)
+        response = self.client.get(reverse('my_posts'), {'status': 'pending'})
+        self.assertEqual(response.context['stats']['pending'], 1)
+        self.assertEqual(len(response.context['posts']), 1)
 
 
 # ===========================================================================
@@ -1016,6 +1113,10 @@ class UserJourneyTests(TestCase):
         })
         post = Post.objects.get(title='Giáo trình Đồ hoạ kỹ thuật')
         self.assertEqual(post.seller.username, 'hao')
+
+        # Kiểm duyệt viên duyệt bài trước khi lên sàn
+        post.status = Post.Status.ACTIVE
+        post.save(update_fields=['status'])
 
         # 3. Tìm kiếm
         response = client.get(reverse('home'), {'q': 'Đồ hoạ'})

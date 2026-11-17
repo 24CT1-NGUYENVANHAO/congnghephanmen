@@ -83,6 +83,23 @@
                     {{ post.title }}
                 </h1>
 
+                <!-- Banner trạng thái bài đăng: chờ duyệt / từ chối / ẩn -->
+                {% if post.status != 'ACTIVE' and post.status != 'SOLD' %}
+                    <div class="p-3 rounded-xl border mb-4
+                              {% if post.status == 'PENDING' %}bg-amber-50 border-amber-200{% endif %}
+                              {% if post.status == 'REJECTED' %}bg-rose-50 border-rose-200{% endif %}
+                              {% if post.status == 'HIDDEN' %}bg-slate-50 border-slate-200{% endif %}">
+                        {% if post.status == 'PENDING' %}
+                            <span class="text-amber-700 font-semibold flex items-center gap-1">⏳ Tin đang chờ kiểm duyệt</span>
+                        {% elif post.status == 'REJECTED' %}
+                            <span class="text-rose-700 font-semibold flex items-center gap-1">🚫 Tin bị từ chối</span>
+                            <p class="text-sm text-rose-600 mt-1">{{ post.rejection_reason }}</p>
+                        {% elif post.status == 'HIDDEN' %}
+                            <span class="text-slate-700 font-semibold flex items-center gap-1">🙈 Tin đã bị ẩn</span>
+                        {% endif %}
+                    </div>
+                {% endif %}
+
                 <div class="flex items-end gap-3 pb-4 border-b border-slate-100">
                     <span class="text-4xl font-extrabold {% if post.is_free or post.price == 0 %}text-emerald-600{% else %}text-indigo-600{% endif %}">
                         {{ post.price_display }}
@@ -193,55 +210,68 @@
                         </button>
 
                     {% else %}
-                        <!-- Đã có đơn đang mở? -->
-                        {% if my_order %}
-                            <a href="{% url 'order_detail' my_order.pk %}"
-                               class="btn btn-block btn-lg"
-                               style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;">
-                                📋 Đơn #{{ my_order.pk }} — {{ my_order.get_status_display }}
-                            </a>
-
-                        {% else %}
-                            <!-- Nút đặt mua chính -->
-                            <a href="{% url 'buy_post' post.pk %}" class="btn btn-success btn-lg btn-block">
-                                {% if post.is_free or post.price == 0 %}🎁 Đăng ký nhận ngay{% else %}🛒 Đặt mua ngay{% endif %}
-                            </a>
-                        {% endif %}
-
-                        <!-- Nút phụ -->
-                        <div class="grid grid-cols-2 gap-3">
-                            {% if post.seller.email %}
-                                <a href="mailto:{{ post.seller.email }}?subject={{ post.title|urlencode }}&body={{ user.profile.display_name|urlencode }} xin liên hệ về sản phẩm {{ post.title|urlencode }}"
-                                   class="btn btn-outline btn-lg">
-                                    💬 Nhắn tin
+                        {% if post.status == 'ACTIVE' %}
+                            <!-- Đã có đơn đang mở? -->
+                            {% if my_order %}
+                                <a href="{% url 'order_detail' my_order.pk %}"
+                                   class="btn btn-block btn-lg"
+                                   style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;">
+                                    📋 Đơn #{{ my_order.pk }} — {{ my_order.get_status_display }}
                                 </a>
+
                             {% else %}
-                                <button class="btn btn-block btn-lg" disabled style="opacity:0.5;cursor:not-allowed">
-                                    💬 Chưa có email
-                                </button>
+                                <!-- Nút đặt mua chính -->
+                                <a href="{% url 'buy_post' post.pk %}" class="btn btn-success btn-lg btn-block">
+                                    {% if post.is_free or post.price == 0 %}🎁 Đăng ký nhận ngay{% else %}🛒 Đặt mua ngay{% endif %}
+                                </a>
                             {% endif %}
 
-                            <form action="{% url 'toggle_favorite' post.pk %}" method="post">
+                            <!-- Nút phụ -->
+                            <div class="grid grid-cols-2 gap-3">
+                                {% if post.seller.email %}
+                                    <a href="mailto:{{ post.seller.email }}?subject={{ post.title|urlencode }}&body={{ user.profile.display_name|urlencode }} xin liên hệ về sản phẩm {{ post.title|urlencode }}"
+                                       class="btn btn-outline btn-lg">
+                                        💬 Nhắn tin
+                                    </a>
+                                {% else %}
+                                    <button class="btn btn-block btn-lg" disabled style="opacity:0.5;cursor:not-allowed">
+                                        💬 Chưa có email
+                                    </button>
+                                {% endif %}
+
+                                <form action="{% url 'toggle_favorite' post.pk %}" method="post">
+                                    {% csrf_token %}
+                                    <button id="favorite-button" type="submit" data-url="{% url 'toggle_favorite' post.pk %}"
+                                            class="btn btn-outline btn-lg w-full
+                                                   {% if is_favorited %}text-rose-500 border-rose-300 bg-rose-50{% else %}text-slate-400{% endif %}">
+                                        <span data-icon>{% if is_favorited %}♥{% else %}♡{% endif %}</span>
+                                        Yêu thích
+                                        <span id="favorite-count" class="badge badge-slate">{{ post.favorited_by.count }}</span>
+                                    </button>
+                                </form>
+                            </div>
+
+                            <p class="text-xs text-slate-400 text-center leading-relaxed">
+                                🔒 Hãy gặp mặt trực tiếp tại khuôn viên trường.
+                                Không chuyển tiền trước khi nhận sản phẩm.
+                            </p>
+
+                            <a href="{% url 'my_orders' %}"
+                               class="text-xs text-center text-indigo-600 hover:underline block">
+                                📋 Xem các đơn hàng của tôi
+                            </a>
+                        {% else %}
+                            <!-- Bài chờ duyệt / từ chối / ẩn: chỉ giữ nút yêu thích cho người dùng thường -->
+                            <form action="{% url 'toggle_favorite' post.pk %}" method="post"
+                                  class="w-full">
                                 {% csrf_token %}
-                                <button id="favorite-button" type="submit" data-url="{% url 'toggle_favorite' post.pk %}"
-                                        class="btn btn-outline btn-lg w-full
-                                               {% if is_favorited %}text-rose-500 border-rose-300 bg-rose-50{% else %}text-slate-400{% endif %}">
+                                <button type="submit" class="btn btn-outline btn-lg w-full btn-block">
                                     <span data-icon>{% if is_favorited %}♥{% else %}♡{% endif %}</span>
                                     Yêu thích
                                     <span id="favorite-count" class="badge badge-slate">{{ post.favorited_by.count }}</span>
                                 </button>
                             </form>
-                        </div>
-
-                        <p class="text-xs text-slate-400 text-center leading-relaxed">
-                            🔒 Hãy gặp mặt trực tiếp tại khuôn viên trường.
-                            Không chuyển tiền trước khi nhận sản phẩm.
-                        </p>
-
-                        <a href="{% url 'my_orders' %}"
-                           class="text-xs text-center text-indigo-600 hover:underline block">
-                            📋 Xem các đơn hàng của tôi
-                        </a>
+                        {% endif %}
                     {% endif %}
 
                 {% else %}
@@ -255,8 +285,8 @@
                 {% endif %}
             </div>
 
-            <!-- Báo cáo vi phạm -->
-            {% if can_report %}
+            <!-- Báo cáo vi phạm (chỉ người dùng thường, không hiển thị với kiểm duyệt viên) -->
+            {% if can_report and not can_moderate %}
                 <a href="{% url 'report_post' post.pk %}" class="text-xs text-slate-400 hover:text-red-500 transition">
                     🚩 Báo cáo nội dung này
                 </a>

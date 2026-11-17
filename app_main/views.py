@@ -17,7 +17,7 @@ from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm
 from django.contrib.auth.models import User
 from django.core.paginator import Paginator
 from django.db.models import Avg, Count, Q, Sum
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
@@ -150,6 +150,14 @@ def post_detail(request, pk):
         pk=pk
     )
 
+    # Bài chưa duyệt / bị từ chối / bị ẩn chỉ chủ bài và người kiểm duyệt xem được
+    if (
+        post.status not in (Post.Status.ACTIVE, Post.Status.SOLD)
+        and post.seller != request.user
+        and not can_moderate(request.user)
+    ):
+        raise Http404("Bài đăng không tồn tại")
+
     # Chỉ tăng lượt xem khi người xem không phải chủ bài đăng
     if not (request.user.is_authenticated and request.user == post.seller):
         post.increment_view()
@@ -199,6 +207,7 @@ def post_detail(request, pk):
         'related_posts': related_posts,
         'is_favorited': is_favorited,
         'my_order': my_order,
+        'can_moderate': can_moderate(request.user),
         'can_report': (
             request.user.is_authenticated
             and request.user != post.seller
@@ -253,9 +262,14 @@ def create_post(request):
         if form.is_valid():
             post = form.save(commit=False)
             post.seller = request.user
-            post.status = Post.Status.ACTIVE
+            # Mới đăng tin vẫn chờ kiểm duyệt trước khi hiển thị trên sàn.
+            post.status = Post.Status.PENDING
             post.save()
-            messages.success(request, "🎉 Đăng tin thành công! Sản phẩm đã hiển thị trên sàn.")
+            messages.success(
+                request,
+                "📝 Tin đã được gửi và đang chờ kiểm duyệt. "
+                "Tin sẽ hiển thị trên sàn sau khi được duyệt.",
+            )
             return redirect(post.get_absolute_url())
     else:
         form = PostForm()
@@ -281,12 +295,21 @@ def edit_post(request, pk):
     if request.method == 'POST':
         form = PostForm(request.POST, request.FILES, instance=post)
         if form.is_valid():
-            # Nếu admin mở lại bài bị từ chối thì cho phép đăng lại
-            if post.status == Post.Status.REJECTED:
-                post.status = Post.Status.ACTIVE
+            post = form.save(commit=False)
+            # Admin sửa thì giữ nguyên trạng thái; người bán sửa thì duyệt lại.
+            # Bài đã bán (SOLD) giữ nguyên trạng thái, không quay lại sàn.
+            if not request.user.is_staff and post.status != Post.Status.SOLD:
+                post.status = Post.Status.PENDING
+                # Xoá lý do từ chối cũ khi bán lại / đăng lại tin.
                 post.rejection_reason = ''
-            form.save()
-            messages.success(request, "✏️ Đã cập nhật bài đăng thành công!")
+            post.save()
+            if request.user.is_staff:
+                messages.success(request, "✏️ Đã cập nhật bài đăng thành công!")
+            else:
+                messages.success(
+                    request,
+                    "📝 Đã lưu thay đổi. Tin quay lại trạng thái chờ kiểm duyệt.",
+                )
             return redirect(post.get_absolute_url())
     else:
         form = PostForm(instance=post)
@@ -750,6 +773,7 @@ def my_posts(request):
     status_map = {
         'active': Post.Status.ACTIVE,
         'sold': Post.Status.SOLD,
+        'pending': Post.Status.PENDING,
         'hidden': Post.Status.HIDDEN,
         'rejected': Post.Status.REJECTED,
     }
@@ -764,6 +788,7 @@ def my_posts(request):
     stats = {
         'total': all_posts.count(),
         'active': all_posts.filter(status=Post.Status.ACTIVE).count(),
+        'pending': all_posts.filter(status=Post.Status.PENDING).count(),
         'sold': all_posts.filter(status=Post.Status.SOLD).count(),
         'total_views': sum(p.view_count for p in all_posts),
     }
