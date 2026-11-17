@@ -19,7 +19,6 @@ from django.core.paginator import Paginator
 from django.db.models import Avg, Count, Q, Sum
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from .forms import (
@@ -1000,8 +999,8 @@ def admin_dashboard(request):
     })
 
 
-@moderator_required
 @require_POST
+@moderator_required
 def admin_approve_post(request, pk):
     """Duyệt một bài đang chờ: PENDING → ACTIVE."""
     post = get_object_or_404(Post, pk=pk)
@@ -1018,8 +1017,8 @@ def admin_approve_post(request, pk):
     return redirect('admin_dashboard')
 
 
-@moderator_required
 @require_POST
+@moderator_required
 def admin_reject_post(request, pk):
     """Từ chối một bài đang chờ: PENDING → REJECTED, kèm lý do."""
     post = get_object_or_404(Post, pk=pk)
@@ -1039,8 +1038,8 @@ def admin_reject_post(request, pk):
     return redirect('admin_dashboard')
 
 
-@moderator_required
 @require_POST
+@moderator_required
 def admin_resolve_report(request, pk):
     """
     Xử lý báo cáo: report → RESOLVED và ẩn bài bị báo cáo.
@@ -1068,8 +1067,8 @@ def admin_resolve_report(request, pk):
     return redirect('admin_dashboard')
 
 
-@moderator_required
 @require_POST
+@moderator_required
 def admin_dismiss_report(request, pk):
     """Bỏ qua báo cáo: report → DISMISSED, không đổi bài đăng."""
     report = get_object_or_404(Report.objects.select_related('post'), pk=pk)
