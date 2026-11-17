@@ -30,6 +30,14 @@ def create_user(username='sinhvien', password='MatKhau123', **kwargs):
     )
 
 
+def create_moderator(username='moderator', password='MatKhau123', **kwargs):
+    """Tạo tài khoản kiểm duyệt viên."""
+    user = create_user(username, password, **kwargs)
+    user.profile.role = Profile.Role.MODERATOR
+    user.profile.save()
+    return user
+
+
 def create_post(seller, title='Giáo trình Python', price=50000, **kwargs):
     """Tạo bài đăng kiểm thử."""
     defaults = {
@@ -216,6 +224,102 @@ class ModeratorModelTests(TestCase):
     def test_support_models_registered_in_admin(self):
         self.assertTrue(admin.site.is_registered(SupportTicket))
         self.assertTrue(admin.site.is_registered(SupportMessage))
+
+
+@override_settings(PASSWORD_HASHERS=PASSWORD_HASHERS)
+class ModeratorRoleTests(TestCase):
+    """Moderator vào được khu kiểm duyệt nhưng không dùng được chức năng sinh viên."""
+
+    def setUp(self):
+        self.mod = create_moderator('moder')
+        self.student = create_user('sv')
+        self.seller = create_user('seller')
+        self.post = create_post(self.seller)
+
+    def test_moderator_can_open_dashboard(self):
+        self.client.force_login(self.mod)
+        self.assertEqual(self.client.get(reverse('admin_dashboard')).status_code, 200)
+
+    def test_student_redirected_from_dashboard(self):
+        self.client.force_login(self.student)
+        response = self.client.get(reverse('admin_dashboard'))
+        self.assertRedirects(response, reverse('home'))
+
+    def test_moderator_blocked_from_student_actions(self):
+        self.client.force_login(self.mod)
+        requests = [
+            ('create_post', {}, {'title': 'x', 'description': 'x', 'price': '1',
+                                 'condition': Post.Condition.GOOD, 'category': ''}),
+            ('buy_post', {'pk': self.post.pk}, {'contact': '0901'}),
+            ('add_comment', {'pk': self.post.pk}, {'content': 'x'}),
+            ('report_post', {'pk': self.post.pk}, {'reason': Report.Reason.SPAM}),
+            ('toggle_favorite', {'pk': self.post.pk}, {}),
+        ]
+        for name, kwargs, data in requests:
+            response = self.client.post(reverse(name, kwargs=kwargs), data)
+            self.assertRedirects(response, reverse('home'))
+        self.assertEqual(Post.objects.count(), 1)
+        self.assertEqual(Order.objects.count(), 0)
+        self.assertEqual(Comment.objects.count(), 0)
+        self.assertEqual(Report.objects.count(), 0)
+        self.assertEqual(Favorite.objects.count(), 0)
+
+    def test_context_processor_counts_for_moderator(self):
+        create_post(self.seller, title='Cho duyet', status=Post.Status.PENDING)
+        Report.objects.create(
+            post=self.post, reporter=self.student, reason=Report.Reason.SPAM
+        )
+        self.client.force_login(self.mod)
+        response = self.client.get(reverse('home'))
+        self.assertEqual(response.context['pending_reports'], 1)
+        self.assertEqual(response.context['pending_total'], 2)
+
+
+@override_settings(PASSWORD_HASHERS=PASSWORD_HASHERS)
+class ReportModerationTests(TestCase):
+    """Xử lý báo cáo vi phạm, gồm lý do hàng cấm."""
+
+    def setUp(self):
+        self.mod = create_moderator('moder')
+        self.reporter = create_user('reporter')
+        self.seller = create_user('seller')
+        self.post = create_post(self.seller, status=Post.Status.ACTIVE)
+
+    def test_report_form_lists_prohibited_reason(self):
+        self.client.force_login(self.reporter)
+        response = self.client.get(reverse('report_post', args=[self.post.pk]))
+        self.assertContains(response, 'Hàng cấm')
+
+    def test_resolve_prohibited_report_hides_post(self):
+        report = Report.objects.create(
+            post=self.post, reporter=self.reporter,
+            reason=Report.Reason.PROHIBITED,
+        )
+        self.client.force_login(self.mod)
+        self.client.post(reverse('admin_resolve_report', args=[report.pk]))
+        report.refresh_from_db(); self.post.refresh_from_db()
+        self.assertEqual(report.status, Report.Status.RESOLVED)
+        self.assertEqual(self.post.status, Post.Status.HIDDEN)
+
+    def test_resolve_sold_post_keeps_sold(self):
+        self.post.status = Post.Status.SOLD; self.post.save()
+        report = Report.objects.create(
+            post=self.post, reporter=self.reporter, reason=Report.Reason.FAKE
+        )
+        self.client.force_login(self.mod)
+        self.client.post(reverse('admin_resolve_report', args=[report.pk]))
+        self.post.refresh_from_db()
+        self.assertEqual(self.post.status, Post.Status.SOLD)
+
+    def test_dismiss_report_keeps_post(self):
+        report = Report.objects.create(
+            post=self.post, reporter=self.reporter, reason=Report.Reason.OTHER
+        )
+        self.client.force_login(self.mod)
+        self.client.post(reverse('admin_dismiss_report', args=[report.pk]))
+        report.refresh_from_db(); self.post.refresh_from_db()
+        self.assertEqual(report.status, Report.Status.DISMISSED)
+        self.assertEqual(self.post.status, Post.Status.ACTIVE)
 
 
 # ===========================================================================

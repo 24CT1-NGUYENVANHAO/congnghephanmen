@@ -8,9 +8,6 @@ Nguyên tắc áp dụng:
   - Validation ủy quyền cho Form, view chỉ điều phối.
 """
 
-from functools import wraps
-from urllib.parse import quote
-
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login
@@ -30,6 +27,7 @@ from .forms import (
     ProfileForm, RegisterForm, ReportForm, ReviewForm,
 )
 from .models import Category, Comment, Favorite, Order, Post, Report, Review
+from .permissions import can_moderate, moderator_required, student_required
 
 
 # ===========================================================================
@@ -219,7 +217,7 @@ def post_detail(request, pk):
 
 
 @require_POST
-@login_required
+@student_required
 def toggle_favorite(request, pk):
     """Yêu thích / bỏ yêu thích. POST + CSRF an toàn."""
     post = get_object_or_404(Post, pk=pk)
@@ -248,7 +246,7 @@ def toggle_favorite(request, pk):
 #  TẠO / SỬA / XOÁ BÀI ĐĂNG
 # ===========================================================================
 
-@login_required
+@student_required
 def create_post(request):
     """Đăng tin bán hoặc tặng sản phẩm mới."""
     if request.method == 'POST':
@@ -272,7 +270,7 @@ def create_post(request):
     })
 
 
-@login_required
+@student_required
 def edit_post(request, pk):
     """Chỉnh sửa bài đăng — chỉ chủ bài đăng được phép."""
     post = get_object_or_404(Post, pk=pk)
@@ -304,7 +302,7 @@ def edit_post(request, pk):
     })
 
 
-@login_required
+@student_required
 def delete_post(request, pk):
     """Xoá bài đăng — chỉ chủ bài đăng hoặc Admin."""
     post = get_object_or_404(Post, pk=pk)
@@ -326,7 +324,7 @@ def delete_post(request, pk):
 
 
 @require_POST
-@login_required
+@student_required
 def toggle_sold(request, pk):
     """Đánh dấu chưa bán / đã bán. POST + CSRF an toàn."""
     post = get_object_or_404(Post, pk=pk)
@@ -349,7 +347,7 @@ def toggle_sold(request, pk):
 
 
 @require_POST
-@login_required
+@student_required
 def upload_post_image(request, pk):
     """Thêm ảnh phụ cho bài đăng (tối đa 5 ảnh)."""
     post = get_object_or_404(Post, pk=pk)
@@ -377,7 +375,7 @@ def upload_post_image(request, pk):
 
 
 @require_POST
-@login_required
+@student_required
 def delete_post_image(request, pk):
     """Xoá một ảnh phụ của bài đăng."""
     post = get_object_or_404(Post, pk=pk)
@@ -398,7 +396,7 @@ def delete_post_image(request, pk):
 # ===========================================================================
 
 @require_POST
-@login_required
+@student_required
 def add_comment(request, pk):
     """Thêm bình luận mới hoặc trả lời bình luận có sẵn."""
     post = get_object_or_404(Post, pk=pk)
@@ -444,7 +442,7 @@ def delete_comment(request, pk):
 #  ĐẶT MUA & QUẢN LÝ ĐƠN HÀNG
 # ===========================================================================
 
-@login_required
+@student_required
 def buy_post(request, pk):
     """
     Gửi yêu cầu đặt mua sản phẩm.
@@ -645,7 +643,7 @@ def cancel_order(request, pk):
 # ===========================================================================
 
 @require_POST
-@login_required
+@student_required
 def add_review(request, username):
     """Đánh giá uy tín một người dùng khác."""
     seller = get_object_or_404(User, username=username)
@@ -671,7 +669,7 @@ def add_review(request, username):
     return redirect('user_profile', username=username)
 
 
-@login_required
+@student_required
 def report_post(request, pk):
     """Gửi báo cáo vi phạm một bài đăng."""
     post = get_object_or_404(Post, pk=pk)
@@ -955,29 +953,11 @@ def change_password(request):
 
 
 # ===========================================================================
-#  QUẢN TRỊ (chỉ dành cho tài khoản is_staff)
+#  QUẢN TRỊ (Admin và Kiểm duyệt viên)
 # ===========================================================================
 
-def staff_required(view):
-    """
-    Chặn người dùng không phải staff khỏi khu vực quản trị.
 
-    - Chưa đăng nhập  → chuyển tới trang đăng nhập kèm ?next=<đường dẫn đầy đủ>
-    - Đã đăng nhập nhưng không phải staff → về trang chủ kèm thông báo lỗi
-    """
-    @wraps(view)
-    def _wrapped(request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            login_url = reverse(settings.LOGIN_URL)
-            return redirect(f"{login_url}?next={quote(request.get_full_path())}")
-        if not request.user.is_staff:
-            messages.error(request, "Bạn không có quyền truy cập trang quản trị.")
-            return redirect('home')
-        return view(request, *args, **kwargs)
-    return _wrapped
-
-
-@staff_required
+@moderator_required
 def admin_dashboard(request):
     """
     Bảng điều khiển quản trị: số liệu tổng quan + kiểm duyệt nhanh.
@@ -1020,7 +1000,7 @@ def admin_dashboard(request):
     })
 
 
-@staff_required
+@moderator_required
 @require_POST
 def admin_approve_post(request, pk):
     """Duyệt một bài đang chờ: PENDING → ACTIVE."""
@@ -1038,7 +1018,7 @@ def admin_approve_post(request, pk):
     return redirect('admin_dashboard')
 
 
-@staff_required
+@moderator_required
 @require_POST
 def admin_reject_post(request, pk):
     """Từ chối một bài đang chờ: PENDING → REJECTED, kèm lý do."""
@@ -1059,7 +1039,7 @@ def admin_reject_post(request, pk):
     return redirect('admin_dashboard')
 
 
-@staff_required
+@moderator_required
 @require_POST
 def admin_resolve_report(request, pk):
     """
@@ -1088,7 +1068,7 @@ def admin_resolve_report(request, pk):
     return redirect('admin_dashboard')
 
 
-@staff_required
+@moderator_required
 @require_POST
 def admin_dismiss_report(request, pk):
     """Bỏ qua báo cáo: report → DISMISSED, không đổi bài đăng."""
