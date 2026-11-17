@@ -274,6 +274,19 @@ class ModeratorRoleTests(TestCase):
         self.assertEqual(response.context['pending_reports'], 1)
         self.assertEqual(response.context['pending_total'], 2)
 
+    def test_moderator_dashboard_hides_admin_only_blocks(self):
+        self.client.force_login(self.mod)
+        response = self.client.get(reverse('admin_dashboard'))
+        self.assertNotContains(response, 'Doanh thu')
+        self.assertNotContains(response, '/django-admin/')
+        self.assertContains(response, 'Hỗ trợ')
+
+    def test_moderator_navbar_swaps_create_button(self):
+        self.client.force_login(self.mod)
+        response = self.client.get(reverse('home'))
+        self.assertContains(response, 'Kiểm duyệt')
+        self.assertNotContains(response, reverse('create_post'))
+
 
 @override_settings(PASSWORD_HASHERS=PASSWORD_HASHERS)
 class ReportModerationTests(TestCase):
@@ -1910,6 +1923,12 @@ class AdminDashboardTests(TestCase):
         response = self.client.get(reverse('admin_dashboard'))
         self.assertContains(response, 'Không có bài nào chờ duyệt')
         self.assertContains(response, 'Không có gì cần xử lý')
+
+    def test_staff_still_sees_revenue_and_django_admin(self):
+        self.client.force_login(self.staff)
+        response = self.client.get(reverse('admin_dashboard'))
+        self.assertContains(response, 'Doanh thu')
+        self.assertContains(response, '/django-admin/')
 
     # --- Navbar -----------------------------------------------------------
     def test_navbar_links_to_dashboard_for_staff(self):

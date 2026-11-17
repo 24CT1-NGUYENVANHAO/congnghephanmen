@@ -231,7 +231,9 @@
             </p>
             <div class="flex flex-wrap items-center justify-center gap-3">
                 <a href="{% url 'home' %}" class="btn btn-outline">Xem tất cả sản phẩm</a>
+                {% if not user.profile.is_moderator or user.is_staff %}
                 <a href="{% url 'create_post' %}" class="btn btn-primary">➕ Đăng tin ngay</a>
+                {% endif %}
             </div>
         </div>
     {% endif %}

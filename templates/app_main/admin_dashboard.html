@@ -10,7 +10,7 @@
     <div class="flex flex-wrap items-end justify-between gap-3 mb-7">
         <div>
             <p class="text-[11px] font-bold uppercase tracking-widest text-indigo-600">
-                Khu vực quản trị
+                {% if is_moderator_only %}Khu vực kiểm duyệt{% else %}Khu vực quản trị{% endif %}
             </p>
             <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1">
                 Bảng điều khiển
@@ -22,12 +22,14 @@
         </div>
         <div class="flex items-center gap-2">
             <a href="{% url 'home' %}" class="btn btn-outline btn-sm">← Về trang chủ</a>
+            {% if not is_moderator_only %}
             <a href="/django-admin/" class="btn btn-primary btn-sm">⚙️ Django admin</a>
+            {% endif %}
         </div>
     </div>
 
-    <!-- ================= 5 thẻ số liệu ================= -->
-    <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+    <!-- ================= Thẻ số liệu ================= -->
+    <div class="grid grid-cols-2 {% if is_moderator_only %}lg:grid-cols-4{% else %}lg:grid-cols-3 xl:grid-cols-6{% endif %} gap-4 mb-8">
 
         <!-- Bài chờ duyệt -->
         <a href="#bai-cho-duyet" class="card p-5 card-hover block">
@@ -68,6 +70,7 @@
             <p class="text-xs font-medium text-slate-500 mt-0.5">Đơn chờ xác nhận</p>
         </div>
 
+        {% if not is_moderator_only %}
         <!-- Người dùng -->
         <div class="card p-5">
             <div class="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
@@ -80,7 +83,9 @@
                 Người dùng · {{ stats.active_users|intcomma }} đang hoạt động
             </p>
         </div>
+        {% endif %}
 
+        {% if not is_moderator_only %}
         <!-- Doanh thu -->
         <div class="card p-5">
             <div class="w-9 h-9 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center">
@@ -95,6 +100,18 @@
                 Doanh thu · {{ stats.completed_orders|intcomma }} đơn hoàn tất
             </p>
         </div>
+        {% endif %}
+
+        <!-- Phiên hỗ trợ -->
+        <a href="#ho-tro" class="card p-5 card-hover block">
+            <div class="w-9 h-9 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"/>
+                </svg>
+            </div>
+            <p class="text-3xl font-extrabold text-slate-900 mt-3">{{ stats.pending_tickets|intcomma }}</p>
+            <p class="text-xs font-medium text-slate-500 mt-0.5">Phiên hỗ trợ</p>
+        </a>
     </div>
 
     <!-- ================= Bài đăng chờ duyệt ================= -->
@@ -104,10 +121,12 @@
                 <h2 class="text-lg font-bold text-slate-900">Bài đăng chờ duyệt</h2>
                 <p class="text-xs text-slate-500">{{ stats.pending_posts|intcomma }} bài đang chờ · hiển thị 10 bài mới nhất</p>
             </div>
+            {% if not is_moderator_only %}
             <a href="/django-admin/app_main/post/?status__exact=PENDING"
                class="text-sm font-semibold text-indigo-600 hover:text-indigo-800 transition whitespace-nowrap">
                 Xem tất cả →
             </a>
+            {% endif %}
         </div>
 
         {% if pending_posts %}
@@ -201,10 +220,12 @@
                 <h2 class="text-lg font-bold text-slate-900">Báo cáo vi phạm</h2>
                 <p class="text-xs text-slate-500">{{ stats.pending_reports|intcomma }} báo cáo đang chờ · hiển thị 10 báo cáo mới nhất</p>
             </div>
+            {% if not is_moderator_only %}
             <a href="/django-admin/app_main/report/?status__exact=PENDING"
                class="text-sm font-semibold text-indigo-600 hover:text-indigo-800 transition whitespace-nowrap">
                 Xem tất cả →
             </a>
+            {% endif %}
         </div>
 
         {% if pending_reports %}
@@ -284,6 +305,74 @@
         {% endif %}
     </section>
 
+    <!-- ================= Phiên hỗ trợ đang mở ================= -->
+    <section id="ho-tro" class="mb-8 scroll-mt-24">
+        <div class="flex items-end justify-between gap-3 mb-3">
+            <div>
+                <h2 class="text-lg font-bold text-slate-900">Phiên hỗ trợ đang mở</h2>
+                {% if stats.disputed_orders > 0 %}
+                <p class="text-xs text-slate-500">🔺 {{ stats.disputed_orders }} đơn đang tranh chấp</p>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if open_tickets %}
+        <div class="card overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left" style="min-width:760px;">
+                    <thead style="background:var(--slate-50);border-bottom:1px solid var(--slate-200);">
+                        <tr>
+                            <th class="px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Phiên</th>
+                            <th class="px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Đơn</th>
+                            <th class="px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Người mở</th>
+                            <th class="px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Trạng thái</th>
+                            <th class="px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ticket in open_tickets %}
+                        <tr class="border-b border-slate-100 last:border-0 hover:bg-slate-50 transition">
+                            <td class="px-5 py-3.5">
+                                <div class="min-w-0">
+                                    <span class="font-semibold text-sm text-slate-800 line-clamp-1 block">{{ ticket.subject }}</span>
+                                    <p class="text-xs text-slate-400 mt-0.5 truncate">{{ ticket.get_category_display }}</p>
+                                </div>
+                            </td>
+                            <td class="px-5 py-3.5">
+                                <a href="{{ ticket.order.post.get_absolute_url }}"
+                                   class="text-sm text-slate-700 hover:text-indigo-600 transition">
+                                    #{{ ticket.order.pk }} · {{ ticket.order.post.title|truncatechars:30 }}
+                                </a>
+                            </td>
+                            <td class="px-5 py-3.5">
+                                <span class="text-sm text-slate-600">{{ ticket.opened_by.username }}</span>
+                            </td>
+                            <td class="px-5 py-3.5">
+                                <span class="badge {% if ticket.status == 'OPEN' %}badge-info{% else %}badge-warning{% endif %}">
+                                    {{ ticket.get_status_display }}
+                                </span>
+                            </td>
+                            <td class="px-5 py-3.5">
+                                <div class="flex items-center justify-end gap-2">
+                                    <a href="{% url 'moderator_ticket_detail' ticket.pk %}"
+                                       class="btn btn-outline btn-sm">Xử lý</a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% else %}
+        <div class="card p-8 text-center">
+            <p class="text-2xl">🎉</p>
+            <p class="font-semibold text-slate-700 mt-2">Không có phiên nào đang mở.</p>
+        </div>
+        {% endif %}
+    </section>
+
+    {% if not is_moderator_only %}
     <!-- ================= Lối tắt ================= -->
     <section>
         <h2 class="text-lg font-bold text-slate-900 mb-3">Lối tắt quản lý</h2>
@@ -310,6 +399,7 @@
             </a>
         </div>
     </section>
+    {% endif %}
 
 </div>
 {% endblock %}

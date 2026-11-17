@@ -1214,6 +1214,14 @@ def admin_dashboard(request):
         .aggregate(total=Sum('price_snapshot'))['total'] or 0
     )
 
+    # Phiên hỗ trợ đang mở (chưa giải quyết)
+    open_tickets_qs = (
+        SupportTicket.objects.filter(
+            status__in=[SupportTicket.Status.OPEN, SupportTicket.Status.IN_PROGRESS]
+        )
+        .select_related('order__post', 'opened_by')
+    )
+
     stats = {
         'pending_posts': Post.objects.filter(status=Post.Status.PENDING).count(),
         'pending_reports': Report.objects.filter(status=Report.Status.PENDING).count(),
@@ -1223,12 +1231,16 @@ def admin_dashboard(request):
         'total_posts': Post.objects.count(),
         'completed_orders': Order.objects.filter(status=Order.Status.COMPLETED).count(),
         'revenue': revenue,
+        'pending_tickets': open_tickets_qs.count(),
+        'disputed_orders': Order.objects.filter(status=Order.Status.DISPUTED).count(),
     }
 
     return render(request, 'app_main/admin_dashboard.html', {
         'stats': stats,
         'pending_posts': pending_posts,
         'pending_reports': pending_reports,
+        'open_tickets': open_tickets_qs.order_by('-updated_at')[:10],
+        'is_moderator_only': can_moderate(request.user) and not request.user.is_staff,
     })
 
 

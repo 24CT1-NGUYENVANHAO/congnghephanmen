@@ -28,7 +28,9 @@
                     <li><a href="{% url 'home' %}?free=1" class="hover:text-indigo-400 transition">Sản phẩm tặng 0đ</a></li>
                     <li><a href="{% url 'about' %}" class="hover:text-indigo-400 transition">Giới thiệu</a></li>
                     {% if user.is_authenticated %}
+                        {% if not user.profile.is_moderator or user.is_staff %}
                         <li><a href="{% url 'create_post' %}" class="hover:text-indigo-400 transition">Đăng tin bán</a></li>
+                        {% endif %}
                     {% endif %}
                 </ul>
             </div>
