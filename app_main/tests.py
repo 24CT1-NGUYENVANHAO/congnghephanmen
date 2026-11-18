@@ -6,18 +6,31 @@ Chạy:  python manage.py test
 Bao phủ: Model, Form, View, phân quyền, CSRF và luồng người dùng chính.
 """
 
+import io
+import tempfile
+
 from django.conf import settings
 from django.contrib import admin
 from django.contrib.auth.models import User
+from django.core.cache import cache
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import IntegrityError, transaction
 from django.test import Client, SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
+from PIL import Image
 
 from .forms import RegisterForm
 from .models import (
-    Category, Comment, Favorite, Order, Post, Profile, Report, Review,
+    Category, Comment, Favorite, Order, Post, PostImage, Profile, Report, Review,
     SupportMessage, SupportTicket,
 )
+
+
+def png_bytes():
+    """Sinh một ảnh PNG 2x2 hợp lệ để kiểm thử upload."""
+    buffer = io.BytesIO()
+    Image.new('RGB', (2, 2), 'red').save(buffer, format='PNG')
+    return buffer.getvalue()
 
 # Hash mật khẩu nhanh để test chạy nhanh hơn (chỉ dùng trong test)
 PASSWORD_HASHERS = ['django.contrib.auth.hashers.MD5PasswordHasher']
@@ -612,7 +625,10 @@ class AuthViewTests(TestCase):
         })
         self.assertEqual(response.status_code, 200)
         self.assertNotIn('_auth_user_id', self.client.session)
-        self.assertContains(response, 'Không tìm thấy tài khoản nào dùng email này')
+        # Thông báo chung, không tiết lộ email nào đã có tài khoản.
+        self.assertContains(
+            response, 'Email hoặc mật khẩu không chính xác. Vui lòng thử lại.'
+        )
 
     def test_login_form_asks_for_email_only(self):
         response = self.client.get(reverse('login'))
@@ -1954,3 +1970,362 @@ class DatabaseConfigTests(SimpleTestCase):
         self.assertFalse(hasattr(settings, 'USE_SQLITE'))
         self.assertFalse(hasattr(settings, 'DB_ENGINE_IN_USE'))
         self.assertFalse(hasattr(settings, 'DB_AUTO_FALLBACK'))
+
+
+# ===========================================================================
+#  SỬA LỖI NGHIÊM TRỌNG (kiểm thử hồi quy)
+# ===========================================================================
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+class CriticalFixesTests(TestCase):
+    """Kiểm thử hồi quy cho các lỗi nghiêm trọng đã phát hiện khi audit."""
+
+    def setUp(self):
+        self.seller = create_user('nguoiban1')
+        self.buyer = create_user('nguoimua1')
+        self.other_buyer = create_user('nguoimua2')
+        self.client_seller = Client()
+        self.client_seller.force_login(self.seller)
+        self.client_buyer = Client()
+        self.client_buyer.force_login(self.buyer)
+        self.post = create_post(
+            self.seller, title='Sách kiểm thử', status=Post.Status.ACTIVE,
+        )
+
+    def _make_image(self, name='anh.png'):
+        return PostImage.objects.create(
+            post=self.post,
+            image=SimpleUploadedFile(name, png_bytes(), content_type='image/png'),
+        )
+
+    # --- A1: xoá ảnh phụ dùng nhầm khoá của bài đăng -----------------------
+
+    def test_delete_post_image_removes_the_requested_image(self):
+        image = self._make_image('anh1.png')
+        keep = self._make_image('anh2.png')
+
+        response = self.client_seller.post(
+            reverse('delete_post_image', args=[image.pk])
+        )
+
+        self.assertRedirects(response, self.post.get_absolute_url())
+        self.assertFalse(PostImage.objects.filter(pk=image.pk).exists())
+        self.assertTrue(PostImage.objects.filter(pk=keep.pk).exists())
+
+    def test_delete_post_image_rejects_other_users(self):
+        image = self._make_image()
+
+        response = self.client_buyer.post(
+            reverse('delete_post_image', args=[image.pk])
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(PostImage.objects.filter(pk=image.pk).exists())
+
+    # --- A3: xoá bài đăng phải là POST và không phá lịch sử đơn hàng -------
+
+    def test_delete_post_rejects_get(self):
+        response = self.client_seller.get(
+            reverse('delete_post', args=[self.post.pk])
+        )
+
+        self.assertEqual(response.status_code, 405)
+        self.assertTrue(Post.objects.filter(pk=self.post.pk).exists())
+
+    def test_delete_post_with_orders_hides_instead_of_destroying_history(self):
+        order = Order.objects.create(
+            post=self.post, buyer=self.buyer, seller=self.seller,
+            status=Order.Status.COMPLETED,
+        )
+
+        self.client_seller.post(reverse('delete_post', args=[self.post.pk]))
+
+        self.post.refresh_from_db()
+        self.assertEqual(self.post.status, Post.Status.HIDDEN)
+        self.assertTrue(Order.objects.filter(pk=order.pk).exists())
+
+    def test_delete_post_without_orders_is_still_removed(self):
+        self.client_seller.post(reverse('delete_post', args=[self.post.pk]))
+        self.assertFalse(Post.objects.filter(pk=self.post.pk).exists())
+
+    # --- Trạng thái: không được tự ý đưa bài chưa duyệt lên sàn ------------
+
+    def test_toggle_sold_cannot_publish_pending_post(self):
+        pending = create_post(
+            self.seller, title='Chờ duyệt', status=Post.Status.PENDING,
+        )
+
+        self.client_seller.post(reverse('toggle_sold', args=[pending.pk]))
+
+        pending.refresh_from_db()
+        self.assertEqual(pending.status, Post.Status.PENDING)
+        self.assertFalse(pending.is_sold)
+
+    def test_toggle_sold_cannot_publish_hidden_post(self):
+        hidden = create_post(
+            self.seller, title='Đang ẩn', status=Post.Status.HIDDEN,
+        )
+
+        self.client_seller.post(reverse('toggle_sold', args=[hidden.pk]))
+
+        hidden.refresh_from_db()
+        self.assertEqual(hidden.status, Post.Status.HIDDEN)
+        self.assertFalse(hidden.is_sold)
+
+    def test_is_sold_flag_follows_status(self):
+        post = create_post(self.seller, status=Post.Status.HIDDEN)
+        post.is_sold = True
+        post.save()
+
+        post.refresh_from_db()
+        self.assertEqual(post.status, Post.Status.HIDDEN)
+        self.assertFalse(post.is_sold)
+
+    # --- A4: hoàn tất đơn hàng --------------------------------------------
+
+    def test_complete_order_requires_confirmed_status(self):
+        order = Order.objects.create(
+            post=self.post, buyer=self.buyer, seller=self.seller,
+            status=Order.Status.PENDING,
+        )
+
+        self.client_buyer.post(reverse('complete_order', args=[order.pk]))
+
+        order.refresh_from_db()
+        self.post.refresh_from_db()
+        self.assertEqual(order.status, Order.Status.PENDING)
+        self.assertEqual(self.post.status, Post.Status.ACTIVE)
+
+    def test_complete_order_does_not_publish_hidden_post(self):
+        self.post.status = Post.Status.HIDDEN
+        self.post.save()
+        order = Order.objects.create(
+            post=self.post, buyer=self.buyer, seller=self.seller,
+            status=Order.Status.CONFIRMED,
+        )
+
+        self.client_buyer.post(reverse('complete_order', args=[order.pk]))
+
+        order.refresh_from_db()
+        self.post.refresh_from_db()
+        self.assertEqual(order.status, Order.Status.COMPLETED)
+        self.assertEqual(self.post.status, Post.Status.HIDDEN)
+        self.assertFalse(self.post.is_sold)
+
+    # --- A2: chống bán trùng một sản phẩm cho hai người -------------------
+
+    def test_second_order_cannot_be_accepted_for_same_post(self):
+        first = Order.objects.create(
+            post=self.post, buyer=self.buyer, seller=self.seller,
+            status=Order.Status.PENDING,
+        )
+        second = Order.objects.create(
+            post=self.post, buyer=self.other_buyer, seller=self.seller,
+            status=Order.Status.PENDING,
+        )
+
+        self.client_seller.post(reverse('accept_order', args=[first.pk]))
+        self.client_seller.post(reverse('accept_order', args=[second.pk]))
+
+        first.refresh_from_db()
+        second.refresh_from_db()
+        self.assertEqual(first.status, Order.Status.CONFIRMED)
+        self.assertEqual(second.status, Order.Status.PENDING)
+
+    # --- A8: kiểm tra ảnh đại diện ----------------------------------------
+
+    def test_edit_profile_rejects_non_image_avatar(self):
+        self.client_seller.post(reverse('edit_profile'), {
+            'first_name': 'Văn', 'last_name': 'Nguyễn',
+            'email': 'nguoiban1@gmail.com',
+            'avatar': SimpleUploadedFile(
+                'avatar.png', b'day-khong-phai-anh', content_type='image/png'
+            ),
+        })
+
+        self.seller.profile.refresh_from_db()
+        self.assertFalse(self.seller.profile.avatar)
+
+    @override_settings(MAX_UPLOAD_SIZE=10)
+    def test_edit_profile_rejects_oversized_avatar(self):
+        self.client_seller.post(reverse('edit_profile'), {
+            'first_name': 'Văn', 'last_name': 'Nguyễn',
+            'email': 'nguoiban1@gmail.com',
+            'avatar': SimpleUploadedFile(
+                'avatar.png', png_bytes(), content_type='image/png'
+            ),
+        })
+
+        self.seller.profile.refresh_from_db()
+        self.assertFalse(self.seller.profile.avatar)
+
+
+# ===========================================================================
+#  NHÓM B — LỖI XÁC THỰC & PHÂN QUYỀN
+# ===========================================================================
+
+@override_settings(PASSWORD_HASHERS=PASSWORD_HASHERS)
+class AuthFixesTests(TestCase):
+    """B1–B7: chuyển hướng an toàn, dò email, throttle, chính sách email,
+    mật khẩu yếu, email trùng và quyền của kiểm duyệt viên."""
+
+    def setUp(self):
+        cache.clear()
+        self.student = create_user('sinhvien', 'MatKhau123', email='sv@gmail.com')
+        self.other = create_user('sinhvien2', 'MatKhau123', email='sv2@gmail.com')
+        self.seller = create_user('nguoiban', 'MatKhau123', email='nguoiban@gmail.com')
+        self.moderator = create_moderator('moder')
+        self.post = create_post(self.seller)
+        self.order = Order.objects.create(
+            post=self.post, buyer=self.student, seller=self.seller,
+            price_snapshot=50000, status=Order.Status.PENDING,
+        )
+
+    # --- tiện ích -------------------------------------------------------
+
+    def login(self, email, password='MatKhau123', **extra):
+        data = {'username': email, 'password': password}
+        data.update(extra)
+        return self.client.post(reverse('login'), data)
+
+    def register_data(self, **overrides):
+        data = {
+            'first_name': 'Nguyễn Văn Hào',
+            'email': 'hao@gmail.com',
+            'faculty': '',
+            'student_id': '',
+            'password1': 'MatKhau123',
+            'password2': 'MatKhau123',
+            'agree': True,
+        }
+        data.update(overrides)
+        return data
+
+    # --- B1: open redirect ---------------------------------------------
+
+    def test_login_ignores_external_next(self):
+        response = self.login(
+            'sv@gmail.com', next='https://evil.example.com/steal'
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response['Location'], reverse('home'))
+
+    def test_login_keeps_local_next(self):
+        response = self.login('sv@gmail.com', next=reverse('my_orders'))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response['Location'], reverse('my_orders'))
+
+    # --- B2: dò email ---------------------------------------------------
+
+    def test_unknown_email_does_not_reveal_account_existence(self):
+        response = self.login('khongco@gmail.com')
+        self.assertNotContains(response, 'Không tìm thấy tài khoản')
+        self.assertContains(response, 'Email hoặc mật khẩu không chính xác.')
+
+    def test_wrong_password_uses_the_same_message(self):
+        response = self.login('sv@gmail.com', 'SaiMatKhau')
+        self.assertNotContains(response, 'Không tìm thấy tài khoản')
+        self.assertContains(response, 'Email hoặc mật khẩu không chính xác.')
+
+    # --- B3: giới hạn số lần đăng nhập ---------------------------------
+
+    def test_login_is_throttled_after_repeated_failures(self):
+        for _ in range(5):
+            self.login('sv@gmail.com', 'SaiMatKhau')
+
+        response = self.login('sv@gmail.com')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('_auth_user_id', self.client.session)
+        self.assertContains(response, 'quá nhiều lần')
+
+    def test_throttle_is_scoped_to_one_account(self):
+        for _ in range(5):
+            self.login('sv@gmail.com', 'SaiMatKhau')
+
+        response = self.login('sv2@gmail.com')
+
+        self.assertRedirects(response, reverse('home'))
+
+    # --- B4: chính sách email dùng chung --------------------------------
+
+    def test_registration_accepts_only_gmail(self):
+        form = RegisterForm(data=self.register_data(
+            email='giangvien@university.edu.vn'
+        ))
+        self.assertFalse(form.is_valid())
+        self.assertIn('email', form.errors)
+
+    def test_login_accepts_school_email(self):
+        create_user('giangvien', 'MatKhau123', email='gv@university.edu.vn')
+        response = self.login('gv@university.edu.vn')
+        self.assertRedirects(response, reverse('home'))
+
+    # --- B5: bỏ qua AUTH_PASSWORD_VALIDATORS ---------------------------
+
+    def test_register_rejects_common_password(self):
+        form = RegisterForm(data=self.register_data(
+            password1='Password1', password2='Password1'
+        ))
+        self.assertFalse(form.is_valid())
+        self.assertIn('password1', form.errors)
+
+    # --- B6: email không được trùng ------------------------------------
+
+    def test_database_rejects_duplicate_email(self):
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            User.objects.create_user(
+                username='trung1', password='MatKhau123', email='sv@gmail.com'
+            )
+
+    def test_database_rejects_duplicate_email_ignoring_case(self):
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            User.objects.create_user(
+                username='trung2', password='MatKhau123', email='SV@GMAIL.COM'
+            )
+
+    def test_blank_email_can_repeat(self):
+        before = User.objects.filter(email='').count()
+        create_user('trong1')
+        create_user('trong2')
+        self.assertEqual(User.objects.filter(email='').count(), before + 2)
+
+    # --- B7: kiểm duyệt viên không dùng luồng mua/bán ------------------
+
+    def test_moderator_cannot_open_buyer_pages(self):
+        self.client.force_login(self.moderator)
+        urls = (
+            reverse('my_orders'),
+            reverse('my_tickets'),
+            reverse('order_detail', args=[self.order.pk]),
+        )
+        for url in urls:
+            self.assertRedirects(self.client.get(url), reverse('home'))
+
+    def test_moderator_cannot_accept_order(self):
+        self.client.force_login(self.moderator)
+
+        response = self.client.post(
+            reverse('accept_order', args=[self.order.pk])
+        )
+
+        self.assertRedirects(response, reverse('home'))
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, Order.Status.PENDING)
+
+    def test_moderator_cannot_open_support_ticket_detail(self):
+        ticket = SupportTicket.objects.create(
+            order=self.order, opened_by=self.student, subject='Hỏi về đơn',
+        )
+        self.client.force_login(self.moderator)
+
+        response = self.client.get(
+            reverse('support_ticket_detail', args=[ticket.pk])
+        )
+
+        self.assertRedirects(response, reverse('home'))
+
+    def test_staff_can_still_open_buyer_pages(self):
+        staff = create_user('admin2', email='admin2@gmail.com', is_staff=True)
+        self.client.force_login(staff)
+        self.assertEqual(self.client.get(reverse('my_orders')).status_code, 200)

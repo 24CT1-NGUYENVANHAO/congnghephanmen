@@ -9,13 +9,16 @@ Mọi validation tập trung ở đây (thay vì trong view) để:
 import re
 
 from django import forms
+from django.conf import settings
 from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 
 from .models import (
     Category, Comment, Order, Post, PostImage, Report, Review,
     SupportMessage, SupportTicket,
 )
+from .validators import validate_registration_email
 
 
 def build_username_from_email(email):
@@ -107,10 +110,9 @@ class RegisterForm(forms.Form):
     )
 
     def clean_email(self):
-        """Chỉ chấp nhận Gmail và không trùng lặp."""
+        """Chỉ chấp nhận Gmail (theo chính sách dùng chung) và không trùng lặp."""
         email = self.cleaned_data['email'].strip().lower()
-        if not email.endswith('@gmail.com'):
-            raise ValidationError("Chỉ chấp nhận địa chỉ email @gmail.com.")
+        validate_registration_email(email)
         if User.objects.filter(email__iexact=email).exists():
             raise ValidationError("Email này đã được đăng ký. Hãy đăng nhập hoặc dùng email khác.")
         return email
@@ -124,28 +126,50 @@ class RegisterForm(forms.Form):
         return p2
 
     def clean(self):
-        """Kiểm tra tổng hợp: mật khẩu mạnh + không trùng với tên/email."""
+        """Kiểm tra tổng hợp: mật khẩu mạnh + không trùng với tên/email.
+
+        Sau khi áp các quy tắc riêng của dự án, mật khẩu còn phải vượt qua
+        toàn bộ ``AUTH_PASSWORD_VALIDATORS`` trong settings (mật khẩu phổ biến,
+        toàn số, quá ngắn...). Chỉ gọi validator khi chưa có lỗi riêng để thông
+        báo lỗi không bị trùng lặp, rối mắt.
+        """
         cleaned = super().clean()
         p1 = cleaned.get('password1')
+        if not p1:
+            return cleaned
 
-        if p1:
-            email = cleaned.get('email', '')
-            full_name = cleaned.get('first_name', '')
+        email = cleaned.get('email', '')
+        full_name = cleaned.get('first_name', '')
+        has_custom_error = False
 
-            # Mật khẩu không được chứa thông tin cá nhân
-            for value, label in ((email.split('@')[0], 'email'),
-                                 (full_name, 'họ tên')):
-                if value and value.lower() in p1.lower():
-                    self.add_error(
-                        'password1',
-                        f"Mật khẩu không được chứa {label} của bạn."
-                    )
-                    break
+        # Mật khẩu không được chứa thông tin cá nhân
+        for value, label in ((email.split('@')[0], 'email'),
+                             (full_name, 'họ tên')):
+            if value and value.lower() in p1.lower():
+                self.add_error(
+                    'password1',
+                    f"Mật khẩu không được chứa {label} của bạn."
+                )
+                has_custom_error = True
+                break
 
-            if not any(c.isupper() for c in p1):
-                self.add_error('password1', "Mật khẩu phải có ít nhất 1 chữ hoa (A-Z).")
-            if not any(c.isdigit() for c in p1):
-                self.add_error('password1', "Mật khẩu phải có ít nhất 1 chữ số (0-9).")
+        if not any(c.isupper() for c in p1):
+            self.add_error('password1', "Mật khẩu phải có ít nhất 1 chữ hoa (A-Z).")
+            has_custom_error = True
+        if not any(c.isdigit() for c in p1):
+            self.add_error('password1', "Mật khẩu phải có ít nhất 1 chữ số (0-9).")
+            has_custom_error = True
+
+        if not has_custom_error:
+            candidate = User(
+                username=build_username_from_email(email),
+                email=email,
+                first_name=full_name,
+            )
+            try:
+                validate_password(p1, user=candidate)
+            except ValidationError as exc:
+                self.add_error('password1', exc)
 
         return cleaned
 
@@ -172,6 +196,20 @@ class RegisterForm(forms.Form):
 class ProfileForm(forms.ModelForm):
     """Chỉnh sửa hồ sơ cá nhân."""
 
+    # Ảnh đại diện nằm ở Profile (không phải User) nên khai báo riêng để form
+    # kiểm tra định dạng ảnh và dung lượng thay vì nhận thẳng từ request.FILES.
+    avatar = forms.ImageField(
+        required=False,
+        label="Ảnh đại diện",
+        widget=forms.FileInput(attrs={
+            'class': 'block w-full text-sm text-slate-600 file:mr-4 file:rounded-xl '
+                     'file:border-0 file:bg-indigo-50 file:px-4 file:py-2 '
+                     'file:text-sm file:font-semibold file:text-indigo-700 '
+                     'hover:file:bg-indigo-100',
+            'accept': 'image/*',
+        }),
+    )
+
     class Meta:
         model = User
         fields = ['first_name', 'last_name', 'email']
@@ -191,6 +229,20 @@ class ProfileForm(forms.ModelForm):
         if qs.exists():
             raise ValidationError("Email này đã được tài khoản khác sử dụng.")
         return email
+
+    def clean_avatar(self):
+        """Ảnh đại diện: phải là ảnh thật và không vượt quá MAX_UPLOAD_SIZE."""
+        avatar = self.cleaned_data.get('avatar')
+        if not avatar:
+            return avatar
+
+        limit = getattr(settings, 'MAX_UPLOAD_SIZE', 5 * 1024 * 1024)
+        if avatar.size > limit:
+            limit_mb = max(1, limit // (1024 * 1024))
+            raise ValidationError(
+                f"Ảnh đại diện quá lớn. Vui lòng chọn ảnh nhỏ hơn {limit_mb} MB."
+            )
+        return avatar
 
 
 # ---------------------------------------------------------------------------

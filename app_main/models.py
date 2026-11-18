@@ -293,11 +293,10 @@ class Post(models.Model):
         if self.price == 0:
             self.is_free = True
 
-        # Đồng bộ hai cờ trạng thái
-        if self.status == self.Status.SOLD:
-            self.is_sold = True
-        elif self.is_sold:
-            self.status = self.Status.SOLD
+        # `status` là nguồn sự thật duy nhất; cờ is_sold chỉ phản ánh lại.
+        # Không cho is_sold tự đổi status (trước đây set is_sold=True có thể
+        # biến một bài đang HIDDEN/REJECTED thành SOLD).
+        self.is_sold = self.status == self.Status.SOLD
 
         super().save(*args, **kwargs)
 
@@ -312,8 +311,8 @@ class Post(models.Model):
 
     @property
     def is_available(self):
-        """Bài còn giao dịch được không."""
-        return self.status == self.Status.ACTIVE and not self.is_sold
+        """Bài còn giao dịch được không (chỉ dựa vào status)."""
+        return self.status == self.Status.ACTIVE
 
     @property
     def main_image(self):
