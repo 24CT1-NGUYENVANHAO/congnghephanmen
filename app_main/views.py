@@ -15,11 +15,14 @@ from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import Avg, Count, Q, Sum
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from .forms import (
@@ -28,10 +31,11 @@ from .forms import (
     SupportReplyForm, SupportTicketForm, TicketResolveForm,
 )
 from .models import (
-    Category, Comment, Favorite, Order, Post, Report, Review,
+    Category, Comment, Favorite, Order, Post, PostImage, Report, Review,
     SupportMessage, SupportTicket,
 )
 from .permissions import can_moderate, moderator_required, student_required
+from .validators import is_allowed_login_email
 
 
 # ===========================================================================
@@ -329,14 +333,31 @@ def edit_post(request, pk):
     })
 
 
+@require_POST
 @student_required
 def delete_post(request, pk):
-    """Xoá bài đăng — chỉ chủ bài đăng hoặc Admin."""
+    """Xoá bài đăng — chỉ chủ bài đăng hoặc Admin.
+
+    Bài đã phát sinh đơn hàng thì không xoá cứng: Order (và SupportTicket
+    gắn theo) sẽ bị xoá dây chuyền, làm mất lịch sử giao dịch của cả hai
+    bên. Khi đó chỉ ẩn bài đi.
+    """
     post = get_object_or_404(Post, pk=pk)
 
     if post.seller != request.user and not request.user.is_staff:
         messages.error(request, "Bạn không có quyền xoá bài đăng này.")
         return redirect(post.get_absolute_url())
+
+    if post.orders.exists():
+        if post.status != Post.Status.SOLD:
+            post.status = Post.Status.HIDDEN
+            post.save(update_fields=['status', 'is_sold', 'updated_at'])
+        messages.info(
+            request,
+            f"📦 Bài đăng \"{post.title[:40]}\" đã có giao dịch nên được giữ lại "
+            "và ẩn khỏi sàn để bảo toàn lịch sử đơn hàng.",
+        )
+        return redirect('my_posts')
 
     if post.seller == request.user:
         title = post.title
@@ -344,7 +365,7 @@ def delete_post(request, pk):
         messages.success(request, f"🗑️ Đã xoá bài đăng \"{title[:40]}\".")
     else:
         post.status = Post.Status.HIDDEN
-        post.save()
+        post.save(update_fields=['status', 'is_sold', 'updated_at'])
         messages.success(request, "🗑️ Admin đã ẩn bài đăng này.")
 
     return redirect('my_posts')
@@ -360,7 +381,16 @@ def toggle_sold(request, pk):
         messages.error(request, "Chỉ chủ bài đăng mới thay đổi được trạng thái.")
         return redirect(post.get_absolute_url())
 
-    if post.is_sold:
+    # Chỉ đổi qua lại giữa "đang hiển thị" và "đã bán". Bài đang chờ duyệt,
+    # bị từ chối hoặc đã ẩn không được phép tự đưa lên sàn qua đường này.
+    if post.status not in (Post.Status.ACTIVE, Post.Status.SOLD):
+        messages.error(
+            request,
+            "Chỉ có thể đổi trạng thái bán cho bài đang hiển thị hoặc đã bán.",
+        )
+        return redirect(post.get_absolute_url())
+
+    if post.status == Post.Status.SOLD:
         post.status = Post.Status.ACTIVE
         post.is_sold = False
         messages.info(request, "🔄 Đã mở lại bài đăng.")
@@ -368,7 +398,7 @@ def toggle_sold(request, pk):
         post.status = Post.Status.SOLD
         post.is_sold = True
         messages.success(request, "✅ Đã đánh dấu là đã bán / đã tặng.")
-    post.save()
+    post.save(update_fields=['status', 'is_sold', 'updated_at'])
 
     return redirect(request.META.get('HTTP_REFERER', 'my_posts'))
 
@@ -404,14 +434,14 @@ def upload_post_image(request, pk):
 @require_POST
 @student_required
 def delete_post_image(request, pk):
-    """Xoá một ảnh phụ của bài đăng."""
-    post = get_object_or_404(Post, pk=pk)
+    """Xoá một ảnh phụ của bài đăng (pk là khoá chính của ảnh)."""
+    image = get_object_or_404(PostImage.objects.select_related('post'), pk=pk)
+    post = image.post
 
     if post.seller != request.user:
         messages.error(request, "Bạn không có quyền xoá ảnh của bài này.")
         return redirect(post.get_absolute_url())
 
-    image = get_object_or_404(post.images.all(), pk=pk)
     image.delete()
     messages.success(request, "🗑️ Đã xoá ảnh.")
 
@@ -529,7 +559,7 @@ def buy_post(request, pk):
     })
 
 
-@login_required
+@student_required
 def my_orders(request):
     """Danh sách đơn hàng người dùng đã đặt (mua) và đã nhận (bán)."""
     buying = (
@@ -552,7 +582,7 @@ def my_orders(request):
     })
 
 
-@login_required
+@student_required
 def order_detail(request, pk):
     """Chi tiết một đơn hàng — chỉ người mua và người bán được xem."""
     order = get_object_or_404(
@@ -568,28 +598,53 @@ def order_detail(request, pk):
 
 
 @require_POST
-@login_required
+@student_required
 def accept_order(request, pk):
-    """Người bán xác nhận đơn hàng."""
-    order = get_object_or_404(Order, pk=pk)
+    """Người bán xác nhận đơn hàng.
 
-    if order.seller != request.user:
-        messages.error(request, "Chỉ người bán mới xác nhận được đơn hàng.")
-        return redirect('my_orders')
+    Khoá dòng sản phẩm trong transaction để hai yêu cầu xác nhận đồng thời
+    không thể cùng được chấp nhận (chống bán trùng một món cho hai người).
+    """
+    with transaction.atomic():
+        order = get_object_or_404(Order, pk=pk)
 
-    if order.status == Order.Status.DISPUTED:
-        messages.error(
-            request,
-            "Đơn đang tranh chấp. Chỉ kiểm duyệt viên mới xử lý được.",
+        if order.seller != request.user:
+            messages.error(request, "Chỉ người bán mới xác nhận được đơn hàng.")
+            return redirect('my_orders')
+
+        if order.status == Order.Status.DISPUTED:
+            messages.error(
+                request,
+                "Đơn đang tranh chấp. Chỉ kiểm duyệt viên mới xử lý được.",
+            )
+            return redirect('order_detail', pk=order.pk)
+
+        if order.status != Order.Status.PENDING:
+            messages.error(request, "Đơn hàng này không còn ở trạng thái chờ xác nhận.")
+            return redirect('order_detail', pk=order.pk)
+
+        # Khoá sản phẩm trước khi kiểm tra để tuần tự hoá các lần xác nhận.
+        Post.objects.select_for_update().filter(pk=order.post_id).first()
+
+        already_taken = (
+            Order.objects.filter(
+                post_id=order.post_id,
+                status__in=[Order.Status.CONFIRMED, Order.Status.COMPLETED],
+            )
+            .exclude(pk=order.pk)
+            .exists()
         )
-        return redirect('order_detail', pk=order.pk)
+        if already_taken:
+            messages.error(
+                request,
+                "Sản phẩm đã được xác nhận cho một người mua khác. "
+                "Hãy từ chối đơn này.",
+            )
+            return redirect('order_detail', pk=order.pk)
 
-    if order.status != Order.Status.PENDING:
-        messages.error(request, "Đơn hàng này không còn ở trạng thái chờ xác nhận.")
-        return redirect('order_detail', pk=order.pk)
+        order.status = Order.Status.CONFIRMED
+        order.save(update_fields=['status', 'updated_at'])
 
-    order.status = Order.Status.CONFIRMED
-    order.save(update_fields=['status', 'updated_at'])
     messages.success(
         request,
         f"✅ Đã xác nhận đơn #{order.pk}. "
@@ -599,7 +654,7 @@ def accept_order(request, pk):
 
 
 @require_POST
-@login_required
+@student_required
 def reject_order(request, pk):
     """Người bán từ chối đơn hàng."""
     order = get_object_or_404(Order, pk=pk)
@@ -632,9 +687,14 @@ def reject_order(request, pk):
 
 
 @require_POST
-@login_required
+@student_required
 def complete_order(request, pk):
-    """Đánh dấu giao dịch hoàn tất — tự động chuyển sản phẩm sang ĐÃ BÁN."""
+    """Đánh dấu giao dịch hoàn tất — chuyển sản phẩm sang ĐÃ BÁN.
+
+    Chỉ đơn đã được người bán xác nhận mới hoàn tất được. Bài đăng chỉ được
+    chuyển sang SOLD nếu đang hiển thị; bài đã bị ẩn / từ chối thì giữ nguyên
+    trạng thái (không "hồi sinh" bài vi phạm).
+    """
     order = get_object_or_404(Order, pk=pk)
 
     if request.user not in (order.buyer, order.seller):
@@ -648,17 +708,22 @@ def complete_order(request, pk):
         )
         return redirect('order_detail', pk=order.pk)
 
-    if order.status not in (Order.Status.PENDING, Order.Status.CONFIRMED):
-        messages.error(request, "Đơn hàng này không thể đánh dấu hoàn tất.")
+    if order.status != Order.Status.CONFIRMED:
+        messages.error(
+            request,
+            "Chỉ đơn đã được người bán xác nhận mới có thể đánh dấu hoàn tất.",
+        )
         return redirect('order_detail', pk=order.pk)
 
-    order.status = Order.Status.COMPLETED
-    order.save(update_fields=['status', 'updated_at'])
+    with transaction.atomic():
+        order.status = Order.Status.COMPLETED
+        order.save(update_fields=['status', 'updated_at'])
 
-    # Tự động chuyển sản phẩm sang trạng thái đã bán
-    order.post.status = Post.Status.SOLD
-    order.post.is_sold = True
-    order.post.save(update_fields=['status', 'is_sold', 'updated_at'])
+        post = order.post
+        if post.status == Post.Status.ACTIVE:
+            post.status = Post.Status.SOLD
+            post.is_sold = True
+            post.save(update_fields=['status', 'is_sold', 'updated_at'])
 
     messages.success(
         request,
@@ -669,7 +734,7 @@ def complete_order(request, pk):
 
 
 @require_POST
-@login_required
+@student_required
 def cancel_order(request, pk):
     """Người mua huỷ đơn hàng."""
     order = get_object_or_404(Order, pk=pk)
@@ -709,7 +774,7 @@ def _can_view_ticket(user, ticket):
     return can_moderate(user) or _is_order_party(user, ticket.order)
 
 
-@login_required
+@student_required
 def my_tickets(request):
     """Danh sách phiên hỗ trợ liên quan đến người dùng hiện tại.
 
@@ -739,7 +804,7 @@ def my_tickets(request):
     })
 
 
-@login_required
+@student_required
 def support_ticket_detail(request, pk, reply_form=None):
     """Xem chi tiết một phiên hỗ trợ kèm luồng tin nhắn.
 
@@ -1049,24 +1114,59 @@ def register(request):
     return render(request, 'registration/register.html', {'form': form})
 
 
-#: Các đuôi email được phép dùng để đăng nhập.
-#: Gmail cho sinh viên, .edu.vn cho tài khoản giảng viên / quản trị.
-ALLOWED_EMAIL_DOMAINS = ('gmail.com',)
+#: Số lần đăng nhập sai liên tiếp trước khi tạm khoá theo cặp IP + email.
+LOGIN_MAX_ATTEMPTS = 5
+
+#: Thời gian (giây) đếm lỗi được giữ lại / khoá tạm.
+LOGIN_LOCKOUT_SECONDS = 300
+
+#: Một thông báo chung cho mọi trường hợp thất bại, tránh lộ email đã tồn tại.
+LOGIN_FAILED_MESSAGE = 'Email hoặc mật khẩu không chính xác. Vui lòng thử lại.'
+
+LOGIN_THROTTLED_MESSAGE = (
+    'Bạn đã thử đăng nhập quá nhiều lần. '
+    'Vui lòng đợi vài phút rồi thử lại.'
+)
 
 
-def _is_allowed_email(value):
-    """Kiểm tra email có thuộc miền được phép đăng nhập không.
+def _safe_next_url(request):
+    """Chỉ trả về ``next`` khi là đường dẫn nội bộ, chống open redirect.
 
-    Chấp nhận @gmail.com (sinh viên) và mọi đuối .edu.vn (email trường).
-    Trả về False với email rỗng, thiếu '@', hoặc thuộc miền khác.
+    Ưu tiên giá trị trong POST (form đăng nhập gửi kèm), sau đó tới GET.
+    Trả về chuỗi rỗng nếu thiếu hoặc trỏ ra host khác.
     """
-    value = (value or '').strip().lower()
-    if '@' not in value:
-        return False
-    domain = value.rsplit('@', 1)[1]
-    if not domain:
-        return False
-    return domain in ALLOWED_EMAIL_DOMAINS or domain.endswith('.edu.vn')
+    candidate = request.POST.get('next') or request.GET.get('next') or ''
+    if not candidate:
+        return ''
+    if url_has_allowed_host_and_scheme(
+        candidate,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return candidate
+    return ''
+
+
+def _login_throttle_key(request, email):
+    """Khoá cache theo IP + email để chặn dò mật khẩu cho một tài khoản."""
+    ip = request.META.get('REMOTE_ADDR', '') or 'unknown'
+    return f'login-attempts:{ip}:{(email or "").strip().lower()}'
+
+
+def _is_login_throttled(key):
+    """Đã vượt số lần thử cho phép trong cửa sổ hiện tại chưa."""
+    return cache.get(key, 0) >= LOGIN_MAX_ATTEMPTS
+
+
+def _record_failed_login(key):
+    """Ghi nhận một lần đăng nhập sai, tự đặt hạn cho khoá cache."""
+    if cache.add(key, 1, LOGIN_LOCKOUT_SECONDS):
+        return
+    try:
+        cache.incr(key)
+    except ValueError:
+        # Khoá đã hết hạn giữa lúc đọc và ghi.
+        cache.set(key, 1, LOGIN_LOCKOUT_SECONDS)
 
 
 def user_login(request):
@@ -1075,6 +1175,9 @@ def user_login(request):
     Tên đăng nhập được sinh tự động từ email lúc đăng ký nên người dùng không
     phải nhớ: biểu mẫu chỉ nhận email, tra bản ghi ``User`` theo email rồi để
     ``AuthenticationForm`` kiểm tra mật khẩu như bình thường.
+
+    Mọi trường hợp thất bại đều trả về cùng một thông báo để không ai dò được
+    email nào đã có tài khoản; số lần sai bị giới hạn theo IP + email.
     """
     if request.user.is_authenticated:
         return redirect('home')
@@ -1082,39 +1185,49 @@ def user_login(request):
     error = ''
     email = ''
     form = AuthenticationForm()
+    next_url = _safe_next_url(request)
+
     if request.method == 'POST':
         email = request.POST.get('username', '').strip()
         password = request.POST.get('password', '')
+        throttle_key = _login_throttle_key(request, email)
 
         if '@' not in email:
             error = (
                 'Vui lòng đăng nhập bằng địa chỉ email '
                 '(@gmail.com hoặc email trường @edu.vn).'
             )
-        elif not _is_allowed_email(email):
+        elif not is_allowed_login_email(email):
             error = (
                 'Chỉ chấp nhận email @gmail.com hoặc email trường @edu.vn. '
                 'Vui lòng nhập lại.'
             )
+        elif _is_login_throttled(throttle_key):
+            error = LOGIN_THROTTLED_MESSAGE
         else:
-            from django.contrib.auth import get_user_model
-            matched = get_user_model().objects.filter(email__iexact=email).first()
-            if not matched:
-                error = 'Không tìm thấy tài khoản nào dùng email này.'
-            else:
+            matched = User.objects.filter(email__iexact=email).first()
+            if matched:
                 form = AuthenticationForm(
                     request,
                     data={'username': matched.username, 'password': password},
                 )
                 if form.is_valid():
+                    cache.delete(throttle_key)
                     login(request, form.get_user())
-                    messages.success(request, f"Xin chào, {request.user.profile.display_name}!")
-                    return redirect(request.GET.get('next') or request.POST.get('next') or 'home')
-                error = 'Email hoặc mật khẩu không chính xác. Vui lòng thử lại.'
+                    messages.success(
+                        request,
+                        f"Xin chào, {request.user.profile.display_name}!",
+                    )
+                    return redirect(next_url or 'home')
+                form = AuthenticationForm()
+
+            # Sai email hoặc sai mật khẩu đều xử lý như nhau.
+            _record_failed_login(throttle_key)
+            error = LOGIN_FAILED_MESSAGE
 
     return render(request, 'registration/login.html', {
         'form': form,
-        'next': request.GET.get('next', ''),
+        'next': next_url,
         'login_error': error,
         'login_email': email,
     })
@@ -1136,7 +1249,9 @@ def edit_profile(request):
     profile, _ = request.user.profile.__class__.objects.get_or_create(user=request.user)
 
     if request.method == 'POST':
-        user_form = ProfileForm(request.POST, instance=request.user)
+        user_form = ProfileForm(
+            request.POST, request.FILES, instance=request.user
+        )
         if user_form.is_valid():
             user_form.save()
 
@@ -1145,8 +1260,9 @@ def edit_profile(request):
             profile.student_id = request.POST.get('student_id', '')
             profile.phone = request.POST.get('phone', '')
             profile.bio = request.POST.get('bio', '')
-            if request.FILES.get('avatar'):
-                profile.avatar = request.FILES['avatar']
+            avatar = user_form.cleaned_data.get('avatar')
+            if avatar:
+                profile.avatar = avatar
             profile.save()
 
             messages.success(request, "✅ Hồ sơ đã được cập nhật.")
